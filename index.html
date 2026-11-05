@@ -323,7 +323,10 @@ button.active {
   border-radius: 3px;
 }
 
-#shopBtn {
+#headerButtons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-left: 18px;
 }
 
@@ -561,9 +564,11 @@ button.locked::after {
         <div class="stat"><span>rolls</span><strong id="rolls">0</strong></div>
         <div class="stat"><span>credits</span><strong id="credits">0</strong></div>
       </div>
-      <button id="achievementsBtn">ACHIEVEMENTS</button>
-      <button id="changelogBtn">UPDATE LOG</button>
-      <button id="shopBtn">SHOP</button>
+      <div id="headerButtons">
+        <button id="achievementsBtn">ACHIEVEMENTS</button>
+        <button id="changelogBtn">UPDATE LOG</button>
+        <button id="shopBtn">SHOP</button>
+      </div>
     </div>
   </header>
 

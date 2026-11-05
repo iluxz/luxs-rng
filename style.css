@@ -316,7 +316,10 @@ button.active {
   border-radius: 3px;
 }
 
-#shopBtn {
+#headerButtons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-left: 18px;
 }
 
