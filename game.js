@@ -9,8 +9,20 @@ const lastRollEl = document.getElementById('lastRoll');
 const luckEl = document.getElementById('luck');
 const speedEl = document.getElementById('speed');
 const rollsEl = document.getElementById('rolls');
+const creditsEl = document.getElementById('credits');
+const shopBtn = document.getElementById('shopBtn');
+const shopModal = document.getElementById('shopModal');
+const shopItems = document.getElementById('shopItems');
+const shopCredits = document.getElementById('shopCredits');
+const shopClose = document.getElementById('shopClose');
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+const upgrades = [
+  { id: 'auto', name: 'Auto Roll', desc: 'rolls automatically based on speed', cost: 100 },
+  { id: 'x10', name: 'x10 Multiplier', desc: 'roll 10 cubes at once', cost: 500 },
+  { id: 'x100', name: 'x100 Multiplier', desc: 'roll 100 cubes at once', cost: 2500 },
+];
 
 const rarities = [
   { name: 'Dust',      odds: 1.5,       cap: 2,        color: '#8a9199', glow: '#aab4bd', luck: 0.1,   speed: 0.02,  particles: 12,  shake: 2,   flash: 0.02, chroma: 0 },
@@ -30,8 +42,10 @@ const rarities = [
 let inventory = {};
 let baseLuck = 1;
 let rolls = 0;
+let credits = 0;
 let autoRoll = false;
 let multiplier = 1;
+let unlocked = { auto: false, x10: false, x100: false };
 let currentRarity = rarities[0];
 let particles = [];
 let shake = 0;
@@ -90,6 +104,7 @@ function triggerRoll(count = 1) {
     inventory[r.name] = (inventory[r.name] || 0) + 1;
     baseLuck += 0.02;
     rolls++;
+    credits += multiplier;
     if (!best || rarities.indexOf(r) > rarities.indexOf(best)) best = r;
   }
   currentRarity = best;
@@ -260,9 +275,12 @@ function updateUI() {
   luckEl.textContent = formatNum(totals.luck) + 'x';
   speedEl.textContent = formatNum(totals.speed) + '/s';
   rollsEl.textContent = formatNum(rolls);
+  creditsEl.textContent = formatNum(credits);
 
   autoInterval = 1000 / totals.speed;
 
+  renderControls();
+  renderShop();
   renderRarityTable(totals.luck);
   renderInventory();
   lastRollEl.innerHTML = `last roll: <strong style="color:${currentRarity.color === 'rainbow' ? '#fff' : currentRarity.color === 'prism' ? '#fff' : currentRarity.color}">${currentRarity.name}</strong>`;
@@ -319,13 +337,75 @@ function resize() {
 }
 
 function setMultiplier(n) {
+  const key = n === 1 ? null : (n === 10 ? 'x10' : 'x100');
+  if (key && !unlocked[key]) return;
   multiplier = n;
-  document.querySelectorAll('#controls button[data-mult]').forEach(b => b.classList.toggle('active', parseInt(b.dataset.mult) === n));
+  renderControls();
 }
 
 function toggleAuto() {
+  if (!unlocked.auto) return;
   autoRoll = !autoRoll;
   document.getElementById('autoBtn').classList.toggle('active', autoRoll);
+}
+
+function renderControls() {
+  const autoBtn = document.getElementById('autoBtn');
+  autoBtn.classList.toggle('active', autoRoll);
+  autoBtn.classList.toggle('locked', !unlocked.auto);
+  autoBtn.textContent = unlocked.auto ? 'AUTO' : 'AUTO 100';
+
+  document.querySelectorAll('#controls button[data-mult]').forEach(b => {
+    const n = parseInt(b.dataset.mult);
+    const key = n === 10 ? 'x10' : 'x100';
+    const own = n === 1 || unlocked[key];
+    b.classList.toggle('active', multiplier === n);
+    b.classList.toggle('locked', !own);
+    b.textContent = own ? 'x' + n : 'x' + n + ' ' + upgrades.find(u => u.id === key).cost;
+  });
+}
+
+function openShop() {
+  shopModal.classList.add('open');
+  renderShop();
+}
+
+function closeShop() {
+  shopModal.classList.remove('open');
+}
+
+function buyUpgrade(id) {
+  const up = upgrades.find(u => u.id === id);
+  if (unlocked[id] || credits < up.cost) return;
+  credits -= up.cost;
+  unlocked[id] = true;
+  if (id === 'x10' && multiplier === 100 && !unlocked.x100) multiplier = 1;
+  if (id === 'auto') autoRoll = true;
+  renderControls();
+  renderShop();
+  updateUI();
+}
+
+function renderShop() {
+  shopCredits.textContent = formatNum(credits);
+  shopItems.innerHTML = '';
+  for (const up of upgrades) {
+    const owned = unlocked[up.id];
+    const canBuy = credits >= up.cost && !owned;
+    const item = document.createElement('div');
+    item.className = 'shop-item' + (owned ? ' owned' : '');
+    item.innerHTML = `
+      <div class="info">
+        <div class="name">${up.name}</div>
+        <div class="desc">${up.desc}</div>
+      </div>
+      <button ${canBuy ? '' : 'disabled'}>${owned ? 'OWNED' : up.cost + ' CR'}</button>
+    `;
+    if (!owned) {
+      item.querySelector('button').addEventListener('click', () => buyUpgrade(up.id));
+    }
+    shopItems.appendChild(item);
+  }
 }
 
 canvas.addEventListener('click', () => triggerRoll(multiplier));
@@ -342,6 +422,9 @@ document.getElementById('autoBtn').addEventListener('click', toggleAuto);
 document.querySelectorAll('#controls button[data-mult]').forEach(b => {
   b.addEventListener('click', () => setMultiplier(parseInt(b.dataset.mult)));
 });
+shopBtn.addEventListener('click', openShop);
+shopClose.addEventListener('click', closeShop);
+shopModal.addEventListener('click', e => { if (e.target === shopModal) closeShop(); });
 
 let lastAuto = 0;
 function loop(ts) {

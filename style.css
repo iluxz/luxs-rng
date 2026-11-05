@@ -315,3 +315,121 @@ button.active {
   background: rgba(43, 208, 208, 0.25);
   border-radius: 3px;
 }
+
+#shopBtn {
+  margin-left: 18px;
+}
+
+#shopModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 3, 4, 0.82);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+#shopModal.open {
+  display: flex;
+}
+
+#shopWindow {
+  width: 420px;
+  max-width: 92vw;
+  max-height: 86vh;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(180, 230, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+#shopWindow h2 {
+  font-family: Georgia, serif;
+  font-size: 16px;
+  letter-spacing: 3px;
+  color: var(--cyan);
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(43, 208, 208, 0.18);
+}
+
+#shopWindow .credit-line {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+#shopWindow .credit-line strong {
+  color: var(--cyan-bright);
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.shop-item .info {
+  flex: 1;
+}
+
+.shop-item .name {
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.shop-item .desc {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.shop-item button {
+  padding: 8px 14px;
+  font-size: 11px;
+}
+
+.shop-item button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: rgba(43, 208, 208, 0.25);
+  color: var(--muted);
+}
+
+.shop-item.owned {
+  border-color: rgba(43, 208, 208, 0.25);
+  opacity: 0.7;
+}
+
+.shop-item.owned .name::after {
+  content: ' (owned)';
+  color: var(--cyan-bright);
+  font-size: 10px;
+}
+
+#shopClose {
+  margin-top: 10px;
+  align-self: center;
+}
+
+button.locked {
+  position: relative;
+  border-color: rgba(255, 60, 120, 0.45);
+  color: #ff9ecd;
+}
+
+button.locked::after {
+  content: '🔒';
+  margin-left: 6px;
+  font-size: 10px;
+}
