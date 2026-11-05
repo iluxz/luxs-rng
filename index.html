@@ -1238,6 +1238,15 @@ function loadGame() {
     if (data.achievementsUnlocked) achievementsUnlocked = { ...achievementsUnlocked, ...data.achievementsUnlocked };
     if (typeof data.startTime === 'number') startTime = data.startTime;
     if (typeof data.bestRarityIndex === 'number' && data.saveVersion === SAVE_VERSION) bestRarityIndex = data.bestRarityIndex;
+
+    // migrate renamed rarities from pre-original-name saves
+    const renameMap = { Divinus: 'Celestial', Crystallized: 'Frosted', Gilded: 'Auric', Arcane: 'Mystic', Galaxy: 'Nebula', Exalted: 'Ascended', Glorious: 'Radiant' };
+    for (const [oldName, newName] of Object.entries(renameMap)) {
+      if (inventory[oldName]) {
+        inventory[newName] = (inventory[newName] || 0) + inventory[oldName];
+        delete inventory[oldName];
+      }
+    }
   } catch (e) {}
 }
 
