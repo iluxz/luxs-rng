@@ -277,7 +277,7 @@ function updateUI() {
   rollsEl.textContent = formatNum(rolls);
   creditsEl.textContent = formatNum(credits);
 
-  autoInterval = 1000 / totals.speed;
+  autoInterval = 2000 / totals.speed;
 
   renderControls();
   renderShop();
