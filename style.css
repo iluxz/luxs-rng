@@ -320,7 +320,7 @@ button.active {
   margin-left: 18px;
 }
 
-#shopModal {
+.modal {
   position: fixed;
   inset: 0;
   background: rgba(2, 3, 4, 0.82);
@@ -331,12 +331,12 @@ button.active {
   justify-content: center;
 }
 
-#shopModal.open {
+.modal.open {
   display: flex;
 }
 
-#shopWindow {
-  width: 420px;
+.modal-window {
+  width: 460px;
   max-width: 92vw;
   max-height: 86vh;
   background: var(--panel);
@@ -348,7 +348,7 @@ button.active {
   flex-direction: column;
 }
 
-#shopWindow h2 {
+.modal-window h2 {
   font-family: Georgia, serif;
   font-size: 16px;
   letter-spacing: 3px;
@@ -358,14 +358,19 @@ button.active {
   border-bottom: 1px solid rgba(43, 208, 208, 0.18);
 }
 
-#shopWindow .credit-line {
+.modal-window .credit-line {
   font-size: 12px;
   color: var(--muted);
   margin-bottom: 14px;
 }
 
-#shopWindow .credit-line strong {
+.modal-window .credit-line strong {
   color: var(--cyan-bright);
+}
+
+#achievementsList, #changelogList {
+  overflow-y: auto;
+  font-size: 11px;
 }
 
 .shop-item {
@@ -420,6 +425,107 @@ button.active {
 #shopClose {
   margin-top: 10px;
   align-self: center;
+}
+
+.achievement {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  opacity: 0.45;
+}
+
+.achievement.unlocked {
+  opacity: 1;
+  border-color: rgba(43, 208, 208, 0.35);
+  background: rgba(43, 208, 208, 0.08);
+}
+
+.achievement .icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  background: rgba(10, 16, 24, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.achievement.unlocked .icon {
+  background: rgba(43, 208, 208, 0.2);
+  border-color: rgba(43, 208, 208, 0.5);
+}
+
+.achievement .info {
+  flex: 1;
+}
+
+.achievement .name {
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.achievement .desc {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.achievement .reward {
+  font-size: 10px;
+  color: var(--cyan-bright);
+  text-align: right;
+}
+
+.changelog-item {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(43, 208, 208, 0.1);
+}
+
+.changelog-item:last-child {
+  border-bottom: none;
+}
+
+.changelog-item .version {
+  color: var(--cyan);
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.changelog-item .note {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 16, 24, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  color: var(--cyan-bright);
+  font-size: 12px;
+  letter-spacing: 1px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+#toast.show {
+  opacity: 1;
 }
 
 button.locked {

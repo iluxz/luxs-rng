@@ -15,6 +15,18 @@ const shopModal = document.getElementById('shopModal');
 const shopItems = document.getElementById('shopItems');
 const shopCredits = document.getElementById('shopCredits');
 const shopClose = document.getElementById('shopClose');
+const achievementsBtn = document.getElementById('achievementsBtn');
+const achievementsModal = document.getElementById('achievementsModal');
+const achievementsList = document.getElementById('achievementsList');
+const achievementsClose = document.getElementById('achievementsClose');
+const changelogBtn = document.getElementById('changelogBtn');
+const changelogModal = document.getElementById('changelogModal');
+const changelogList = document.getElementById('changelogList');
+const changelogClose = document.getElementById('changelogClose');
+const toast = document.getElementById('toast');
+const bestRollStat = document.getElementById('bestRollStat');
+const playtimeStat = document.getElementById('playtimeStat');
+const resetSaveBtn = document.getElementById('resetSaveBtn');
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -23,6 +35,37 @@ const upgrades = [
   { id: 'x10', name: 'x10 Multiplier', desc: 'roll 10 cubes at once', cost: 500 },
   { id: 'x100', name: 'x100 Multiplier', desc: 'roll 100 cubes at once', cost: 2500 },
 ];
+
+const achievements = [
+  { id: 'roll10', name: 'Just Getting Started', desc: 'roll 10 times', check: () => rolls >= 10, reward: { luck: 0.1 } },
+  { id: 'roll100', name: 'Dedication', desc: 'roll 100 times', check: () => rolls >= 100, reward: { luck: 0.25 } },
+  { id: 'roll1000', name: 'Addicted', desc: 'roll 1,000 times', check: () => rolls >= 1000, reward: { luck: 0.75 } },
+  { id: 'roll10000', name: 'No Life', desc: 'roll 10,000 times', check: () => rolls >= 10000, reward: { luck: 2 } },
+  { id: 'roll100000', name: 'Touch Grass', desc: 'roll 100,000 times', check: () => rolls >= 100000, reward: { luck: 5 } },
+  { id: 'credits100', name: 'Pocket Change', desc: 'earn 100 credits', check: () => credits >= 100, reward: { speed: 0.1 } },
+  { id: 'credits1000', name: 'Big Spender', desc: 'earn 1,000 credits', check: () => credits >= 1000, reward: { speed: 0.25 } },
+  { id: 'credits10000', name: 'Economy Crusher', desc: 'earn 10,000 credits', check: () => credits >= 10000, reward: { speed: 0.75 } },
+  { id: 'rare', name: 'First Spark', desc: 'roll a Rare cube', check: () => (inventory['Rare'] || 0) > 0, reward: { luck: 0.15 } },
+  { id: 'epic', name: 'Purple Haze', desc: 'roll an Epic cube', check: () => (inventory['Epic'] || 0) > 0, reward: { luck: 0.35 } },
+  { id: 'legendary', name: 'Golden Child', desc: 'roll a Legendary cube', check: () => (inventory['Legendary'] || 0) > 0, reward: { luck: 1 } },
+  { id: 'mythic', name: 'Red Alert', desc: 'roll a Mythic cube', check: () => (inventory['Mythic'] || 0) > 0, reward: { speed: 0.5 } },
+  { id: 'divine', name: 'Blessed', desc: 'roll a Divine cube', check: () => (inventory['Divine'] || 0) > 0, reward: { speed: 1 } },
+  { id: 'cosmic', name: 'Star Born', desc: 'roll a Cosmic cube', check: () => (inventory['Cosmic'] || 0) > 0, reward: { luck: 5 } },
+  { id: 'null', name: 'Error 404', desc: 'roll a Null cube', check: () => (inventory['Null'] || 0) > 0, reward: { luck: 15 } },
+  { id: 'secret', name: '????', desc: 'roll a ??? cube', check: () => (inventory['???'] || 0) > 0, reward: { luck: 50 } },
+  { id: 'unlockAuto', name: 'Lazy Mode', desc: 'buy auto roll', check: () => unlocked.auto, reward: { speed: 0.1 } },
+  { id: 'unlockX10', name: 'Bulk Buyer', desc: 'buy x10 multiplier', check: () => unlocked.x10, reward: { luck: 0.2 } },
+  { id: 'unlockX100', name: 'Whale', desc: 'buy x100 multiplier', check: () => unlocked.x100, reward: { luck: 1 } },
+];
+
+const changelog = [
+  { version: 'v0.4', note: 'added achievements that give permanent luck/speed boosts + update log' },
+  { version: 'v0.3', note: 'added localStorage save/load, nerfed auto roll to half speed' },
+  { version: 'v0.2', note: 'added shop: auto roll, x10, x100 locked behind credits' },
+  { version: 'v0.1', note: 'initial release: rolling, rarities, inventory, particles' },
+];
+
+let achievementsUnlocked = {};
 
 const rarities = [
   { name: 'Dust',      odds: 1.5,       cap: 2,        color: '#8a9199', glow: '#aab4bd', luck: 0.1,   speed: 0.02,  particles: 12,  shake: 2,   flash: 0.02, chroma: 0 },
@@ -52,7 +95,8 @@ let shake = 0;
 let chroma = 0;
 let cubeRot = 0;
 let lastRollTime = 0;
-let autoTimer = 0;
+let bestRarityIndex = 0;
+let startTime = Date.now();
 let autoInterval = 1000;
 
 function formatNum(n) {
@@ -64,9 +108,21 @@ function formatNum(n) {
   return short.toFixed(2) + suffixes[exp - 1];
 }
 
+function getAchievementBonus() {
+  let luck = 0, speed = 0;
+  for (const a of achievements) {
+    if (achievementsUnlocked[a.id]) {
+      luck += a.reward.luck || 0;
+      speed += a.reward.speed || 0;
+    }
+  }
+  return { luck, speed };
+}
+
 function getTotals() {
-  let luck = baseLuck;
-  let speed = 1;
+  const ab = getAchievementBonus();
+  let luck = baseLuck + ab.luck;
+  let speed = 1 + ab.speed;
   for (const r of rarities) {
     const count = inventory[r.name] || 0;
     luck += count * r.luck;
@@ -109,10 +165,12 @@ function triggerRoll(count = 1) {
   }
   currentRarity = best;
   const idx = rarities.indexOf(best);
+  if (idx > bestRarityIndex) bestRarityIndex = idx;
   triggerEffects(best);
   playTone(idx);
   updateUI();
   showRollText(best);
+  checkAchievements();
   saveGame();
 }
 
@@ -200,14 +258,12 @@ function draw() {
 
   ctx.clearRect(0, 0, w, h);
 
-  // background vignette
   const grad = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.max(w, h) * 0.6);
   grad.addColorStop(0, 'rgba(20, 40, 58, 0.35)');
   grad.addColorStop(1, 'rgba(2, 3, 4, 0)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
-  // central cube
   const size = Math.min(w, h) * 0.22;
   const cx = w / 2;
   const cy = h / 2;
@@ -228,7 +284,6 @@ function draw() {
   ctx.fillRect(-size / 2, -size / 2, size, size);
   ctx.strokeRect(-size / 2, -size / 2, size, size);
 
-  // inner cross
   ctx.globalAlpha = 0.25;
   ctx.beginPath();
   ctx.moveTo(-size / 2, -size / 2);
@@ -240,7 +295,6 @@ function draw() {
 
   ctx.restore();
 
-  // particles
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.x += p.vx;
@@ -263,7 +317,6 @@ function draw() {
 
   ctx.restore();
 
-  // chromatic overlay
   chromatic.style.opacity = Math.max(0, chroma * 0.35);
   chroma *= 0.96;
   if (chroma < 0.01) chroma = 0;
@@ -285,6 +338,12 @@ function updateUI() {
   renderRarityTable(totals.luck);
   renderInventory();
   lastRollEl.innerHTML = `last roll: <strong style="color:${currentRarity.color === 'rainbow' ? '#fff' : currentRarity.color === 'prism' ? '#fff' : currentRarity.color}">${currentRarity.name}</strong>`;
+
+  const best = rarities[bestRarityIndex];
+  bestRollStat.innerHTML = `<span style="color:${best.color === 'rainbow' ? '#fff' : best.color === 'prism' ? '#fff' : best.color}">${best.name}</span>`;
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const pt = elapsed < 60 ? elapsed + 's' : elapsed < 3600 ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's' : Math.floor(elapsed / 3600) + 'h ' + Math.floor((elapsed % 3600) / 60) + 'm';
+  playtimeStat.textContent = pt;
 }
 
 function renderRarityTable(luck) {
@@ -410,6 +469,40 @@ function renderShop() {
   }
 }
 
+function renderAchievements() {
+  achievementsList.innerHTML = '';
+  for (const a of achievements) {
+    const own = achievementsUnlocked[a.id];
+    const el = document.createElement('div');
+    el.className = 'achievement' + (own ? ' unlocked' : '');
+    const rwd = [];
+    if (a.reward.luck) rwd.push('+' + a.reward.luck + ' luck');
+    if (a.reward.speed) rwd.push('+' + a.reward.speed + ' speed');
+    el.innerHTML = `
+      <div class="icon">${own ? '★' : '☆'}</div>
+      <div class="info">
+        <div class="name">${a.name}</div>
+        <div class="desc">${a.desc}</div>
+      </div>
+      <div class="reward">${rwd.join('<br>')}</div>
+    `;
+    achievementsList.appendChild(el);
+  }
+}
+
+function renderChangelog() {
+  changelogList.innerHTML = '';
+  for (const c of changelog) {
+    const el = document.createElement('div');
+    el.className = 'changelog-item';
+    el.innerHTML = `<div class="version">${c.version}</div><div class="note">${c.note}</div>`;
+    changelogList.appendChild(el);
+  }
+}
+
+function openModal(modal) { modal.classList.add('open'); }
+function closeModal(modal) { modal.classList.remove('open'); }
+
 canvas.addEventListener('click', () => triggerRoll(multiplier));
 window.addEventListener('keydown', e => {
   if (e.code === 'Space') {
@@ -424,14 +517,23 @@ document.getElementById('autoBtn').addEventListener('click', toggleAuto);
 document.querySelectorAll('#controls button[data-mult]').forEach(b => {
   b.addEventListener('click', () => setMultiplier(parseInt(b.dataset.mult)));
 });
-shopBtn.addEventListener('click', openShop);
-shopClose.addEventListener('click', closeShop);
-shopModal.addEventListener('click', e => { if (e.target === shopModal) closeShop(); });
+shopBtn.addEventListener('click', () => { openModal(shopModal); renderShop(); });
+shopClose.addEventListener('click', () => closeModal(shopModal));
+shopModal.addEventListener('click', e => { if (e.target === shopModal) closeModal(shopModal); });
+
+achievementsBtn.addEventListener('click', () => { openModal(achievementsModal); renderAchievements(); });
+achievementsClose.addEventListener('click', () => closeModal(achievementsModal));
+achievementsModal.addEventListener('click', e => { if (e.target === achievementsModal) closeModal(achievementsModal); });
+
+changelogBtn.addEventListener('click', () => { openModal(changelogModal); renderChangelog(); });
+changelogClose.addEventListener('click', () => closeModal(changelogModal));
+changelogModal.addEventListener('click', e => { if (e.target === changelogModal) closeModal(changelogModal); });
+resetSaveBtn.addEventListener('click', resetSave);
 
 function saveGame() {
   try {
     localStorage.setItem('luxRngSave', JSON.stringify({
-      inventory, baseLuck, rolls, credits, unlocked, multiplier, autoRoll
+      inventory, baseLuck, rolls, credits, unlocked, multiplier, autoRoll, achievementsUnlocked, bestRarityIndex, startTime
     }));
   } catch (e) {}
 }
@@ -448,7 +550,49 @@ function loadGame() {
     if (data.unlocked) unlocked = { ...unlocked, ...data.unlocked };
     if (typeof data.multiplier === 'number') multiplier = data.multiplier;
     if (typeof data.autoRoll === 'boolean') autoRoll = data.autoRoll;
+    if (data.achievementsUnlocked) achievementsUnlocked = { ...achievementsUnlocked, ...data.achievementsUnlocked };
+    if (typeof data.bestRarityIndex === 'number') bestRarityIndex = data.bestRarityIndex;
+    if (typeof data.startTime === 'number') startTime = data.startTime;
   } catch (e) {}
+}
+
+function showToast(text) {
+  toast.textContent = text;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function resetSave() {
+  if (!confirm('reset all progress? this cannot be undone.')) return;
+  inventory = {};
+  baseLuck = 1;
+  rolls = 0;
+  credits = 0;
+  autoRoll = false;
+  multiplier = 1;
+  unlocked = { auto: false, x10: false, x100: false };
+  achievementsUnlocked = {};
+  bestRarityIndex = 0;
+  startTime = Date.now();
+  currentRarity = rarities[0];
+  localStorage.removeItem('luxRngSave');
+  updateUI();
+  showToast('save reset');
+}
+
+function checkAchievements() {
+  let newUnlock = false;
+  for (const a of achievements) {
+    if (!achievementsUnlocked[a.id] && a.check()) {
+      achievementsUnlocked[a.id] = true;
+      newUnlock = true;
+      showToast('achievement unlocked: ' + a.name);
+    }
+  }
+  if (newUnlock) {
+    saveGame();
+    renderAchievements();
+  }
 }
 
 let lastAuto = 0;
