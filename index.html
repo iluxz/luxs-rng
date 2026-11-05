@@ -661,9 +661,15 @@ const resetSaveBtn = document.getElementById('resetSaveBtn');
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 const upgrades = [
-  { id: 'auto', name: 'Auto Roll', desc: 'rolls automatically based on speed', cost: 100 },
-  { id: 'x10', name: 'x10 Multiplier', desc: 'roll 10 cubes at once', cost: 500 },
-  { id: 'x100', name: 'x100 Multiplier', desc: 'roll 100 cubes at once', cost: 2500 },
+  { id: 'auto', name: 'Auto Roll', desc: 'rolls automatically based on speed', cost: 100, type: 'unlock' },
+  { id: 'x10', name: 'x10 Multiplier', desc: 'roll 10 cubes at once', cost: 500, type: 'unlock' },
+  { id: 'x100', name: 'x100 Multiplier', desc: 'roll 100 cubes at once', cost: 2500, type: 'unlock' },
+  { id: 'luckBracelet', name: 'Luck Bracelet', desc: '+0.5 permanent luck', cost: 1000, type: 'stack', effect: { luck: 0.5 }, max: 10 },
+  { id: 'speedBracelet', name: 'Speed Bracelet', desc: '+0.2 permanent speed', cost: 1000, type: 'stack', effect: { speed: 0.2 }, max: 10 },
+  { id: 'luckyGloves', name: 'Lucky Gloves', desc: '+2 permanent luck', cost: 5000, type: 'stack', effect: { luck: 2 }, max: 5 },
+  { id: 'hasteBoots', name: 'Haste Boots', desc: '+1 permanent speed', cost: 5000, type: 'stack', effect: { speed: 1 }, max: 5 },
+  { id: 'fortuneTalisman', name: 'Fortune Talisman', desc: '+10 permanent luck', cost: 25000, type: 'stack', effect: { luck: 10 }, max: 3 },
+  { id: 'swiftTalisman', name: 'Swift Talisman', desc: '+5 permanent speed', cost: 25000, type: 'stack', effect: { speed: 5 }, max: 3 },
 ];
 
 const achievements = [
@@ -676,12 +682,19 @@ const achievements = [
   { id: 'credits1000', name: 'Big Spender', desc: 'earn 1,000 credits', check: () => credits >= 1000, reward: { speed: 0.25 } },
   { id: 'credits10000', name: 'Economy Crusher', desc: 'earn 10,000 credits', check: () => credits >= 10000, reward: { speed: 0.75 } },
   { id: 'rare', name: 'First Spark', desc: 'roll a Rare cube', check: () => (inventory['Rare'] || 0) > 0, reward: { luck: 0.15 } },
+  { id: 'divinus', name: 'Divine Light', desc: 'roll a Divinus cube', check: () => (inventory['Divinus'] || 0) > 0, reward: { luck: 0.25 } },
   { id: 'epic', name: 'Purple Haze', desc: 'roll an Epic cube', check: () => (inventory['Epic'] || 0) > 0, reward: { luck: 0.35 } },
+  { id: 'crystallized', name: 'Ice Cold', desc: 'roll a Crystallized cube', check: () => (inventory['Crystallized'] || 0) > 0, reward: { luck: 0.5 } },
   { id: 'legendary', name: 'Golden Child', desc: 'roll a Legendary cube', check: () => (inventory['Legendary'] || 0) > 0, reward: { luck: 1 } },
+  { id: 'gilded', name: 'Gold Rush', desc: 'roll a Gilded cube', check: () => (inventory['Gilded'] || 0) > 0, reward: { speed: 0.25 } },
   { id: 'mythic', name: 'Red Alert', desc: 'roll a Mythic cube', check: () => (inventory['Mythic'] || 0) > 0, reward: { speed: 0.5 } },
+  { id: 'arcane', name: 'Wizard', desc: 'roll an Arcane cube', check: () => (inventory['Arcane'] || 0) > 0, reward: { luck: 3 } },
   { id: 'divine', name: 'Blessed', desc: 'roll a Divine cube', check: () => (inventory['Divine'] || 0) > 0, reward: { speed: 1 } },
-  { id: 'cosmic', name: 'Star Born', desc: 'roll a Cosmic cube', check: () => (inventory['Cosmic'] || 0) > 0, reward: { luck: 5 } },
+  { id: 'galaxy', name: 'Space Walk', desc: 'roll a Galaxy cube', check: () => (inventory['Galaxy'] || 0) > 0, reward: { luck: 5 } },
+  { id: 'cosmic', name: 'Star Born', desc: 'roll a Cosmic cube', check: () => (inventory['Cosmic'] || 0) > 0, reward: { luck: 8 } },
+  { id: 'exalted', name: 'Above All', desc: 'roll an Exalted cube', check: () => (inventory['Exalted'] || 0) > 0, reward: { speed: 3 } },
   { id: 'null', name: 'Error 404', desc: 'roll a Null cube', check: () => (inventory['Null'] || 0) > 0, reward: { luck: 15 } },
+  { id: 'glorious', name: 'Glory', desc: 'roll a Glorious cube', check: () => (inventory['Glorious'] || 0) > 0, reward: { luck: 25 } },
   { id: 'secret', name: '????', desc: 'roll a ??? cube', check: () => (inventory['???'] || 0) > 0, reward: { luck: 50 } },
   { id: 'unlockAuto', name: 'Lazy Mode', desc: 'buy auto roll', check: () => unlocked.auto, reward: { speed: 0.1 } },
   { id: 'unlockX10', name: 'Bulk Buyer', desc: 'buy x10 multiplier', check: () => unlocked.x10, reward: { luck: 0.2 } },
@@ -689,6 +702,7 @@ const achievements = [
 ];
 
 const changelog = [
+  { version: 'v0.5', note: 'added 8 new rarities + stackable shop gear (bracelets, gloves, talismans)' },
   { version: 'v0.4', note: 'added achievements that give permanent luck/speed boosts + update log' },
   { version: 'v0.3', note: 'added localStorage save/load, nerfed auto roll to half speed' },
   { version: 'v0.2', note: 'added shop: auto roll, x10, x100 locked behind credits' },
@@ -698,18 +712,26 @@ const changelog = [
 let achievementsUnlocked = {};
 
 const rarities = [
-  { name: 'Dust',      odds: 1.5,       cap: 2,        color: '#8a9199', glow: '#aab4bd', luck: 0.1,   speed: 0.02,  particles: 12,  shake: 2,   flash: 0.02, chroma: 0 },
-  { name: 'Scrap',     odds: 3,         cap: 5,        color: '#6b9e5e', glow: '#9eff8a', luck: 0.25,  speed: 0.04,  particles: 16,  shake: 3,   flash: 0.03, chroma: 0 },
-  { name: 'Common',    odds: 8,         cap: 10,       color: '#d8e6f2', glow: '#ffffff', luck: 0.5,   speed: 0.06,  particles: 20,  shake: 4,   flash: 0.04, chroma: 0 },
-  { name: 'Uncommon',  odds: 25,        cap: 50,       color: '#5ad06a', glow: '#8eff9e', luck: 1.5,   speed: 0.10,  particles: 28,  shake: 5,   flash: 0.06, chroma: 0.05 },
-  { name: 'Rare',      odds: 120,       cap: 300,      color: '#5ad0ff', glow: '#9eefff', luck: 8,     speed: 0.18,  particles: 40,  shake: 7,   flash: 0.10, chroma: 0.1 },
-  { name: 'Epic',      odds: 800,       cap: 2000,     color: '#b85aff', glow: '#e5a0ff', luck: 40,    speed: 0.30,  particles: 60,  shake: 10,  flash: 0.16, chroma: 0.18 },
-  { name: 'Legendary', odds: 6000,      cap: 20000,    color: '#ffce5a', glow: '#ffeeaa', luck: 250,   speed: 0.55,  particles: 90,  shake: 14,  flash: 0.25, chroma: 0.28 },
-  { name: 'Mythic',    odds: 60000,     cap: 200000,   color: '#ff4a4a', glow: '#ffaaaa', luck: 1800,  speed: 1.0,   particles: 130, shake: 20,  flash: 0.38, chroma: 0.40 },
-  { name: 'Divine',    odds: 800000,    cap: 3000000,  color: '#a0f0ff', glow: '#e0ffff', luck: 15000, speed: 2.0,   particles: 180, shake: 28,  flash: 0.55, chroma: 0.55 },
-  { name: 'Cosmic',    odds: 12000000,  cap: 60000000, color: 'rainbow',  glow: '#ffffff', luck: 250000,speed: 5.0,   particles: 260, shake: 40,  flash: 0.75, chroma: 0.72 },
-  { name: 'Null',      odds: 250000000, cap: 1500000000,color:'#0a0a0a', glow: '#ffffff', luck: 5000000,speed: 15.0,  particles: 360, shake: 60,  flash: 0.90, chroma: 0.90 },
-  { name: '???',       odds: 10000000000,cap:100000000000,color:'prism',  glow: '#ffffff', luck: 200000000,speed:50.0, particles: 500, shake: 100, flash: 1.00, chroma: 1.00 },
+  { name: 'Dust',        odds: 1.5,        cap: 2,          color: '#8a9199', glow: '#aab4bd', luck: 0.1,     speed: 0.02,  particles: 12,  shake: 2,    flash: 0.02, chroma: 0 },
+  { name: 'Scrap',       odds: 3,          cap: 5,          color: '#6b9e5e', glow: '#9eff8a', luck: 0.25,    speed: 0.04,  particles: 16,  shake: 3,    flash: 0.03, chroma: 0 },
+  { name: 'Common',      odds: 8,          cap: 10,         color: '#d8e6f2', glow: '#ffffff', luck: 0.5,     speed: 0.06,  particles: 20,  shake: 4,    flash: 0.04, chroma: 0 },
+  { name: 'Good',        odds: 16,         cap: 24,         color: '#5af0a0', glow: '#a0ffd0', luck: 1.0,     speed: 0.08,  particles: 24,  shake: 4.5,  flash: 0.05, chroma: 0 },
+  { name: 'Uncommon',    odds: 25,         cap: 50,         color: '#5ad06a', glow: '#8eff9e', luck: 1.5,     speed: 0.10,  particles: 28,  shake: 5,    flash: 0.06, chroma: 0.05 },
+  { name: 'Rare',        odds: 120,        cap: 300,        color: '#5ad0ff', glow: '#9eefff', luck: 8,       speed: 0.18,  particles: 40,  shake: 7,    flash: 0.10, chroma: 0.1 },
+  { name: 'Divinus',     odds: 300,        cap: 900,        color: '#f0e6a0', glow: '#fff8c0', luck: 18,      speed: 0.24,  particles: 48,  shake: 8,    flash: 0.12, chroma: 0.12 },
+  { name: 'Epic',        odds: 800,        cap: 2000,       color: '#b85aff', glow: '#e5a0ff', luck: 40,      speed: 0.30,  particles: 60,  shake: 10,   flash: 0.16, chroma: 0.18 },
+  { name: 'Crystallized',odds: 2500,       cap: 8000,       color: '#00f0d0', glow: '#80fff0', luck: 100,     speed: 0.40,  particles: 72,  shake: 11,   flash: 0.19, chroma: 0.22 },
+  { name: 'Legendary',   odds: 6000,       cap: 20000,      color: '#ffce5a', glow: '#ffeeaa', luck: 250,     speed: 0.55,  particles: 90,  shake: 14,   flash: 0.25, chroma: 0.28 },
+  { name: 'Gilded',      odds: 25000,      cap: 100000,     color: '#d4af37', glow: '#ffe070', luck: 750,     speed: 0.75,  particles: 110, shake: 16,   flash: 0.30, chroma: 0.32 },
+  { name: 'Mythic',      odds: 60000,      cap: 200000,     color: '#ff4a4a', glow: '#ffaaaa', luck: 1800,    speed: 1.0,   particles: 130, shake: 20,   flash: 0.38, chroma: 0.40 },
+  { name: 'Arcane',      odds: 400000,     cap: 2500000,    color: '#a020f0', glow: '#d080ff', luck: 12000,   speed: 1.6,   particles: 170, shake: 25,   flash: 0.50, chroma: 0.50 },
+  { name: 'Divine',      odds: 800000,     cap: 3000000,    color: '#a0f0ff', glow: '#e0ffff', luck: 15000,   speed: 2.0,   particles: 180, shake: 28,   flash: 0.55, chroma: 0.55 },
+  { name: 'Galaxy',      odds: 5000000,    cap: 25000000,   color: '#4050ff', glow: '#8090ff', luck: 80000,   speed: 3.0,   particles: 220, shake: 34,   flash: 0.65, chroma: 0.62 },
+  { name: 'Cosmic',      odds: 12000000,   cap: 60000000,   color: 'rainbow',  glow: '#ffffff', luck: 250000,  speed: 5.0,   particles: 260, shake: 40,   flash: 0.75, chroma: 0.72 },
+  { name: 'Exalted',     odds: 150000000,  cap: 800000000,  color: '#ff8040', glow: '#ffbc80', luck: 2500000, speed: 10.0,  particles: 320, shake: 50,   flash: 0.82, chroma: 0.78 },
+  { name: 'Null',        odds: 250000000,  cap: 1500000000, color:'#0a0a0a',  glow: '#ffffff', luck: 5000000, speed: 15.0,  particles: 360, shake: 60,   flash: 0.90, chroma: 0.90 },
+  { name: 'Glorious',    odds: 3000000000, cap: 20000000000,color: '#fff0c0', glow: '#fffee0', luck: 50000000,speed: 30.0,  particles: 430, shake: 80,   flash: 0.95, chroma: 0.95 },
+  { name: '???',         odds: 10000000000,cap:100000000000,color:'prism',    glow: '#ffffff', luck: 200000000,speed:50.0, particles: 500, shake: 100,  flash: 1.00, chroma: 1.00 },
 ];
 
 let inventory = {};
@@ -719,6 +741,7 @@ let credits = 0;
 let autoRoll = false;
 let multiplier = 1;
 let unlocked = { auto: false, x10: false, x100: false };
+let shopCounts = { luckBracelet: 0, speedBracelet: 0, luckyGloves: 0, hasteBoots: 0, fortuneTalisman: 0, swiftTalisman: 0 };
 let currentRarity = rarities[0];
 let particles = [];
 let shake = 0;
@@ -749,10 +772,23 @@ function getAchievementBonus() {
   return { luck, speed };
 }
 
+function getShopBonus() {
+  let luck = 0, speed = 0;
+  for (const up of upgrades) {
+    if (up.type === 'stack') {
+      const count = shopCounts[up.id] || 0;
+      luck += count * (up.effect.luck || 0);
+      speed += count * (up.effect.speed || 0);
+    }
+  }
+  return { luck, speed };
+}
+
 function getTotals() {
   const ab = getAchievementBonus();
-  let luck = baseLuck + ab.luck;
-  let speed = 1 + ab.speed;
+  const sb = getShopBonus();
+  let luck = baseLuck + ab.luck + sb.luck;
+  let speed = 1 + ab.speed + sb.speed;
   for (const r of rarities) {
     const count = inventory[r.name] || 0;
     luck += count * r.luck;
@@ -1066,11 +1102,18 @@ function closeShop() {
 
 function buyUpgrade(id) {
   const up = upgrades.find(u => u.id === id);
-  if (unlocked[id] || credits < up.cost) return;
-  credits -= up.cost;
-  unlocked[id] = true;
-  if (id === 'x10' && multiplier === 100 && !unlocked.x100) multiplier = 1;
-  if (id === 'auto') autoRoll = true;
+  if (up.type === 'unlock') {
+    if (unlocked[id] || credits < up.cost) return;
+    credits -= up.cost;
+    unlocked[id] = true;
+    if (id === 'x10' && multiplier === 100 && !unlocked.x100) multiplier = 1;
+    if (id === 'auto') autoRoll = true;
+  } else {
+    const count = shopCounts[id] || 0;
+    if (count >= up.max || credits < up.cost) return;
+    credits -= up.cost;
+    shopCounts[id] = count + 1;
+  }
   renderControls();
   renderShop();
   updateUI();
@@ -1081,18 +1124,22 @@ function renderShop() {
   shopCredits.textContent = formatNum(credits);
   shopItems.innerHTML = '';
   for (const up of upgrades) {
-    const owned = unlocked[up.id];
-    const canBuy = credits >= up.cost && !owned;
+    const isUnlock = up.type === 'unlock';
+    const owned = isUnlock && unlocked[up.id];
+    const count = shopCounts[up.id] || 0;
+    const maxed = !isUnlock && count >= up.max;
+    const canBuy = credits >= up.cost && !owned && !maxed;
     const item = document.createElement('div');
-    item.className = 'shop-item' + (owned ? ' owned' : '');
+    item.className = 'shop-item' + ((owned || maxed) ? ' owned' : '');
+    const countText = isUnlock ? '' : ` (${count}/${up.max})`;
     item.innerHTML = `
       <div class="info">
-        <div class="name">${up.name}</div>
+        <div class="name">${up.name}${countText}</div>
         <div class="desc">${up.desc}</div>
       </div>
-      <button ${canBuy ? '' : 'disabled'}>${owned ? 'OWNED' : up.cost + ' CR'}</button>
+      <button ${canBuy ? '' : 'disabled'}>${owned ? 'OWNED' : maxed ? 'MAXED' : up.cost + ' CR'}</button>
     `;
-    if (!owned) {
+    if (!owned && !maxed) {
       item.querySelector('button').addEventListener('click', () => buyUpgrade(up.id));
     }
     shopItems.appendChild(item);
@@ -1160,10 +1207,12 @@ changelogClose.addEventListener('click', () => closeModal(changelogModal));
 changelogModal.addEventListener('click', e => { if (e.target === changelogModal) closeModal(changelogModal); });
 resetSaveBtn.addEventListener('click', resetSave);
 
+const SAVE_VERSION = 2;
+
 function saveGame() {
   try {
     localStorage.setItem('luxRngSave', JSON.stringify({
-      inventory, baseLuck, rolls, credits, unlocked, multiplier, autoRoll, achievementsUnlocked, bestRarityIndex, startTime
+      saveVersion: SAVE_VERSION, inventory, baseLuck, rolls, credits, unlocked, shopCounts, multiplier, autoRoll, achievementsUnlocked, bestRarityIndex, startTime
     }));
   } catch (e) {}
 }
@@ -1178,11 +1227,12 @@ function loadGame() {
     if (typeof data.rolls === 'number') rolls = data.rolls;
     if (typeof data.credits === 'number') credits = data.credits;
     if (data.unlocked) unlocked = { ...unlocked, ...data.unlocked };
+    if (data.shopCounts) shopCounts = { ...shopCounts, ...data.shopCounts };
     if (typeof data.multiplier === 'number') multiplier = data.multiplier;
     if (typeof data.autoRoll === 'boolean') autoRoll = data.autoRoll;
     if (data.achievementsUnlocked) achievementsUnlocked = { ...achievementsUnlocked, ...data.achievementsUnlocked };
-    if (typeof data.bestRarityIndex === 'number') bestRarityIndex = data.bestRarityIndex;
     if (typeof data.startTime === 'number') startTime = data.startTime;
+    if (typeof data.bestRarityIndex === 'number' && data.saveVersion === SAVE_VERSION) bestRarityIndex = data.bestRarityIndex;
   } catch (e) {}
 }
 
@@ -1201,6 +1251,7 @@ function resetSave() {
   autoRoll = false;
   multiplier = 1;
   unlocked = { auto: false, x10: false, x100: false };
+  shopCounts = { luckBracelet: 0, speedBracelet: 0, luckyGloves: 0, hasteBoots: 0, fortuneTalisman: 0, swiftTalisman: 0 };
   achievementsUnlocked = {};
   bestRarityIndex = 0;
   startTime = Date.now();
