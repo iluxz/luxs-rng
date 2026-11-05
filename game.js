@@ -145,7 +145,7 @@ function playTone(rarityIndex) {
 function showRollText(r) {
   rollText.querySelector('.rarity-name').textContent = r.name;
   rollText.querySelector('.rarity-name').style.color = r.color === 'rainbow' ? '#fff' : r.color === 'prism' ? '#fff' : r.color;
-  rollText.querySelector('.rarity-tag').textContent = 'AURA ROLLED';
+  rollText.querySelector('.rarity-tag').textContent = 'CUBE ROLLED';
   rollText.style.opacity = 1;
   rollText.style.transform = 'translateX(-50%) scale(1.1)';
   lastRollTime = Date.now();
