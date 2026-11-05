@@ -586,9 +586,6 @@ button.locked::after {
       <div id="controls">
         <button id="rollBtn">ROLL</button>
         <button id="autoBtn">AUTO</button>
-        <button data-mult="1" class="active">x1</button>
-        <button data-mult="10">x10</button>
-        <button data-mult="100">x100</button>
       </div>
     </section>
 
@@ -665,11 +662,10 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 const upgrades = [
   { id: 'auto', name: 'Auto Roll', desc: 'rolls automatically every 0.8s', cost: 100, type: 'unlock' },
-  { id: 'x10', name: 'x10 Multiplier', desc: 'roll 10 cubes at once', cost: 500, type: 'unlock' },
-  { id: 'x100', name: 'x100 Multiplier', desc: 'roll 100 cubes at once', cost: 50000, type: 'unlock' },
   { id: 'luckBracelet', name: 'Luck Bracelet', desc: '+0.5 permanent luck', cost: 1000, type: 'stack', effect: { luck: 0.5 }, max: 10 },
   { id: 'luckyGloves', name: 'Lucky Gloves', desc: '+2 permanent luck', cost: 5000, type: 'stack', effect: { luck: 2 }, max: 5 },
   { id: 'fortuneTalisman', name: 'Fortune Talisman', desc: '+10 permanent luck', cost: 25000, type: 'stack', effect: { luck: 10 }, max: 3 },
+  { id: 'creditsBracelet', name: 'Credits Bracelet', desc: '+5 credits per roll', cost: 3000, type: 'stack', effect: { credits: 5 }, max: 10 },
 ];
 
 const achievements = [
@@ -709,8 +705,6 @@ const achievements = [
   { id: 'absolute', name: 'Final Form', desc: 'roll an Absolute cube', check: () => (inventory['Absolute'] || 0) > 0, reward: { luck: 5000 } },
   { id: 'secret', name: '????', desc: 'roll a ??? cube', check: () => (inventory['???'] || 0) > 0, reward: { luck: 50000 } },
   { id: 'unlockAuto', name: 'Lazy Mode', desc: 'buy auto roll', check: () => unlocked.auto, reward: { luck: 0.1 } },
-  { id: 'unlockX10', name: 'Bulk Buyer', desc: 'buy x10 multiplier', check: () => unlocked.x10, reward: { luck: 0.2 } },
-  { id: 'unlockX100', name: 'Whale', desc: 'buy x100 multiplier', check: () => unlocked.x100, reward: { luck: 1 } },
 ];
 
 const changelog = [
@@ -763,10 +757,12 @@ let baseLuck = 1;
 let rolls = 0;
 let credits = 0;
 let autoRoll = false;
-let multiplier = 1;
-let unlocked = { auto: false, x10: false, x100: false };
-let shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0 };
+let unlocked = { auto: false };
+let shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0 };
+let manualCooldown = 0;
+let MANUAL_COOLDOWN_MS = 500;
 let currentRarity = rarities[0];
+let lastAuto = 0;
 let particles = [];
 let shake = 0;
 let chroma = 0;
@@ -797,12 +793,14 @@ function getAchievementBonus() {
 
 function getShopBonus() {
   let luck = 0;
+  let credits = 0;
   for (const up of upgrades) {
     if (up.type === 'stack') {
+      credits += (shopCounts[up.id] || 0) * (up.effect.credits || 0);
       luck += (shopCounts[up.id] || 0) * (up.effect.luck || 0);
     }
   }
-  return luck;
+  return { luck, credits };
 }
 
 function getTotals() {
@@ -811,7 +809,7 @@ function getTotals() {
     luck += (inventory[r.name] || 0) * r.luck;
   }
   luck = Math.min(luck, 100000000);
-  luck += getShopBonus();
+  luck += getShopBonus().luck;
   return luck;
 }
 
@@ -843,9 +841,8 @@ function triggerRoll(count = 1) {
     inventory[r.name] = (inventory[r.name] || 0) + 1;
     baseLuck += 0.02;
     rolls++;
-    const idx = rarities.indexOf(r);
-    credits += multiplier * Math.floor(Math.pow(1.4, idx) * 2);
-    if (!best || idx > rarities.indexOf(best)) best = r;
+    credits += 1 + getShopBonus().credits;
+    if (!best || rarities.indexOf(r) > rarities.indexOf(best)) best = r;
   }
   currentRarity = best;
   const idx = rarities.indexOf(best);
@@ -856,6 +853,13 @@ function triggerRoll(count = 1) {
   showRollText(best);
   checkAchievements();
   saveGame();
+}
+
+function manualRoll() {
+  if (autoRoll) return;
+  if (Date.now() - manualCooldown < MANUAL_COOLDOWN_MS) return;
+  manualCooldown = Date.now();
+  triggerRoll(1);
 }
 
 function triggerEffects(r) {
@@ -1202,16 +1206,16 @@ function renderChangelog() {
 function openModal(modal) { modal.classList.add('open'); }
 function closeModal(modal) { modal.classList.remove('open'); }
 
-canvas.addEventListener('click', () => triggerRoll(multiplier));
+canvas.addEventListener('click', () => manualRoll());
 window.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
-    triggerRoll(multiplier);
+    manualRoll();
   }
 });
 window.addEventListener('resize', resize);
 
-document.getElementById('rollBtn').addEventListener('click', () => triggerRoll(multiplier));
+document.getElementById('rollBtn').addEventListener('click', () => manualRoll());
 document.getElementById('autoBtn').addEventListener('click', toggleAuto);
 document.querySelectorAll('#controls button[data-mult]').forEach(b => {
   b.addEventListener('click', () => setMultiplier(parseInt(b.dataset.mult)));
@@ -1282,7 +1286,7 @@ function resetSave() {
   autoRoll = false;
   multiplier = 1;
   unlocked = { auto: false, x10: false, x100: false };
-  shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0 };
+  shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0 };
   achievementsUnlocked = {};
   bestRarityIndex = 0;
   startTime = Date.now();
@@ -1307,11 +1311,10 @@ function checkAchievements() {
   }
 }
 
-let lastAuto = 0;
 function loop(ts) {
   if (autoRoll) {
     if (ts - lastAuto > autoInterval) {
-      triggerRoll(multiplier);
+      triggerRoll(1);
       lastAuto = ts;
     }
   }
