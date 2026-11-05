@@ -560,7 +560,6 @@ button.locked::after {
     <div style="display:flex;align-items:center">
       <div id="stats">
         <div class="stat"><span>luck</span><strong id="luck">1x</strong></div>
-        <div class="stat"><span>speed</span><strong id="speed">1/s</strong></div>
         <div class="stat"><span>rolls</span><strong id="rolls">0</strong></div>
         <div class="stat"><span>credits</span><strong id="credits">0</strong></div>
       </div>
@@ -642,7 +641,6 @@ const rarityTable = document.getElementById('rarityTable');
 const inventoryEl = document.getElementById('inventory');
 const lastRollEl = document.getElementById('lastRoll');
 const luckEl = document.getElementById('luck');
-const speedEl = document.getElementById('speed');
 const rollsEl = document.getElementById('rolls');
 const creditsEl = document.getElementById('credits');
 const shopBtn = document.getElementById('shopBtn');
@@ -666,15 +664,12 @@ const resetSaveBtn = document.getElementById('resetSaveBtn');
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 const upgrades = [
-  { id: 'auto', name: 'Auto Roll', desc: 'rolls automatically based on speed', cost: 100, type: 'unlock' },
+  { id: 'auto', name: 'Auto Roll', desc: 'rolls automatically every 0.8s', cost: 100, type: 'unlock' },
   { id: 'x10', name: 'x10 Multiplier', desc: 'roll 10 cubes at once', cost: 500, type: 'unlock' },
-  { id: 'x100', name: 'x100 Multiplier', desc: 'roll 100 cubes at once', cost: 2500, type: 'unlock' },
+  { id: 'x100', name: 'x100 Multiplier', desc: 'roll 100 cubes at once', cost: 50000, type: 'unlock' },
   { id: 'luckBracelet', name: 'Luck Bracelet', desc: '+0.5 permanent luck', cost: 1000, type: 'stack', effect: { luck: 0.5 }, max: 10 },
-  { id: 'speedBracelet', name: 'Speed Bracelet', desc: '+0.2 permanent speed', cost: 1000, type: 'stack', effect: { speed: 0.2 }, max: 10 },
   { id: 'luckyGloves', name: 'Lucky Gloves', desc: '+2 permanent luck', cost: 5000, type: 'stack', effect: { luck: 2 }, max: 5 },
-  { id: 'hasteBoots', name: 'Haste Boots', desc: '+1 permanent speed', cost: 5000, type: 'stack', effect: { speed: 1 }, max: 5 },
   { id: 'fortuneTalisman', name: 'Fortune Talisman', desc: '+10 permanent luck', cost: 25000, type: 'stack', effect: { luck: 10 }, max: 3 },
-  { id: 'swiftTalisman', name: 'Swift Talisman', desc: '+5 permanent speed', cost: 25000, type: 'stack', effect: { speed: 5 }, max: 3 },
 ];
 
 const achievements = [
@@ -683,43 +678,43 @@ const achievements = [
   { id: 'roll1000', name: 'Addicted', desc: 'roll 1,000 times', check: () => rolls >= 1000, reward: { luck: 0.75 } },
   { id: 'roll10000', name: 'No Life', desc: 'roll 10,000 times', check: () => rolls >= 10000, reward: { luck: 2 } },
   { id: 'roll100000', name: 'Touch Grass', desc: 'roll 100,000 times', check: () => rolls >= 100000, reward: { luck: 5 } },
-  { id: 'credits100', name: 'Pocket Change', desc: 'earn 100 credits', check: () => credits >= 100, reward: { speed: 0.1 } },
-  { id: 'credits1000', name: 'Big Spender', desc: 'earn 1,000 credits', check: () => credits >= 1000, reward: { speed: 0.25 } },
-  { id: 'credits10000', name: 'Economy Crusher', desc: 'earn 10,000 credits', check: () => credits >= 10000, reward: { speed: 0.75 } },
+  { id: 'credits100', name: 'Pocket Change', desc: 'earn 100 credits', check: () => credits >= 100, reward: { luck: 0.1 } },
+  { id: 'credits1000', name: 'Big Spender', desc: 'earn 1,000 credits', check: () => credits >= 1000, reward: { luck: 0.25 } },
+  { id: 'credits10000', name: 'Economy Crusher', desc: 'earn 10,000 credits', check: () => credits >= 10000, reward: { luck: 0.75 } },
   { id: 'rare', name: 'First Spark', desc: 'roll a Rare cube', check: () => (inventory['Rare'] || 0) > 0, reward: { luck: 0.15 } },
   { id: 'celestial', name: 'Divine Light', desc: 'roll a Celestial cube', check: () => (inventory['Celestial'] || 0) > 0, reward: { luck: 0.25 } },
   { id: 'epic', name: 'Purple Haze', desc: 'roll an Epic cube', check: () => (inventory['Epic'] || 0) > 0, reward: { luck: 0.35 } },
   { id: 'frosted', name: 'Ice Cold', desc: 'roll a Frosted cube', check: () => (inventory['Frosted'] || 0) > 0, reward: { luck: 0.5 } },
   { id: 'legendary', name: 'Golden Child', desc: 'roll a Legendary cube', check: () => (inventory['Legendary'] || 0) > 0, reward: { luck: 1 } },
-  { id: 'auric', name: 'Gold Rush', desc: 'roll an Auric cube', check: () => (inventory['Auric'] || 0) > 0, reward: { speed: 0.25 } },
-  { id: 'mythic', name: 'Red Alert', desc: 'roll a Mythic cube', check: () => (inventory['Mythic'] || 0) > 0, reward: { speed: 0.5 } },
+  { id: 'auric', name: 'Gold Rush', desc: 'roll an Auric cube', check: () => (inventory['Auric'] || 0) > 0, reward: { luck: 0.5 } },
+  { id: 'mythic', name: 'Red Alert', desc: 'roll a Mythic cube', check: () => (inventory['Mythic'] || 0) > 0, reward: { luck: 1 } },
   { id: 'mystic', name: 'Wizard', desc: 'roll a Mystic cube', check: () => (inventory['Mystic'] || 0) > 0, reward: { luck: 3 } },
-  { id: 'divine', name: 'Blessed', desc: 'roll a Divine cube', check: () => (inventory['Divine'] || 0) > 0, reward: { speed: 1 } },
+  { id: 'divine', name: 'Blessed', desc: 'roll a Divine cube', check: () => (inventory['Divine'] || 0) > 0, reward: { luck: 2 } },
   { id: 'nebula', name: 'Space Walk', desc: 'roll a Nebula cube', check: () => (inventory['Nebula'] || 0) > 0, reward: { luck: 5 } },
   { id: 'cosmic', name: 'Star Born', desc: 'roll a Cosmic cube', check: () => (inventory['Cosmic'] || 0) > 0, reward: { luck: 8 } },
-  { id: 'ascended', name: 'Above All', desc: 'roll an Ascended cube', check: () => (inventory['Ascended'] || 0) > 0, reward: { speed: 3 } },
+  { id: 'ascended', name: 'Above All', desc: 'roll an Ascended cube', check: () => (inventory['Ascended'] || 0) > 0, reward: { luck: 5 } },
   { id: 'null', name: 'Error 404', desc: 'roll a Null cube', check: () => (inventory['Null'] || 0) > 0, reward: { luck: 15 } },
   { id: 'radiant', name: 'Glory', desc: 'roll a Radiant cube', check: () => (inventory['Radiant'] || 0) > 0, reward: { luck: 25 } },
   { id: 'ethereal', name: 'Ghost', desc: 'roll an Ethereal cube', check: () => (inventory['Ethereal'] || 0) > 0, reward: { luck: 40 } },
   { id: 'transcendent', name: 'Beyond', desc: 'roll a Transcendent cube', check: () => (inventory['Transcendent'] || 0) > 0, reward: { luck: 60 } },
-  { id: 'quantum', name: 'Schrödinger', desc: 'roll a Quantum cube', check: () => (inventory['Quantum'] || 0) > 0, reward: { speed: 5 } },
+  { id: 'quantum', name: 'Schrödinger', desc: 'roll a Quantum cube', check: () => (inventory['Quantum'] || 0) > 0, reward: { luck: 80 } },
   { id: 'abyss', name: 'Deep Dive', desc: 'roll an Abyss cube', check: () => (inventory['Abyss'] || 0) > 0, reward: { luck: 100 } },
-  { id: 'eternal', name: 'Timeless', desc: 'roll an Eternal cube', check: () => (inventory['Eternal'] || 0) > 0, reward: { speed: 10 } },
+  { id: 'eternal', name: 'Timeless', desc: 'roll an Eternal cube', check: () => (inventory['Eternal'] || 0) > 0, reward: { luck: 150 } },
   { id: 'sovereign', name: 'King', desc: 'roll a Sovereign cube', check: () => (inventory['Sovereign'] || 0) > 0, reward: { luck: 200 } },
-  { id: 'infinity', name: 'Endless', desc: 'roll an Infinity cube', check: () => (inventory['Infinity'] || 0) > 0, reward: { speed: 25 } },
+  { id: 'infinity', name: 'Endless', desc: 'roll an Infinity cube', check: () => (inventory['Infinity'] || 0) > 0, reward: { luck: 300 } },
   { id: 'oblivion', name: 'Forgotten', desc: 'roll an Oblivion cube', check: () => (inventory['Oblivion'] || 0) > 0, reward: { luck: 500 } },
-  { id: 'genesis', name: 'Creator', desc: 'roll a Genesis cube', check: () => (inventory['Genesis'] || 0) > 0, reward: { speed: 75 } },
+  { id: 'genesis', name: 'Creator', desc: 'roll a Genesis cube', check: () => (inventory['Genesis'] || 0) > 0, reward: { luck: 750 } },
   { id: 'apotheosis', name: 'Ascension', desc: 'roll an Apotheosis cube', check: () => (inventory['Apotheosis'] || 0) > 0, reward: { luck: 1500 } },
-  { id: 'omnipotent', name: 'God Mode', desc: 'roll an Omnipotent cube', check: () => (inventory['Omnipotent'] || 0) > 0, reward: { speed: 250 } },
+  { id: 'omnipotent', name: 'God Mode', desc: 'roll an Omnipotent cube', check: () => (inventory['Omnipotent'] || 0) > 0, reward: { luck: 2500 } },
   { id: 'absolute', name: 'Final Form', desc: 'roll an Absolute cube', check: () => (inventory['Absolute'] || 0) > 0, reward: { luck: 5000 } },
   { id: 'secret', name: '????', desc: 'roll a ??? cube', check: () => (inventory['???'] || 0) > 0, reward: { luck: 50000 } },
-  { id: 'unlockAuto', name: 'Lazy Mode', desc: 'buy auto roll', check: () => unlocked.auto, reward: { speed: 0.1 } },
+  { id: 'unlockAuto', name: 'Lazy Mode', desc: 'buy auto roll', check: () => unlocked.auto, reward: { luck: 0.1 } },
   { id: 'unlockX10', name: 'Bulk Buyer', desc: 'buy x10 multiplier', check: () => unlocked.x10, reward: { luck: 0.2 } },
   { id: 'unlockX100', name: 'Whale', desc: 'buy x100 multiplier', check: () => unlocked.x100, reward: { luck: 1 } },
 ];
 
 const changelog = [
-  { version: 'v0.5', note: 'added 21 original new rarities + stackable shop gear (bracelets, gloves, talismans)' },
+  { version: 'v0.5', note: 'removed speed stat, credits now scale with rarity, x100 is 50k, added 21 original rarities' },
   { version: 'v0.4', note: 'added achievements that give permanent luck/speed boosts + update log' },
   { version: 'v0.3', note: 'added localStorage save/load, nerfed auto roll to half speed' },
   { version: 'v0.2', note: 'added shop: auto roll, x10, x100 locked behind credits' },
@@ -729,38 +724,38 @@ const changelog = [
 let achievementsUnlocked = {};
 
 const rarities = [
-  { name: 'Dust',        odds: 1.5,        cap: 2,          color: '#8a9199', glow: '#aab4bd', luck: 0.1,     speed: 0.02,  particles: 12,  shake: 2,    flash: 0.02, chroma: 0 },
-  { name: 'Scrap',       odds: 3,          cap: 5,          color: '#6b9e5e', glow: '#9eff8a', luck: 0.25,    speed: 0.04,  particles: 16,  shake: 3,    flash: 0.03, chroma: 0 },
-  { name: 'Common',      odds: 8,          cap: 10,         color: '#d8e6f2', glow: '#ffffff', luck: 0.5,     speed: 0.06,  particles: 20,  shake: 4,    flash: 0.04, chroma: 0 },
-  { name: 'Good',        odds: 16,         cap: 24,         color: '#5af0a0', glow: '#a0ffd0', luck: 1.0,     speed: 0.08,  particles: 24,  shake: 4.5,  flash: 0.05, chroma: 0 },
-  { name: 'Uncommon',    odds: 25,         cap: 50,         color: '#5ad06a', glow: '#8eff9e', luck: 1.5,     speed: 0.10,  particles: 28,  shake: 5,    flash: 0.06, chroma: 0.05 },
-  { name: 'Rare',        odds: 120,        cap: 300,        color: '#5ad0ff', glow: '#9eefff', luck: 8,       speed: 0.18,  particles: 40,  shake: 7,    flash: 0.10, chroma: 0.1 },
-  { name: 'Celestial',   odds: 300,        cap: 900,        color: '#f0e6a0', glow: '#fff8c0', luck: 18,      speed: 0.24,  particles: 48,  shake: 8,    flash: 0.12, chroma: 0.12 },
-  { name: 'Epic',        odds: 800,        cap: 2000,       color: '#b85aff', glow: '#e5a0ff', luck: 40,      speed: 0.30,  particles: 60,  shake: 10,   flash: 0.16, chroma: 0.18 },
-  { name: 'Frosted',     odds: 2500,       cap: 8000,       color: '#00f0d0', glow: '#80fff0', luck: 100,     speed: 0.40,  particles: 72,  shake: 11,   flash: 0.19, chroma: 0.22 },
-  { name: 'Legendary',   odds: 6000,       cap: 20000,      color: '#ffce5a', glow: '#ffeeaa', luck: 250,     speed: 0.55,  particles: 90,  shake: 14,   flash: 0.25, chroma: 0.28 },
-  { name: 'Auric',       odds: 25000,      cap: 100000,     color: '#d4af37', glow: '#ffe070', luck: 750,     speed: 0.75,  particles: 110, shake: 16,   flash: 0.30, chroma: 0.32 },
-  { name: 'Mythic',      odds: 60000,      cap: 200000,     color: '#ff4a4a', glow: '#ffaaaa', luck: 1800,    speed: 1.0,   particles: 130, shake: 20,   flash: 0.38, chroma: 0.40 },
-  { name: 'Mystic',      odds: 400000,     cap: 2500000,    color: '#a020f0', glow: '#d080ff', luck: 12000,   speed: 1.6,   particles: 170, shake: 25,   flash: 0.50, chroma: 0.50 },
-  { name: 'Divine',      odds: 800000,     cap: 3000000,    color: '#a0f0ff', glow: '#e0ffff', luck: 15000,   speed: 2.0,   particles: 180, shake: 28,   flash: 0.55, chroma: 0.55 },
-  { name: 'Nebula',      odds: 5000000,    cap: 25000000,   color: '#4050ff', glow: '#8090ff', luck: 80000,   speed: 3.0,   particles: 220, shake: 34,   flash: 0.65, chroma: 0.62 },
-  { name: 'Cosmic',      odds: 12000000,   cap: 60000000,   color: 'rainbow',  glow: '#ffffff', luck: 250000,  speed: 5.0,   particles: 260, shake: 40,   flash: 0.75, chroma: 0.72 },
-  { name: 'Ascended',    odds: 150000000,  cap: 800000000,  color: '#ff8040', glow: '#ffbc80', luck: 2500000, speed: 10.0,  particles: 320, shake: 50,   flash: 0.82, chroma: 0.78 },
-  { name: 'Null',        odds: 250000000,  cap: 1500000000, color:'#0a0a0a',  glow: '#ffffff', luck: 5000000, speed: 15.0,  particles: 360, shake: 60,   flash: 0.90, chroma: 0.90 },
-  { name: 'Radiant',     odds: 3000000000, cap: 20000000000,color: '#fff0c0', glow: '#fffee0', luck: 50000000,speed: 30.0,  particles: 430, shake: 80,   flash: 0.95, chroma: 0.95 },
-  { name: 'Ethereal',    odds: 10000000000,cap: 65000000000,color: '#c0c0ff', glow: '#e0e0ff', luck: 150000000,speed: 50.0,  particles: 460, shake: 90,   flash: 0.96, chroma: 0.96 },
-  { name: 'Transcendent',odds: 35000000000,cap: 210000000000,color:'#ff60ff', glow: '#ffb0ff', luck: 450000000,speed: 80.0,  particles: 490, shake: 100,  flash: 0.97, chroma: 0.97 },
-  { name: 'Quantum',     odds: 130000000000,cap: 715000000000,color:'#00ffff', glow: '#a0ffff', luck: 1400000000,speed: 125.0, particles: 520, shake: 110,  flash: 0.975,chroma: 0.975},
-  { name: 'Abyss',       odds: 500000000000,cap: 2500000000000,color:'#1a0a30', glow: '#7030ff', luck: 5000000000,speed: 190.0, particles: 550, shake: 120,  flash: 0.98, chroma: 0.98 },
-  { name: 'Eternal',     odds: 1800000000000,cap: 8100000000000,color:'#ffd700', glow: '#ffff80', luck: 20000000000,speed: 280.0, particles: 580, shake: 130,  flash: 0.985,chroma: 0.985},
-  { name: 'Sovereign',   odds: 7000000000000,cap: 28000000000000,color:'#ff0040', glow: '#ff80a0', luck: 90000000000,speed: 400.0, particles: 610, shake: 140,  flash: 0.99, chroma: 0.99 },
-  { name: 'Infinity',    odds: 30000000000000,cap: 105000000000000,color:'#8000ff', glow: '#c080ff', luck: 450000000000,speed: 580.0, particles: 640, shake: 150,  flash: 0.992,chroma: 0.992},
-  { name: 'Oblivion',    odds: 120000000000000,cap: 360000000000000,color:'#050505', glow: '#ff0000', luck: 2500000000000,speed: 820.0, particles: 670, shake: 160,  flash: 0.994,chroma: 0.994},
-  { name: 'Genesis',     odds: 500000000000000,cap: 1250000000000000,color:'#ffffff', glow: '#c0ffe0', luck: 15000000000000,speed: 1150.0,particles: 700, shake: 170,  flash: 0.996,chroma: 0.996},
-  { name: 'Apotheosis',  odds: 2000000000000000,cap: 4000000000000000,color:'#ff80c0', glow: '#ffc0e0', luck: 90000000000000,speed: 1600.0,particles: 730, shake: 180,  flash: 0.998,chroma: 0.998},
-  { name: 'Omnipotent',  odds: 8000000000000000,cap: 12800000000000000,color:'#00ff80', glow: '#80ffc0', luck: 600000000000000,speed: 2200.0,particles: 760, shake: 190,  flash: 0.999,chroma: 0.999},
-  { name: 'Absolute',    odds: 35000000000000000,cap: 42000000000000000,color:'#ff0000', glow: '#ffff00', luck: 5000000000000000,speed: 3000.0,particles: 790, shake: 200,  flash: 1.00, chroma: 1.00 },
-  { name: '???',         odds: 150000000000000000,cap:150000000000000000,color:'prism',    glow: '#ffffff', luck: 50000000000000000,speed:5000.0,particles: 850, shake: 220,  flash: 1.00, chroma: 1.00 },
+  { name: 'Dust',        odds: 1.5,        cap: 2,          color: '#8a9199', glow: '#aab4bd', luck: 0.1,     particles: 12,  shake: 2,    flash: 0.02, chroma: 0 },
+  { name: 'Scrap',       odds: 3,          cap: 5,          color: '#6b9e5e', glow: '#9eff8a', luck: 0.25,    particles: 16,  shake: 3,    flash: 0.03, chroma: 0 },
+  { name: 'Common',      odds: 8,          cap: 10,         color: '#d8e6f2', glow: '#ffffff', luck: 0.5,     particles: 20,  shake: 4,    flash: 0.04, chroma: 0 },
+  { name: 'Good',        odds: 16,         cap: 24,         color: '#5af0a0', glow: '#a0ffd0', luck: 1.0,     particles: 24,  shake: 4.5,  flash: 0.05, chroma: 0 },
+  { name: 'Uncommon',    odds: 25,         cap: 50,         color: '#5ad06a', glow: '#8eff9e', luck: 1.5,     particles: 28,  shake: 5,    flash: 0.06, chroma: 0.05 },
+  { name: 'Rare',        odds: 120,        cap: 300,        color: '#5ad0ff', glow: '#9eefff', luck: 8,       particles: 40,  shake: 7,    flash: 0.10, chroma: 0.1 },
+  { name: 'Celestial',   odds: 300,        cap: 900,        color: '#f0e6a0', glow: '#fff8c0', luck: 18,      particles: 48,  shake: 8,    flash: 0.12, chroma: 0.12 },
+  { name: 'Epic',        odds: 800,        cap: 2000,       color: '#b85aff', glow: '#e5a0ff', luck: 40,      particles: 60,  shake: 10,   flash: 0.16, chroma: 0.18 },
+  { name: 'Frosted',     odds: 2500,       cap: 8000,       color: '#00f0d0', glow: '#80fff0', luck: 100,     particles: 72,  shake: 11,   flash: 0.19, chroma: 0.22 },
+  { name: 'Legendary',   odds: 6000,       cap: 20000,      color: '#ffce5a', glow: '#ffeeaa', luck: 250,     particles: 90,  shake: 14,   flash: 0.25, chroma: 0.28 },
+  { name: 'Auric',       odds: 25000,      cap: 100000,     color: '#d4af37', glow: '#ffe070', luck: 750,     particles: 110, shake: 16,   flash: 0.30, chroma: 0.32 },
+  { name: 'Mythic',      odds: 60000,      cap: 200000,     color: '#ff4a4a', glow: '#ffaaaa', luck: 1800,    particles: 130, shake: 20,   flash: 0.38, chroma: 0.40 },
+  { name: 'Mystic',      odds: 400000,     cap: 2500000,    color: '#a020f0', glow: '#d080ff', luck: 12000,   particles: 170, shake: 25,   flash: 0.50, chroma: 0.50 },
+  { name: 'Divine',      odds: 800000,     cap: 3000000,    color: '#a0f0ff', glow: '#e0ffff', luck: 15000,   particles: 180, shake: 28,   flash: 0.55, chroma: 0.55 },
+  { name: 'Nebula',      odds: 5000000,    cap: 25000000,   color: '#4050ff', glow: '#8090ff', luck: 80000,   particles: 220, shake: 34,   flash: 0.65, chroma: 0.62 },
+  { name: 'Cosmic',      odds: 12000000,   cap: 60000000,   color: 'rainbow',  glow: '#ffffff', luck: 250000,  particles: 260, shake: 40,   flash: 0.75, chroma: 0.72 },
+  { name: 'Ascended',    odds: 150000000,  cap: 800000000,  color: '#ff8040', glow: '#ffbc80', luck: 2500000, particles: 320, shake: 50,   flash: 0.82, chroma: 0.78 },
+  { name: 'Null',        odds: 250000000,  cap: 1500000000, color:'#0a0a0a',  glow: '#ffffff', luck: 5000000, particles: 360, shake: 60,   flash: 0.90, chroma: 0.90 },
+  { name: 'Radiant',     odds: 3000000000, cap: 20000000000,color: '#fff0c0', glow: '#fffee0', luck: 50000000,particles: 430, shake: 80,   flash: 0.95, chroma: 0.95 },
+  { name: 'Ethereal',    odds: 10000000000,cap: 65000000000,color: '#c0c0ff', glow: '#e0e0ff', luck: 150000000,particles: 460, shake: 90,   flash: 0.96, chroma: 0.96 },
+  { name: 'Transcendent',odds: 35000000000,cap: 210000000000,color:'#ff60ff', glow: '#ffb0ff', luck: 450000000,particles: 490, shake: 100,  flash: 0.97, chroma: 0.97 },
+  { name: 'Quantum',     odds: 130000000000,cap: 715000000000,color:'#00ffff', glow: '#a0ffff', luck: 1400000000,particles: 520, shake: 110,  flash: 0.975,chroma: 0.975},
+  { name: 'Abyss',       odds: 500000000000,cap: 2500000000000,color:'#1a0a30', glow: '#7030ff', luck: 5000000000,particles: 550, shake: 120,  flash: 0.98, chroma: 0.98 },
+  { name: 'Eternal',     odds: 1800000000000,cap: 8100000000000,color:'#ffd700', glow: '#ffff80', luck: 20000000000,particles: 580, shake: 130,  flash: 0.985,chroma: 0.985},
+  { name: 'Sovereign',   odds: 7000000000000,cap: 28000000000000,color:'#ff0040', glow: '#ff80a0', luck: 90000000000,particles: 610, shake: 140,  flash: 0.99, chroma: 0.99 },
+  { name: 'Infinity',    odds: 30000000000000,cap: 105000000000000,color:'#8000ff', glow: '#c080ff', luck: 450000000000,particles: 640, shake: 150,  flash: 0.992,chroma: 0.992},
+  { name: 'Oblivion',    odds: 120000000000000,cap: 360000000000000,color:'#050505', glow: '#ff0000', luck: 2500000000000,particles: 670, shake: 160,  flash: 0.994,chroma: 0.994},
+  { name: 'Genesis',     odds: 500000000000000,cap: 1250000000000000,color:'#ffffff', glow: '#c0ffe0', luck: 15000000000000,particles: 700, shake: 170,  flash: 0.996,chroma: 0.996},
+  { name: 'Apotheosis',  odds: 2000000000000000,cap: 4000000000000000,color:'#ff80c0', glow: '#ffc0e0', luck: 90000000000000,particles: 730, shake: 180,  flash: 0.998,chroma: 0.998},
+  { name: 'Omnipotent',  odds: 8000000000000000,cap: 12800000000000000,color:'#00ff80', glow: '#80ffc0', luck: 600000000000000,particles: 760, shake: 190,  flash: 0.999,chroma: 0.999},
+  { name: 'Absolute',    odds: 35000000000000000,cap: 42000000000000000,color:'#ff0000', glow: '#ffff00', luck: 5000000000000000,particles: 790, shake: 200,  flash: 1.00, chroma: 1.00 },
+  { name: '???',         odds: 150000000000000000,cap:150000000000000000,color:'prism',    glow: '#ffffff', luck: 50000000000000000,particles: 850, shake: 220,  flash: 1.00, chroma: 1.00 },
 ];
 
 let inventory = {};
@@ -770,7 +765,7 @@ let credits = 0;
 let autoRoll = false;
 let multiplier = 1;
 let unlocked = { auto: false, x10: false, x100: false };
-let shopCounts = { luckBracelet: 0, speedBracelet: 0, luckyGloves: 0, hasteBoots: 0, fortuneTalisman: 0, swiftTalisman: 0 };
+let shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0 };
 let currentRarity = rarities[0];
 let particles = [];
 let shake = 0;
@@ -791,44 +786,35 @@ function formatNum(n) {
 }
 
 function getAchievementBonus() {
-  let luck = 0, speed = 0;
+  let luck = 0;
   for (const a of achievements) {
     if (achievementsUnlocked[a.id]) {
       luck += a.reward.luck || 0;
-      speed += a.reward.speed || 0;
     }
   }
-  return { luck, speed };
+  return luck;
 }
 
 function getShopBonus() {
-  let luck = 0, speed = 0;
+  let luck = 0;
   for (const up of upgrades) {
     if (up.type === 'stack') {
-      const count = shopCounts[up.id] || 0;
-      luck += count * (up.effect.luck || 0);
-      speed += count * (up.effect.speed || 0);
+      luck += (shopCounts[up.id] || 0) * (up.effect.luck || 0);
     }
   }
-  return { luck, speed };
+  return luck;
 }
 
 function getTotals() {
-  const ab = getAchievementBonus();
-  const sb = getShopBonus();
-  let luck = baseLuck + ab.luck + sb.luck;
-  let speed = 1 + ab.speed + sb.speed;
+  let luck = baseLuck + getAchievementBonus() + getShopBonus();
   for (const r of rarities) {
-    const count = inventory[r.name] || 0;
-    luck += count * r.luck;
-    speed += count * r.speed;
+    luck += (inventory[r.name] || 0) * r.luck;
   }
-  return { luck, speed };
+  return luck;
 }
 
 function getProbabilities() {
-  const totals = getTotals();
-  const luck = totals.luck;
+  const luck = getTotals();
   const weights = rarities.map(r => {
     const eff = Math.min(r.odds <= 1 ? 1 : (1 / r.odds) * luck, (1 / r.odds) * r.cap);
     return eff;
@@ -855,8 +841,9 @@ function triggerRoll(count = 1) {
     inventory[r.name] = (inventory[r.name] || 0) + 1;
     baseLuck += 0.02;
     rolls++;
-    credits += multiplier;
-    if (!best || rarities.indexOf(r) > rarities.indexOf(best)) best = r;
+    const idx = rarities.indexOf(r);
+    credits += multiplier * Math.floor(Math.pow(1.4, idx) * 2);
+    if (!best || idx > rarities.indexOf(best)) best = r;
   }
   currentRarity = best;
   const idx = rarities.indexOf(best);
@@ -962,7 +949,7 @@ function draw() {
   const size = Math.min(w, h) * 0.22;
   const cx = w / 2;
   const cy = h / 2;
-  cubeRot += 0.01 + (getTotals().speed * 0.002);
+  cubeRot += 0.03;
 
   const col = getRarityColor(currentRarity, t);
   const glow = currentRarity.glow;
@@ -1020,17 +1007,16 @@ function draw() {
 }
 
 function updateUI() {
-  const totals = getTotals();
-  luckEl.textContent = formatNum(totals.luck) + 'x';
-  speedEl.textContent = formatNum(totals.speed) + '/s';
+  const luck = getTotals();
+  luckEl.textContent = formatNum(luck) + 'x';
   rollsEl.textContent = formatNum(rolls);
   creditsEl.textContent = formatNum(credits);
 
-  autoInterval = 2000 / totals.speed;
+  autoInterval = 800;
 
   renderControls();
   renderShop();
-  renderRarityTable(totals.luck);
+  renderRarityTable(luck);
   renderInventory();
   lastRollEl.innerHTML = `last roll: <strong style="color:${currentRarity.color === 'rainbow' ? '#fff' : currentRarity.color === 'prism' ? '#fff' : currentRarity.color}">${currentRarity.name}</strong>`;
 
@@ -1078,7 +1064,7 @@ function renderInventory() {
         <div class="name" style="color:${r.color === 'rainbow' || r.color === 'prism' ? '#fff' : r.color}">${r.name}</div>
         <div class="count">x${formatNum(count)}</div>
       </div>
-      <div class="bonus">+${formatNum(count * r.luck)}x luck<br>+${formatNum(count * r.speed)}/s</div>
+      <div class="bonus">+${formatNum(count * r.luck)}x luck</div>
     `;
     inventoryEl.appendChild(item);
   }
@@ -1181,16 +1167,14 @@ function renderAchievements() {
     const own = achievementsUnlocked[a.id];
     const el = document.createElement('div');
     el.className = 'achievement' + (own ? ' unlocked' : '');
-    const rwd = [];
-    if (a.reward.luck) rwd.push('+' + a.reward.luck + ' luck');
-    if (a.reward.speed) rwd.push('+' + a.reward.speed + ' speed');
+    const rwd = a.reward.luck ? '+' + a.reward.luck + ' luck' : '';
     el.innerHTML = `
       <div class="icon">${own ? '★' : '☆'}</div>
       <div class="info">
         <div class="name">${a.name}</div>
         <div class="desc">${a.desc}</div>
       </div>
-      <div class="reward">${rwd.join('<br>')}</div>
+      <div class="reward">${rwd}</div>
     `;
     achievementsList.appendChild(el);
   }
@@ -1289,7 +1273,7 @@ function resetSave() {
   autoRoll = false;
   multiplier = 1;
   unlocked = { auto: false, x10: false, x100: false };
-  shopCounts = { luckBracelet: 0, speedBracelet: 0, luckyGloves: 0, hasteBoots: 0, fortuneTalisman: 0, swiftTalisman: 0 };
+  shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0 };
   achievementsUnlocked = {};
   bestRarityIndex = 0;
   startTime = Date.now();
