@@ -147,12 +147,12 @@ function showRollText(r) {
   rollText.querySelector('.rarity-name').style.color = r.color === 'rainbow' ? '#fff' : r.color === 'prism' ? '#fff' : r.color;
   rollText.querySelector('.rarity-tag').textContent = 'AURA ROLLED';
   rollText.style.opacity = 1;
-  rollText.style.transform = 'translate(-50%, -50%) scale(1.1)';
+  rollText.style.transform = 'translateX(-50%) scale(1.1)';
   lastRollTime = Date.now();
   setTimeout(() => {
     if (Date.now() - lastRollTime >= 900) {
       rollText.style.opacity = 0;
-      rollText.style.transform = 'translate(-50%, -50%) scale(1)';
+      rollText.style.transform = 'translateX(-50%) scale(1)';
     }
   }, 1000);
 }

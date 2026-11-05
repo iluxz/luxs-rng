@@ -273,12 +273,12 @@ button.active {
 
 #rollText {
   position: absolute;
-  top: 50%;
+  top: 14%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   text-align: center;
   pointer-events: none;
-  z-index: 15;
+  z-index: 25;
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -513,12 +513,12 @@ function showRollText(r) {
   rollText.querySelector('.rarity-name').style.color = r.color === 'rainbow' ? '#fff' : r.color === 'prism' ? '#fff' : r.color;
   rollText.querySelector('.rarity-tag').textContent = 'AURA ROLLED';
   rollText.style.opacity = 1;
-  rollText.style.transform = 'translate(-50%, -50%) scale(1.1)';
+  rollText.style.transform = 'translateX(-50%) scale(1.1)';
   lastRollTime = Date.now();
   setTimeout(() => {
     if (Date.now() - lastRollTime >= 900) {
       rollText.style.opacity = 0;
-      rollText.style.transform = 'translate(-50%, -50%) scale(1)';
+      rollText.style.transform = 'translateX(-50%) scale(1)';
     }
   }, 1000);
 }
