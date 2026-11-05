@@ -714,7 +714,7 @@ const achievements = [
 ];
 
 const changelog = [
-  { version: 'v0.5', note: 'removed speed stat, credits now scale with rarity, x100 is 50k, added 21 original rarities' },
+  { version: 'v0.5', note: 'removed speed stat, credits scale with rarity, x100 is 50k, 33 rarities, luck caps at 100M (bracelets bypass)' },
   { version: 'v0.4', note: 'added achievements that give permanent luck/speed boosts + update log' },
   { version: 'v0.3', note: 'added localStorage save/load, nerfed auto roll to half speed' },
   { version: 'v0.2', note: 'added shop: auto roll, x10, x100 locked behind credits' },
@@ -806,10 +806,12 @@ function getShopBonus() {
 }
 
 function getTotals() {
-  let luck = baseLuck + getAchievementBonus() + getShopBonus();
+  let luck = baseLuck + getAchievementBonus();
   for (const r of rarities) {
     luck += (inventory[r.name] || 0) * r.luck;
   }
+  luck = Math.min(luck, 100000000);
+  luck += getShopBonus();
   return luck;
 }
 
@@ -1078,6 +1080,7 @@ function resize() {
 }
 
 function setMultiplier(n) {
+  if (autoRoll && n > 1) return;
   const key = n === 1 ? null : (n === 10 ? 'x10' : 'x100');
   if (key && !unlocked[key]) return;
   multiplier = n;
@@ -1087,7 +1090,11 @@ function setMultiplier(n) {
 function toggleAuto() {
   if (!unlocked.auto) return;
   autoRoll = !autoRoll;
+  if (autoRoll) {
+    multiplier = 1;
+  }
   document.getElementById('autoBtn').classList.toggle('active', autoRoll);
+  renderControls();
 }
 
 function renderControls() {
@@ -1100,9 +1107,11 @@ function renderControls() {
     const n = parseInt(b.dataset.mult);
     const key = n === 10 ? 'x10' : 'x100';
     const own = n === 1 || unlocked[key];
+    const lockedByAuto = autoRoll && n > 1;
     b.classList.toggle('active', multiplier === n);
-    b.classList.toggle('locked', !own);
+    b.classList.toggle('locked', !own || lockedByAuto);
     b.textContent = own ? 'x' + n : 'x' + n + ' ' + upgrades.find(u => u.id === key).cost;
+    b.disabled = lockedByAuto;
   });
 }
 
