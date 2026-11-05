@@ -113,6 +113,7 @@ function triggerRoll(count = 1) {
   playTone(idx);
   updateUI();
   showRollText(best);
+  saveGame();
 }
 
 function triggerEffects(r) {
@@ -384,6 +385,7 @@ function buyUpgrade(id) {
   renderControls();
   renderShop();
   updateUI();
+  saveGame();
 }
 
 function renderShop() {
@@ -426,6 +428,29 @@ shopBtn.addEventListener('click', openShop);
 shopClose.addEventListener('click', closeShop);
 shopModal.addEventListener('click', e => { if (e.target === shopModal) closeShop(); });
 
+function saveGame() {
+  try {
+    localStorage.setItem('luxRngSave', JSON.stringify({
+      inventory, baseLuck, rolls, credits, unlocked, multiplier, autoRoll
+    }));
+  } catch (e) {}
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem('luxRngSave');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.inventory) inventory = data.inventory;
+    if (typeof data.baseLuck === 'number') baseLuck = data.baseLuck;
+    if (typeof data.rolls === 'number') rolls = data.rolls;
+    if (typeof data.credits === 'number') credits = data.credits;
+    if (data.unlocked) unlocked = { ...unlocked, ...data.unlocked };
+    if (typeof data.multiplier === 'number') multiplier = data.multiplier;
+    if (typeof data.autoRoll === 'boolean') autoRoll = data.autoRoll;
+  } catch (e) {}
+}
+
 let lastAuto = 0;
 function loop(ts) {
   if (autoRoll) {
@@ -437,6 +462,7 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 
+loadGame();
 resize();
 updateUI();
 draw();
