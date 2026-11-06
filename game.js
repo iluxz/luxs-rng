@@ -31,6 +31,7 @@ function initGL() {
     uniform vec3 uColor;
     uniform vec3 uGlow;
     uniform float uTime;
+    uniform float uExtraGlow;
     varying vec3 vNormal;
     varying vec3 vPosition;
     void main() {
@@ -41,9 +42,11 @@ function initGL() {
       // fresnel rim
       vec3 viewDir = normalize(-vPosition);
       float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDir), 0.0), 3.0);
-      color += uGlow * fresnel * 0.5;
+      color += uGlow * fresnel * (0.5 + uExtraGlow * 1.5);
       // emissive pulse
       color += uColor * (0.1 + 0.05 * sin(uTime * 4.0));
+      // extra glow during deceleration
+      color += uGlow * uExtraGlow * 0.8;
       gl_FragColor = vec4(color, 1.0);
     }
   `;
@@ -142,6 +145,7 @@ function initGL() {
   glUniforms.uColor = gl.getUniformLocation(glProgram, 'uColor');
   glUniforms.uGlow = gl.getUniformLocation(glProgram, 'uGlow');
   glUniforms.uTime = gl.getUniformLocation(glProgram, 'uTime');
+  glUniforms.uExtraGlow = gl.getUniformLocation(glProgram, 'uExtraGlow');
 
   gl.enable(gl.DEPTH_TEST);
   gl.clearColor(0, 0, 0, 0);
@@ -153,9 +157,9 @@ function mat4Multiply(a, b) {
     for (let j = 0; j < 4; j++) {
       let sum = 0;
       for (let k = 0; k < 4; k++) {
-        sum += a[i * 4 + k] * b[k * 4 + j];
+        sum += a[i + k * 4] * b[j * 4 + k];
       }
-      result[i * 4 + j] = sum;
+      result[i + j * 4] = sum;
     }
   }
   return result;
@@ -165,8 +169,8 @@ function mat4RotationX(angle) {
   const c = Math.cos(angle), s = Math.sin(angle);
   return new Float32Array([
     1, 0, 0, 0,
-    0, c, -s, 0,
-    0, s, c, 0,
+    0, c, s, 0,
+    0, -s, c, 0,
     0, 0, 0, 1
   ]);
 }
@@ -174,9 +178,9 @@ function mat4RotationX(angle) {
 function mat4RotationY(angle) {
   const c = Math.cos(angle), s = Math.sin(angle);
   return new Float32Array([
-    c, 0, s, 0,
+    c, 0, -s, 0,
     0, 1, 0, 0,
-    -s, 0, c, 0,
+    s, 0, c, 0,
     0, 0, 0, 1
   ]);
 }
@@ -192,12 +196,12 @@ function mat4Perspective(fov, aspect, near, far) {
   ]);
 }
 
-function mat4Translate(z) {
+function mat4Translate(x, y, z) {
   return new Float32Array([
     1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1, 0,
-    0, 0, z, 1
+    x, y, z, 1
   ]);
 }
 
@@ -209,7 +213,7 @@ function hexToRGB(hex) {
   return [r, g, b];
 }
 
-function drawGLCube(color, glow, t) {
+function drawGLCube(color, glow, t, extraGlow) {
   if (!gl || !glProgram || !glBuffers) return;
 
   const w = glCanvas.width;
@@ -221,8 +225,8 @@ function drawGLCube(color, glow, t) {
 
   const aspect = w / h;
   const proj = mat4Perspective(Math.PI / 4, aspect, 0.1, 100);
-  const view = mat4Translate(-4);
-  const rotX = mat4RotationX(cubeRot * 0.7);
+  const view = mat4Translate(0, 0, -8);
+  const rotX = mat4RotationX(-0.35); // fixed tilt like cube.html
   const rotY = mat4RotationY(cubeRot);
   const modelView = mat4Multiply(view, mat4Multiply(rotY, rotX));
 
@@ -231,6 +235,7 @@ function drawGLCube(color, glow, t) {
   gl.uniform3fv(glUniforms.uColor, hexToRGB(color));
   gl.uniform3fv(glUniforms.uGlow, hexToRGB(glow));
   gl.uniform1f(glUniforms.uTime, t);
+  gl.uniform1f(glUniforms.uExtraGlow, extraGlow || 0);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, glBuffers.posBuffer);
   const aPos = gl.getAttribLocation(glProgram, 'aPosition');
@@ -255,6 +260,7 @@ const lastRollEl = document.getElementById('lastRoll');
 const luckEl = document.getElementById('luck');
 const rollsEl = document.getElementById('rolls');
 const creditsEl = document.getElementById('credits');
+const biomeEl = document.getElementById('biome');
 const shopBtn = document.getElementById('shopBtn');
 const shopModal = document.getElementById('shopModal');
 const shopItems = document.getElementById('shopItems');
@@ -269,6 +275,58 @@ const changelogModal = document.getElementById('changelogModal');
 const changelogList = document.getElementById('changelogList');
 const changelogClose = document.getElementById('changelogClose');
 const toast = document.getElementById('toast');
+const leaderboardBtn = document.getElementById('leaderboardBtn');
+const leaderboardModal = document.getElementById('leaderboardModal');
+const leaderboardList = document.getElementById('leaderboardList');
+const leaderboardClose = document.getElementById('leaderboardClose');
+const lbUsername = document.getElementById('lbUsername');
+const lbSubmit = document.getElementById('lbSubmit');
+
+const LB_API = 'https://lux-rng-leaderboard.dandelion-newsstand.workers.dev';
+
+async function fetchLeaderboard() {
+  try {
+    const res = await fetch(LB_API + '/leaderboard');
+    const data = await res.json();
+    leaderboardList.innerHTML = '';
+    if (data.length === 0) {
+      leaderboardList.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">no scores yet</div>';
+      return;
+    }
+    data.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;justify-content:space-between;padding:6px 8px;margin-bottom:4px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05)';
+      row.innerHTML = '<span style="color:var(--muted)">' + (i + 1) + '.</span> <span style="color:var(--text)">' + entry.username + '</span> <span style="color:var(--cyan-bright)">' + formatNum(entry.score) + '</span>';
+      leaderboardList.appendChild(row);
+    });
+  } catch (e) {
+    leaderboardList.innerHTML = '<div style="color:#ff9ecd;text-align:center;padding:20px">failed to load</div>';
+  }
+}
+
+async function submitScore() {
+  const name = lbUsername.value.trim();
+  if (!name) { showToast('enter a name first'); return; }
+  const luck = getTotals();
+  const best = getCurrentRarities()[bestRarityIndex] || getCurrentRarities()[0];
+  try {
+    await fetch(LB_API + '/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: name,
+        score: credits,
+        rolls: rolls,
+        best_rarity: best.name,
+        time_period: timePeriod,
+      }),
+    });
+    showToast('score submitted!');
+    fetchLeaderboard();
+  } catch (e) {
+    showToast('submit failed');
+  }
+}
 const bestRollStat = document.getElementById('bestRollStat');
 const playtimeStat = document.getElementById('playtimeStat');
 const resetSaveBtn = document.getElementById('resetSaveBtn');
@@ -277,82 +335,46 @@ const musicBtn = document.getElementById('musicBtn');
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 // bg music state
-let musicPlaying = false;
-let musicNodes = [];
+let musicPlaying = true;
+const bgmAudio = new Audio('bgm.mp3');
+bgmAudio.loop = true;
+bgmAudio.volume = 0.25;
+// music per time period (swap files when provided)
+const periodMusic = { present: 'bgm.mp3', past: 'past_bgm.mp3', future: 'future_bgm.mp3' };
+let currentMusicPeriod = 'present';
+
+function switchPeriodMusic(period) {
+  if (period === currentMusicPeriod) return;
+  currentMusicPeriod = period;
+  const wasPlaying = musicPlaying;
+  bgmAudio.pause();
+  bgmAudio.src = periodMusic[period];
+  bgmAudio.load();
+  if (wasPlaying) bgmAudio.play().catch(() => {});
+}
+
+// auto-start on first interaction
+let musicStarted = false;
+function tryStartMusic() {
+  if (musicStarted) return;
+  musicStarted = true;
+  bgmAudio.play().catch(() => { musicPlaying = false; musicBtn.textContent = '♪ OFF'; });
+}
+document.addEventListener('click', tryStartMusic, { once: true });
+document.addEventListener('keydown', tryStartMusic, { once: true });
 
 function startMusic() {
   if (musicPlaying) return;
-  if (audioCtx.state === 'suspended') audioCtx.resume();
   musicPlaying = true;
   musicBtn.textContent = '♪ ON';
-
-  // ambient drone
-  const masterGain = audioCtx.createGain();
-  masterGain.gain.value = 0.15;
-  masterGain.connect(audioCtx.destination);
-
-  // reverb
-  const convolver = audioCtx.createConvolver();
-  const reverbLen = audioCtx.sampleRate * 3;
-  const reverbBuf = audioCtx.createBuffer(2, reverbLen, audioCtx.sampleRate);
-  for (let ch = 0; ch < 2; ch++) {
-    const data = reverbBuf.getChannelData(ch);
-    for (let i = 0; i < reverbLen; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / reverbLen, 2);
-    }
-  }
-  convolver.buffer = reverbBuf;
-  const wetGain = audioCtx.createGain();
-  wetGain.gain.value = 0.4;
-  convolver.connect(wetGain);
-  wetGain.connect(masterGain);
-
-  // lowpass filter
-  const filter = audioCtx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 800;
-  filter.Q.value = 1;
-  filter.connect(masterGain);
-  filter.connect(convolver);
-
-  // drone oscillators
-  const freqs = [55, 82.5, 110, 165, 220];
-  for (const f of freqs) {
-    const osc = audioCtx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = f;
-    const gain = audioCtx.createGain();
-    gain.gain.value = 0.08;
-    osc.connect(gain);
-    gain.connect(filter);
-    osc.start();
-    musicNodes.push(osc, gain);
-  }
-
-  // LFO for movement
-  const lfo = audioCtx.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = 0.05;
-  const lfoGain = audioCtx.createGain();
-  lfoGain.gain.value = 200;
-  lfo.connect(lfoGain);
-  lfoGain.connect(filter.frequency);
-  lfo.start();
-  musicNodes.push(lfo, lfoGain);
-
-  // store master for stopping
-  musicNodes.push(masterGain, filter, convolver, wetGain);
+  bgmAudio.play().catch(() => {});
 }
 
 function stopMusic() {
   if (!musicPlaying) return;
   musicPlaying = false;
   musicBtn.textContent = '♪ OFF';
-  for (const n of musicNodes) {
-    try { n.stop(); } catch (e) {}
-    try { n.disconnect(); } catch (e) {}
-  }
-  musicNodes = [];
+  bgmAudio.pause();
 }
 
 musicBtn.addEventListener('click', () => {
@@ -366,6 +388,7 @@ const upgrades = [
   { id: 'luckyGloves', name: 'Lucky Gloves', desc: '+2 permanent luck', cost: 5000, type: 'stack', effect: { luck: 2 }, max: 5 },
   { id: 'fortuneTalisman', name: 'Fortune Talisman', desc: '+10 permanent luck', cost: 25000, type: 'stack', effect: { luck: 10 }, max: 3 },
   { id: 'creditsBracelet', name: 'Credits Bracelet', desc: '+5 credits per roll', cost: 3000, type: 'stack', effect: { credits: 5 }, max: 10 },
+  { id: 'timeMachine', name: 'Time Machine', desc: 'travel to past and future', cost: 100000, type: 'unlock' },
 ];
 
 const achievements = [
@@ -408,7 +431,7 @@ const achievements = [
 ];
 
 const changelog = [
-  { version: 'v0.6', note: 'bg music, webgl 3d cube, more detail, time travel coming soon' },
+  { version: 'v0.6', note: 'time travel (past/future/present), bg music, webgl 3d cube, 50 rarities per period, biomes, mutations, breakthroughs, bonus rolls, quick roll, aura filter, auto-equip, admin panel (konami code), cloudflare leaderboard, sound effects, credits bracelet' },
   { version: 'v0.5', note: 'removed speed stat, credits scale with rarity, x100 is 50k, 33 rarities, luck caps at 100M (bracelets bypass)' },
   { version: 'v0.4', note: 'added achievements that give permanent luck/speed boosts + update log' },
   { version: 'v0.3', note: 'added localStorage save/load, nerfed auto roll to half speed' },
@@ -417,6 +440,24 @@ const changelog = [
 ];
 
 let achievementsUnlocked = {};
+
+// populate aura filter dropdown
+function populateAuraFilter() {
+  const sel = document.getElementById('auraFilter');
+  if (!sel) return;
+  sel.innerHTML = '<option value="0">ALL</option>';
+  const rar = getCurrentRarities();
+  for (let i = 0; i < rar.length; i++) {
+    const opt = document.createElement('option');
+    opt.value = i + 1;
+    opt.textContent = rar[i].name;
+    sel.appendChild(opt);
+  }
+  sel.value = auraFilterMin;
+  sel.addEventListener('change', () => {
+    auraFilterMin = parseInt(sel.value);
+  });
+}
 
 const rarities = [
   { name: 'Dust',        odds: 1.5,        cap: 2,          color: '#8a9199', glow: '#aab4bd', luck: 0.1,     particles: 12,  shake: 2,    flash: 0.02, chroma: 0 },
@@ -451,29 +492,188 @@ const rarities = [
   { name: 'Omnipotent',  odds: 8000000000000000,cap: 12800000000000000,color:'#00ff80', glow: '#80ffc0', luck: 600000000000000,particles: 760, shake: 190,  flash: 0.999,chroma: 0.999},
   { name: 'Absolute',    odds: 35000000000000000,cap: 42000000000000000,color:'#ff0000', glow: '#ffff00', luck: 5000000000000000,particles: 790, shake: 200,  flash: 1.00, chroma: 1.00 },
   { name: '???',         odds: 150000000000000000,cap:150000000000000000,color:'prism',    glow: '#ffffff', luck: 50000000000000000,particles: 850, shake: 220,  flash: 1.00, chroma: 1.00 },
+  { name: 'Beyond',      odds: 1e15,        cap: 4.7e15,     color: '#0a1a2a', glow: '#1a3a5a', luck: 5.24e14,  particles: 620, shake: 122,  flash: 1.00, chroma: 0.96 },
+  { name: 'Abyss',       odds: 1e20,        cap: 4.7e20,     color: '#081525', glow: '#152a4a', luck: 1.05e15,  particles: 640, shake: 126,  flash: 1.00, chroma: 0.97 },
+  { name: 'Eternity',    odds: 1e25,        cap: 4.7e25,     color: '#061020', glow: '#102040', luck: 2.1e15,   particles: 660, shake: 130,  flash: 1.00, chroma: 0.97 },
+  { name: 'Infinity',    odds: 1e30,        cap: 4.7e30,     color: '#040a1a', glow: '#081530', luck: 4.2e15,   particles: 680, shake: 134,  flash: 1.00, chroma: 0.98 },
+  { name: 'Void',        odds: 1e35,        cap: 4.7e35,     color: '#020510', glow: '#040a20', luck: 8.4e15,   particles: 700, shake: 138,  flash: 1.00, chroma: 0.98 },
+  { name: 'Nothing',     odds: 1e40,        cap: 4.7e40,     color: '#010208', glow: '#020510', luck: 1.68e16,  particles: 720, shake: 142,  flash: 1.00, chroma: 0.99 },
+  { name: 'Null',        odds: 1e45,        cap: 4.7e45,     color: '#000000', glow: '#010208', luck: 3.36e16,  particles: 740, shake: 146,  flash: 1.00, chroma: 0.99 },
+  { name: 'Zero',        odds: 1e50,        cap: 4.7e50,     color: '#000000', glow: '#000000', luck: 6.72e16,  particles: 760, shake: 150,  flash: 1.00, chroma: 1.00 },
+  { name: 'One',         odds: 1e55,        cap: 4.7e55,     color: '#000000', glow: '#000000', luck: 1.34e17,  particles: 780, shake: 154,  flash: 1.00, chroma: 1.00 },
+  { name: 'All',         odds: 1e60,        cap: 4.7e60,     color: '#000000', glow: '#000000', luck: 2.68e17,  particles: 800, shake: 158,  flash: 1.00, chroma: 1.00 },
+  { name: 'Everything',  odds: 1e65,        cap: 4.7e65,     color: '#000000', glow: '#000000', luck: 5.37e17,  particles: 820, shake: 162,  flash: 1.00, chroma: 1.00 },
+  { name: 'Universe',    odds: 1e70,        cap: 4.7e70,     color: '#000000', glow: '#000000', luck: 1.07e18,  particles: 840, shake: 166,  flash: 1.00, chroma: 1.00 },
+  { name: 'Multiverse',  odds: 1e75,        cap: 4.7e75,     color: '#000000', glow: '#000000', luck: 2.15e18,  particles: 860, shake: 170,  flash: 1.00, chroma: 1.00 },
+  { name: 'Cosmos',      odds: 1e80,        cap: 4.7e80,     color: '#000000', glow: '#000000', luck: 4.29e18,  particles: 880, shake: 174,  flash: 1.00, chroma: 1.00 },
+  { name: 'Omniverse',   odds: 1e85,        cap: 4.7e85,     color: '#000000', glow: '#000000', luck: 8.59e18,  particles: 900, shake: 178,  flash: 1.00, chroma: 1.00 },
+  { name: 'Googol',      odds: 1e100,       cap: 4.7e100,    color: '#000000', glow: '#000000', luck: 1.72e19,  particles: 920, shake: 182,  flash: 1.00, chroma: 1.00 },
 ];
 
+// past rarities (amber/brown theme) — scaled to match present rarity odds (rarest = 1 in 150 quadrillion)
+const pastRarities = [
+  { name: 'Pebble',      odds: 1.5,        cap: 2,          color: '#a08060', glow: '#c0a080', luck: 0.05,    particles: 10,  shake: 1,    flash: 0.01, chroma: 0 },
+  { name: 'Fossil',      odds: 8,          cap: 16,         color: '#8a7050', glow: '#aa9070', luck: 0.15,    particles: 14,  shake: 2,    flash: 0.02, chroma: 0 },
+  { name: 'Ancient',     odds: 40,         cap: 100,        color: '#7a6040', glow: '#9a8060', luck: 0.5,     particles: 18,  shake: 3,    flash: 0.03, chroma: 0 },
+  { name: 'Relic',       odds: 200,        cap: 600,        color: '#6a5030', glow: '#8a7050', luck: 2,       particles: 24,  shake: 4,    flash: 0.05, chroma: 0 },
+  { name: 'Artifact',    odds: 1000,       cap: 3500,       color: '#5a4020', glow: '#7a6040', luck: 8,       particles: 32,  shake: 5,    flash: 0.08, chroma: 0 },
+  { name: 'Antique',     odds: 5000,       cap: 19000,      color: '#4a3010', glow: '#6a5030', luck: 30,      particles: 42,  shake: 7,    flash: 0.12, chroma: 0 },
+  { name: 'Vintage',     odds: 25000,      cap: 100000,     color: '#3a2008', glow: '#5a4028', luck: 120,     particles: 55,  shake: 9,    flash: 0.18, chroma: 0 },
+  { name: 'Prehistoric', odds: 125000,     cap: 530000,     color: '#2a1804', glow: '#4a3824', luck: 500,     particles: 70,  shake: 12,   flash: 0.25, chroma: 0 },
+  { name: 'Primordial',  odds: 625000,     cap: 2700000,    color: '#1a1002', glow: '#3a2814', luck: 2500,    particles: 90,  shake: 16,   flash: 0.35, chroma: 0 },
+  { name: 'Eternal Past',odds: 1500000,   cap: 7200000,    color: '#0a0801', glow: '#2a1808', luck: 15000,   particles: 120, shake: 22,   flash: 0.50, chroma: 0 },
+  { name: 'Forgotten',   odds: 7500000,   cap: 36000000,   color: '#050400', glow: '#1a1004', luck: 30000,   particles: 140, shake: 26,   flash: 0.55, chroma: 0 },
+  { name: 'Dust of Time',odds: 37500000,  cap: 180000000,  color: '#030200', glow: '#150c02', luck: 60000,   particles: 160, shake: 30,   flash: 0.60, chroma: 0 },
+  { name: 'Echo',        odds: 187500000,  cap: 900000000,  color: '#8a5030', glow: '#aa7050', luck: 120000,  particles: 180, shake: 34,   flash: 0.65, chroma: 0 },
+  { name: 'Lost Age',    odds: 937500000,  cap: 4500000000, color: '#7a4020', glow: '#9a6040', luck: 250000,  particles: 200, shake: 38,   flash: 0.70, chroma: 0 },
+  { name: 'Void Past',   odds: 1000000000, cap: 4700000000, color: '#6a3010', glow: '#8a5030', luck: 500000,  particles: 220, shake: 42,   flash: 0.75, chroma: 0 },
+  { name: 'Bone',        odds: 1200000000, cap: 5600000000, color: '#5a2008', glow: '#7a4028', luck: 1000000, particles: 240, shake: 46,   flash: 0.78, chroma: 0 },
+  { name: 'Ash',         odds: 1500000000, cap: 7000000000, color: '#4a1804', glow: '#6a3824', luck: 2000000, particles: 260, shake: 50,   flash: 0.80, chroma: 0 },
+  { name: 'Stone',       odds: 2000000000, cap: 9400000000, color: '#3a1002', glow: '#5a3020', luck: 4000000, particles: 280, shake: 54,   flash: 0.82, chroma: 0 },
+  { name: 'Dust',        odds: 2500000000, cap: 11700000000,color: '#2a0801', glow: '#4a2818', luck: 8000000, particles: 300, shake: 58,   flash: 0.84, chroma: 0 },
+  { name: 'Memory',      odds: 3000000000, cap: 14000000000,color: '#1a0400', glow: '#3a2010', luck: 16000000,particles: 320, shake: 62,   flash: 0.86, chroma: 0 },
+  { name: 'Remnant',     odds: 3500000000, cap: 16500000000,color: '#150300', glow: '#301808', luck: 32000000,particles: 340, shake: 66,   flash: 0.88, chroma: 0 },
+  { name: 'Last Light',  odds: 4000000000, cap: 18800000000,color: '#100200', glow: '#281004', luck: 64000000,particles: 360, shake: 70,   flash: 0.90, chroma: 0 },
+  { name: 'Ancient One', odds: 4500000000, cap: 21000000000,color: '#0a0100', glow: '#200802', luck: 128000000,particles: 380, shake: 74,   flash: 0.92, chroma: 0 },
+  { name: 'Timeless',    odds: 5000000000, cap: 23500000000,color: '#050000', glow: '#180401', luck: 256000000,particles: 400, shake: 78,   flash: 0.94, chroma: 0 },
+  { name: 'Oblivion',    odds: 5000000000, cap: 23500000000,color: '#0a0a0a', glow: '#ffffff', luck: 512000000,particles: 420, shake: 82,   flash: 0.96, chroma: 0 },
+  { name: 'Collapse',    odds: 5500000000, cap: 26000000000,color: '#080808', glow: '#f0f0f0', luck: 1024000000,particles: 440, shake: 86,   flash: 0.97, chroma: 0 },
+  { name: 'Singularity', odds: 6000000000, cap: 28200000000,color: '#060606', glow: '#e0e0e0', luck: 2048000000,particles: 460, shake: 90,   flash: 0.975,chroma: 0 },
+  { name: 'Void',        odds: 6500000000, cap: 30500000000,color: '#040404', glow: '#d0d0d0', luck: 4096000000,particles: 480, shake: 94,   flash: 0.98, chroma: 0 },
+  { name: 'Null',        odds: 7000000000, cap: 33000000000,color: '#020202', glow: '#c0c0c0', luck: 8192000000,particles: 500, shake: 98,   flash: 0.985,chroma: 0 },
+  { name: 'Nothing',     odds: 7500000000, cap: 35000000000,color: '#010101', glow: '#b0b0b0', luck: 16384000000,particles: 520, shake: 102,  flash: 0.99, chroma: 0 },
+  { name: 'End',         odds: 8000000000, cap: 37600000000,color: '#000000', glow: '#a0a0a0', luck: 32768000000,particles: 540, shake: 106,  flash: 0.995,chroma: 0 },
+  { name: 'Omega',       odds: 8500000000, cap: 40000000000,color: '#000000', glow: '#909090', luck: 65536000000,particles: 560, shake: 110,  flash: 1.00, chroma: 0 },
+  { name: 'Final',       odds: 9000000000, cap: 42300000000,color: '#000000', glow: '#808080', luck: 131072000000,particles: 580, shake: 114,  flash: 1.00, chroma: 0 },
+  { name: '???',         odds: 10000000000,cap: 47000000000,color: '#000000', glow: '#707070', luck: 262144000000,particles: 600, shake: 118,  flash: 1.00, chroma: 0 },
+  { name: 'Forgotten Era', odds: 1e15,      cap: 4.7e15,     color: '#1a1208', glow: '#3a2810', luck: 5.24e14,  particles: 620, shake: 122,  flash: 1.00, chroma: 0 },
+  { name: 'Deep Time',   odds: 1e20,        cap: 4.7e20,     color: '#150e06', glow: '#30200c', luck: 1.05e15,  particles: 640, shake: 126,  flash: 1.00, chroma: 0 },
+  { name: 'Ancient Eternity', odds: 1e25,   cap: 4.7e25,     color: '#100a04', glow: '#281808', luck: 2.1e15,   particles: 660, shake: 130,  flash: 1.00, chroma: 0 },
+  { name: 'Infinite Past', odds: 1e30,     cap: 4.7e30,     color: '#0c0803', glow: '#201406', luck: 4.2e15,   particles: 680, shake: 134,  flash: 1.00, chroma: 0 },
+  { name: 'Lost Void',   odds: 1e35,        cap: 4.7e35,     color: '#080602', glow: '#181004', luck: 8.4e15,   particles: 700, shake: 138,  flash: 1.00, chroma: 0 },
+  { name: 'Lost Nothing',odds: 1e40,       cap: 4.7e40,     color: '#060401', glow: '#120c03', luck: 1.68e16,  particles: 720, shake: 142,  flash: 1.00, chroma: 0 },
+  { name: 'Past Null',   odds: 1e45,        cap: 4.7e45,     color: '#040301', glow: '#0e0802', luck: 3.36e16,  particles: 740, shake: 146,  flash: 1.00, chroma: 0 },
+  { name: 'Zero Point',  odds: 1e50,        cap: 4.7e50,     color: '#030201', glow: '#0a0601', luck: 6.72e16,  particles: 760, shake: 150,  flash: 1.00, chroma: 0 },
+  { name: 'First Light', odds: 1e55,        cap: 4.7e55,     color: '#020100', glow: '#080401', luck: 1.34e17,  particles: 780, shake: 154,  flash: 1.00, chroma: 0 },
+  { name: 'All That Was',odds: 1e60,       cap: 4.7e60,     color: '#010100', glow: '#060300', luck: 2.68e17,  particles: 800, shake: 158,  flash: 1.00, chroma: 0 },
+  { name: 'Everything Past', odds: 1e65,   cap: 4.7e65,     color: '#000000', glow: '#040200', luck: 5.37e17,  particles: 820, shake: 162,  flash: 1.00, chroma: 0 },
+  { name: 'Ancient Universe', odds: 1e70,   cap: 4.7e70,     color: '#000000', glow: '#040200', luck: 1.07e18,  particles: 840, shake: 166,  flash: 1.00, chroma: 0 },
+  { name: 'Past Multiverse', odds: 1e75,    cap: 4.7e75,     color: '#000000', glow: '#040200', luck: 2.15e18,  particles: 860, shake: 170,  flash: 1.00, chroma: 0 },
+  { name: 'Ancient Cosmos', odds: 1e80,     cap: 4.7e80,     color: '#000000', glow: '#040200', luck: 4.29e18,  particles: 880, shake: 174,  flash: 1.00, chroma: 0 },
+  { name: 'Past Omniverse', odds: 1e85,     cap: 4.7e85,     color: '#000000', glow: '#040200', luck: 8.59e18,  particles: 900, shake: 178,  flash: 1.00, chroma: 0 },
+  { name: 'Origin',      odds: 1e100,       cap: 4.7e100,    color: '#000000', glow: '#040200', luck: 1.72e19,  particles: 920, shake: 182,  flash: 1.00, chroma: 0 },
+];
+
+// future rarities (purple/neon theme) — scaled to match present rarity odds (rarest = 1 in 1 billion)
+const futureRarities = [
+  { name: 'Neon',        odds: 1.5,        cap: 2,          color: '#ff00ff', glow: '#ff80ff', luck: 0.05,    particles: 10,  shake: 1,    flash: 0.01, chroma: 0.1 },
+  { name: 'Cyber',       odds: 8,          cap: 16,         color: '#00ffff', glow: '#80ffff', luck: 0.15,    particles: 14,  shake: 2,    flash: 0.02, chroma: 0.15 },
+  { name: 'Hologram',    odds: 40,         cap: 100,        color: '#8080ff', glow: '#c0c0ff', luck: 0.5,     particles: 18,  shake: 3,    flash: 0.03, chroma: 0.2 },
+  { name: 'Synthetic',   odds: 200,        cap: 600,        color: '#ff8000', glow: '#ffc080', luck: 2,       particles: 24,  shake: 4,    flash: 0.05, chroma: 0.25 },
+  { name: 'Quantum',     odds: 1000,       cap: 3500,       color: '#00ff80', glow: '#80ffc0', luck: 8,       particles: 32,  shake: 5,    flash: 0.08, chroma: 0.3 },
+  { name: 'Singularity', odds: 5000,       cap: 19000,      color: '#ff0080', glow: '#ff80c0', luck: 30,      particles: 42,  shake: 7,    flash: 0.12, chroma: 0.4 },
+  { name: 'Nexus',       odds: 25000,      cap: 100000,     color: '#8000ff', glow: '#c080ff', luck: 120,     particles: 55,  shake: 9,    flash: 0.18, chroma: 0.5 },
+  { name: 'Chronos',     odds: 125000,     cap: 530000,     color: '#0080ff', glow: '#80c0ff', luck: 500,     particles: 70,  shake: 12,   flash: 0.25, chroma: 0.6 },
+  { name: 'Temporal',    odds: 625000,     cap: 2700000,    color: '#ff0040', glow: '#ff80a0', luck: 2500,    particles: 90,  shake: 16,   flash: 0.35, chroma: 0.7 },
+  { name: 'Infinity',    odds: 1500000,   cap: 7200000,    color: '#ffffff', glow: '#c0ffe0', luck: 15000,   particles: 120, shake: 22,   flash: 0.50, chroma: 0.8 },
+  { name: 'Singularity', odds: 7500000,   cap: 36000000,   color: '#4000ff', glow: '#8080ff', luck: 30000,   particles: 140, shake: 26,   flash: 0.55, chroma: 0.85 },
+  { name: 'Nexus Point', odds: 37500000,  cap: 180000000,  color: '#0040ff', glow: '#8080ff', luck: 60000,   particles: 160, shake: 30,   flash: 0.60, chroma: 0.9 },
+  { name: 'Beyond Time', odds: 187500000, cap: 900000000,  color: '#0000ff', glow: '#4040ff', luck: 120000,  particles: 180, shake: 34,   flash: 0.65, chroma: 0.95 },
+  { name: 'Void Future', odds: 937500000, cap: 4500000000, color: '#000040', glow: '#404080', luck: 250000,  particles: 200, shake: 38,   flash: 0.70, chroma: 0.98 },
+  { name: 'End of Time', odds: 1000000000,cap: 4700000000, color: '#000080', glow: '#0000ff', luck: 500000,  particles: 220, shake: 42,   flash: 0.75, chroma: 1.0 },
+  { name: 'Circuit',     odds: 1200000000,cap: 5600000000, color: '#00ff00', glow: '#80ff80', luck: 1000000, particles: 240, shake: 46,   flash: 0.78, chroma: 1.0 },
+  { name: 'Pixel',       odds: 1500000000,cap: 7000000000, color: '#00ff80', glow: '#80ffc0', luck: 2000000, particles: 260, shake: 50,   flash: 0.80, chroma: 1.0 },
+  { name: 'Hologram',    odds: 2000000000,cap: 9400000000, color: '#00ffc0', glow: '#80ffe0', luck: 4000000, particles: 280, shake: 54,   flash: 0.82, chroma: 1.0 },
+  { name: 'Neon',        odds: 2500000000,cap: 11700000000,color: '#00c0ff', glow: '#80e0ff', luck: 8000000, particles: 300, shake: 58,   flash: 0.84, chroma: 1.0 },
+  { name: 'Cyber',       odds: 3000000000,cap: 14000000000,color: '#0080ff', glow: '#80c0ff', luck: 16000000,particles: 320, shake: 62,   flash: 0.86, chroma: 1.0 },
+  { name: 'Synth',       odds: 3500000000,cap: 16500000000,color: '#4000ff', glow: '#8080ff', luck: 32000000,particles: 340, shake: 66,   flash: 0.88, chroma: 1.0 },
+  { name: 'Digital',     odds: 4000000000,cap: 18800000000,color: '#8000ff', glow: '#c080ff', luck: 64000000,particles: 360, shake: 70,   flash: 0.90, chroma: 1.0 },
+  { name: 'Virtual',     odds: 4500000000,cap: 21000000000,color: '#c000ff', glow: '#e080ff', luck: 128000000,particles: 380, shake: 74,   flash: 0.92, chroma: 1.0 },
+  { name: 'Omniverse',   odds: 5000000000,cap: 23500000000,color: '#ff00ff', glow: '#ff80ff', luck: 256000000,particles: 400, shake: 78,   flash: 0.94, chroma: 1.0 },
+  { name: 'Oblivion',    odds: 5000000000,cap: 23500000000,color: '#0a0a0a', glow: '#ffffff', luck: 512000000,particles: 420, shake: 82,   flash: 0.96, chroma: 1.0 },
+  { name: 'Collapse',    odds: 5500000000,cap: 26000000000,color: '#080808', glow: '#f0f0f0', luck: 1024000000,particles: 440, shake: 86,   flash: 0.97, chroma: 1.0 },
+  { name: 'Singularity', odds: 6000000000,cap: 28200000000,color: '#060606', glow: '#e0e0e0', luck: 2048000000,particles: 460, shake: 90,   flash: 0.975,chroma: 1.0 },
+  { name: 'Void',        odds: 6500000000,cap: 30500000000,color: '#040404', glow: '#d0d0d0', luck: 4096000000,particles: 480, shake: 94,   flash: 0.98, chroma: 1.0 },
+  { name: 'Null',        odds: 7000000000,cap: 33000000000,color: '#020202', glow: '#c0c0c0', luck: 8192000000,particles: 500, shake: 98,   flash: 0.985,chroma: 1.0 },
+  { name: 'Nothing',     odds: 7500000000,cap: 35000000000,color: '#010101', glow: '#b0b0b0', luck: 16384000000,particles: 520, shake: 102,  flash: 0.99, chroma: 1.0 },
+  { name: 'End',         odds: 8000000000,cap: 37600000000,color: '#000000', glow: '#a0a0a0', luck: 32768000000,particles: 540, shake: 106,  flash: 0.995,chroma: 1.0 },
+  { name: 'Omega',       odds: 8500000000,cap: 40000000000,color: '#000000', glow: '#909090', luck: 65536000000,particles: 560, shake: 110,  flash: 1.00, chroma: 1.0 },
+  { name: 'Final',       odds: 9000000000,cap: 42300000000,color: '#000000', glow: '#808080', luck: 131072000000,particles: 580, shake: 114,  flash: 1.00, chroma: 1.0 },
+  { name: '???',         odds: 10000000000,cap: 47000000000,color: '#000000', glow: '#707070', luck: 262144000000,particles: 600, shake: 118,  flash: 1.00, chroma: 1.0 },
+  { name: 'Beyond',      odds: 1e15,        cap: 4.7e15,     color: '#0a0a0a', glow: '#606060', luck: 5.24e14,  particles: 620, shake: 122,  flash: 1.00, chroma: 1.0 },
+  { name: 'Abyss',       odds: 1e20,        cap: 4.7e20,     color: '#080808', glow: '#505050', luck: 1.05e15,  particles: 640, shake: 126,  flash: 1.00, chroma: 1.0 },
+  { name: 'Eternity',    odds: 1e25,        cap: 4.7e25,     color: '#060606', glow: '#404040', luck: 2.1e15,   particles: 660, shake: 130,  flash: 1.00, chroma: 1.0 },
+  { name: 'Infinity',    odds: 1e30,        cap: 4.7e30,     color: '#040404', glow: '#303030', luck: 4.2e15,   particles: 680, shake: 134,  flash: 1.00, chroma: 1.0 },
+  { name: 'Void',        odds: 1e35,        cap: 4.7e35,     color: '#020202', glow: '#202020', luck: 8.4e15,   particles: 700, shake: 138,  flash: 1.00, chroma: 1.0 },
+  { name: 'Nothing',     odds: 1e40,        cap: 4.7e40,     color: '#010101', glow: '#101010', luck: 1.68e16,  particles: 720, shake: 142,  flash: 1.00, chroma: 1.0 },
+  { name: 'Null',        odds: 1e45,        cap: 4.7e45,     color: '#000000', glow: '#0a0a0a', luck: 3.36e16,  particles: 740, shake: 146,  flash: 1.00, chroma: 1.0 },
+  { name: 'Zero',        odds: 1e50,        cap: 4.7e50,     color: '#000000', glow: '#050505', luck: 6.72e16,  particles: 760, shake: 150,  flash: 1.00, chroma: 1.0 },
+  { name: 'One',         odds: 1e55,        cap: 4.7e55,     color: '#000000', glow: '#020202', luck: 1.34e17,  particles: 780, shake: 154,  flash: 1.00, chroma: 1.0 },
+  { name: 'All',         odds: 1e60,        cap: 4.7e60,     color: '#000000', glow: '#010101', luck: 2.68e17,  particles: 800, shake: 158,  flash: 1.00, chroma: 1.0 },
+  { name: 'Everything',  odds: 1e65,        cap: 4.7e65,     color: '#000000', glow: '#010004', luck: 5.37e17,  particles: 820, shake: 162,  flash: 1.00, chroma: 1.0 },
+  { name: 'Universe',    odds: 1e70,        cap: 4.7e70,     color: '#000000', glow: '#010004', luck: 1.07e18,  particles: 840, shake: 166,  flash: 1.00, chroma: 1.0 },
+  { name: 'Multiverse',  odds: 1e75,        cap: 4.7e75,     color: '#000000', glow: '#010004', luck: 2.15e18,  particles: 860, shake: 170,  flash: 1.00, chroma: 1.0 },
+  { name: 'Cosmos',      odds: 1e80,        cap: 4.7e80,     color: '#000000', glow: '#010004', luck: 4.29e18,  particles: 880, shake: 174,  flash: 1.00, chroma: 1.0 },
+  { name: 'Omniverse',   odds: 1e85,        cap: 4.7e85,     color: '#000000', glow: '#010004', luck: 8.59e18,  particles: 900, shake: 178,  flash: 1.00, chroma: 1.0 },
+  { name: 'Googol',      odds: 1e100,       cap: 4.7e100,    color: '#000000', glow: '#010004', luck: 1.72e19,  particles: 920, shake: 182,  flash: 1.00, chroma: 1.0 },
+];
 let inventory = {};
+let pastInventory = {};
+let futureInventory = {};
 let baseLuck = 1;
 let rolls = 0;
 let credits = 0;
 let autoRoll = false;
 let unlocked = { auto: false };
+let isAdmin = false;
 let shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0 };
 let manualCooldown = 0;
 let MANUAL_COOLDOWN_MS = 500;
+let bonusRollCounter = 0;
+let bonusRollReady = false;
+let bonusMultiplier = 1;
+let quickRoll = false;
+let auraFilterMin = 0; // minimum rarity index to keep (0 = keep all)
+let autoEquipBest = false;
+const biomes = [
+  { name: 'Normal', boost: [], color: '#2bd0d0', mult: 1 },
+  { name: 'Void', boost: [0, 1, 2], color: '#8000ff', mult: 3 }, // boosts common rarities
+  { name: 'Cyber', boost: [5, 6, 7], color: '#00ffff', mult: 3 }, // boosts mid rarities
+  { name: 'Ancient', boost: [8, 9, 10], color: '#d4a040', mult: 3 }, // boosts high rarities
+  { name: 'Cosmic', boost: [11, 12, 13], color: '#ff00ff', mult: 3 }, // boosts ultra rarities
+  { name: 'Chaos', boost: [], color: '#ff0040', mult: 5 }, // boosts everything
+];
+
+let currentBiome = 'normal';
+let biomeTimer = 0;
+let BIOME_DURATION = 120000; // 2 minutes
+let mutatedInventory = {}; // tracks mutated rarity counts
+let MUTATION_CHANCE = 0.02; // 1 in 50
 let currentRarity = rarities[0];
+let timePeriod = 'present'; // 'past', 'present', 'future'
 let lastAuto = 0;
 let particles = [];
 let shake = 0;
 let chroma = 0;
 let cubeRot = 0;
 let lastRollTime = 0;
+let isRolling = false;
+let rollAnimStart = 0;
+let rollAnimDuration = 1000;
+let rollDecelStart = 0;
+let rollDecelDuration = 600;
+let isDecelerating = false;
+let rollGlow = 0;
+let isTimeTraveling = false;
+let timeTravelStart = 0;
+let timeTravelDuration = 2000;
+let timeTravelTarget = 'present';
 let bestRarityIndex = 0;
 let startTime = Date.now();
 let autoInterval = 1000;
 
 function formatNum(n) {
+  if (!isFinite(n) || isNaN(n)) return '∞';
   if (n < 1000) return n.toFixed(n < 10 ? 2 : 0);
   const suffixes = ['K','M','B','T','qd','Qn','sx','Sp','O','N','de'];
   const exp = Math.floor(Math.log10(n) / 3);
@@ -504,20 +704,54 @@ function getShopBonus() {
   return { luck, credits };
 }
 
+function getCurrentRarities() {
+  if (timePeriod === 'past') return pastRarities;
+  if (timePeriod === 'future') return futureRarities;
+  return rarities;
+}
+
+function getCurrentInventory() {
+  if (timePeriod === 'past') return pastInventory;
+  if (timePeriod === 'future') return futureInventory;
+  return inventory;
+}
+
+function setCurrentInventory(inv) {
+  if (timePeriod === 'past') pastInventory = inv;
+  else if (timePeriod === 'future') futureInventory = inv;
+  else inventory = inv;
+}
+
 function getTotals() {
-  let luck = baseLuck + getAchievementBonus();
-  for (const r of rarities) {
-    luck += (inventory[r.name] || 0) * r.luck;
+  let luck = baseLuck + getAchievementBonus() + getShopBonus().luck;
+  // mutated rarities give 2x luck
+  const rar = getCurrentRarities();
+  for (const r of rar) {
+    const mutCount = mutatedInventory[r.name + ' (M)'] || 0;
+    luck += mutCount * r.luck * 2;
   }
   luck = Math.min(luck, 100000000);
-  luck += getShopBonus().luck;
   return luck;
 }
 
 function getProbabilities() {
-  const luck = getTotals();
-  const weights = rarities.map(r => {
-    const eff = Math.min(r.odds <= 1 ? 1 : (1 / r.odds) * luck, (1 / r.odds) * r.cap);
+  const luck = getTotals() * bonusMultiplier;
+  const rar = getCurrentRarities();
+  const biome = biomes.find(b => b.name === currentBiome) || biomes[0];
+  const weights = rar.map((r, i) => {
+    let eff = Math.min(r.odds <= 1 ? 1 : (1 / r.odds) * luck, (1 / r.odds) * r.cap);
+    if (biome.boost.includes(i)) eff *= biome.mult;
+    if (biome.name === 'Chaos') eff *= biome.mult;
+    return eff;
+  });
+  const total = weights.reduce((a, b) => a + b, 0);
+  return weights.map(w => w / total);
+}
+
+function getProbabilitiesForRarities(rarList) {
+  const luck = getTotals() * bonusMultiplier;
+  const weights = rarList.map(r => {
+    let eff = Math.min(r.odds <= 1 ? 1 : (1 / r.odds) * luck, (1 / r.odds) * r.cap);
     return eff;
   });
   const total = weights.reduce((a, b) => a + b, 0);
@@ -528,39 +762,193 @@ function rollOne() {
   const probs = getProbabilities();
   const x = Math.random();
   let cum = 0;
-  for (let i = 0; i < rarities.length; i++) {
+  const rar = getCurrentRarities();
+  for (let i = 0; i < rar.length; i++) {
     cum += probs[i];
-    if (x <= cum) return rarities[i];
+    if (x <= cum) return rar[i];
   }
-  return rarities[rarities.length - 1];
+  return rar[rar.length - 1];
 }
 
 function triggerRoll(count = 1) {
+  if (isRolling) return;
+  isRolling = true;
+  rollAnimStart = Date.now();
+
+  // show rolling text
+  rollText.querySelector('.rarity-name').textContent = 'ROLLING';
+  rollText.querySelector('.rarity-name').style.color = '#2bd0d0';
+  rollText.querySelector('.rarity-tag').textContent = '';
+  rollText.style.opacity = 1;
+  rollText.style.transform = 'translateX(-50%) scale(1.1)';
+
+  const rar = getCurrentRarities();
+  const inv = getCurrentInventory();
+
+  // bonus roll check (every 10th roll = 2x luck, inspired by sol's rng)
+  bonusRollCounter++;
+  bonusRollReady = (bonusRollCounter % 10 === 0);
+  bonusMultiplier = bonusRollReady ? 2 : 1;
+
+  // breakthrough: 5% chance to roll from another time period
+  const breakthroughChance = 0.05;
+
+  // determine result immediately but delay reveal
   let best = null;
+  const results = [];
   for (let i = 0; i < count; i++) {
-    const r = rollOne();
-    inventory[r.name] = (inventory[r.name] || 0) + 1;
-    baseLuck += 0.02;
+    let r;
+    if (Math.random() < breakthroughChance && timePeriod !== 'present') {
+      // breakthrough: roll from present rarities
+      const presentProbs = getProbabilitiesForRarities(rarities);
+      const x = Math.random();
+      let cum = 0;
+      for (let j = 0; j < presentProbs.length; j++) {
+        cum += presentProbs[j];
+        if (x <= cum) { r = rarities[j]; break; }
+      }
+      if (!r) r = rarities[rarities.length - 1];
+      // mark as breakthrough
+      r = { ...r, breakthrough: true };
+    } else if (Math.random() < breakthroughChance && timePeriod === 'present') {
+      // breakthrough: roll from a random time period's rarities
+      const otherRarities = Math.random() < 0.5 ? pastRarities : futureRarities;
+      const otherProbs = getProbabilitiesForRarities(otherRarities);
+      const x = Math.random();
+      let cum = 0;
+      for (let j = 0; j < otherProbs.length; j++) {
+        cum += otherProbs[j];
+        if (x <= cum) { r = otherRarities[j]; break; }
+      }
+      if (!r) r = otherRarities[otherRarities.length - 1];
+      r = { ...r, breakthrough: true };
+    } else {
+      r = rollOne();
+    }
+    results.push(r);
+    if (!best || rar.indexOf(r) > rar.indexOf(best)) best = r;
+  }
+  bonusMultiplier = 1;
+
+  // apply inventory/luck/credits + mutations + breakthroughs
+  for (const r of results) {
+    const isMutated = Math.random() < MUTATION_CHANCE;
+    const bt = r.breakthrough;
+    if (isMutated) {
+      const mutName = r.name + ' (M)';
+      mutatedInventory[mutName] = (mutatedInventory[mutName] || 0) + 1;
+    } else if (bt) {
+      const btName = r.name + ' (BT)';
+      inv[btName] = (inv[btName] || 0) + 1;
+    } else {
+      inv[r.name] = (inv[r.name] || 0) + 1;
+    }
     rolls++;
     credits += 1 + getShopBonus().credits;
-    if (!best || rarities.indexOf(r) > rarities.indexOf(best)) best = r;
   }
-  currentRarity = best;
-  const idx = rarities.indexOf(best);
-  if (idx > bestRarityIndex) bestRarityIndex = idx;
-  triggerEffects(best);
-  playTone(idx);
-  updateUI();
-  showRollText(best);
-  checkAchievements();
-  saveGame();
+  setCurrentInventory(inv);
+
+  // start deceleration
+  setTimeout(() => {
+    isDecelerating = true;
+    rollDecelStart = Date.now();
+    rollGlow = 1.0;
+  }, rollAnimDuration);
+
+  const revealDelay = quickRoll ? 0 : rollAnimDuration + rollDecelDuration;
+
+  // reveal after deceleration
+  setTimeout(() => {
+    currentRarity = best;
+    const idx = getCurrentRarities().indexOf(best);
+    if (idx > bestRarityIndex) {
+      bestRarityIndex = idx;
+      if (autoEquipBest) {
+        showToast('new best: ' + best.name);
+      }
+    }
+
+    if (auraFilterMin === 0 || idx >= auraFilterMin) {
+      triggerEffects(best);
+      playTone(idx);
+      showRollText(best);
+    }
+
+    updateUI();
+    checkAchievements();
+    saveGame();
+    isDecelerating = false;
+    isRolling = false;
+    rollGlow = 0;
+    lastAuto = performance.now();
+  }, revealDelay);
 }
 
 function manualRoll() {
   if (autoRoll) return;
-  if (Date.now() - manualCooldown < MANUAL_COOLDOWN_MS) return;
+  if (!quickRoll && Date.now() - manualCooldown < MANUAL_COOLDOWN_MS) return;
   manualCooldown = Date.now();
   triggerRoll(1);
+}
+
+function switchTimePeriod(period) {
+  if (!unlocked.timeMachine) return;
+  if (isTimeTraveling) return;
+  if (period === timePeriod) return;
+  isTimeTraveling = true;
+  timeTravelTarget = period;
+  timeTravelStart = Date.now();
+  playTimeTravelSound();
+  // show traveling text
+  rollText.querySelector('.rarity-name').textContent = 'TIME TRAVEL';
+  rollText.querySelector('.rarity-name').style.color = '#2bd0d0';
+  rollText.querySelector('.rarity-tag').textContent = '';
+  rollText.style.opacity = 1;
+  rollText.style.transform = 'translateX(-50%) scale(1.1)';
+
+  setTimeout(() => {
+    // explosion
+    flash.style.opacity = 1;
+    shake = 30;
+    chroma = 1;
+    spawnParticles(200, currentRarity.color, currentRarity.glow);
+    setTimeout(() => { flash.style.opacity = 0; }, 150);
+
+    timePeriod = timeTravelTarget;
+    switchPeriodMusic(timePeriod);
+    const root = document.documentElement;
+    if (timePeriod === 'past') {
+      root.style.setProperty('--cyan', '#d4a040');
+      root.style.setProperty('--cyan-bright', '#ffc060');
+      root.style.setProperty('--border', 'rgba(212, 160, 64, 0.35)');
+    } else if (timePeriod === 'future') {
+      root.style.setProperty('--cyan', '#c040ff');
+      root.style.setProperty('--cyan-bright', '#e080ff');
+      root.style.setProperty('--border', 'rgba(192, 64, 255, 0.35)');
+    } else {
+      root.style.setProperty('--cyan', '#2bd0d0');
+      root.style.setProperty('--cyan-bright', '#5ad0ff');
+      root.style.setProperty('--border', 'rgba(43, 208, 208, 0.35)');
+    }
+    updatePeriodUI();
+    populateAuraFilter();
+    updateUI();
+    renderInventory();
+    renderRarityTable(getTotals());
+    rollText.style.opacity = 0;
+    isTimeTraveling = false;
+  }, timeTravelDuration);
+}
+
+function updatePeriodUI() {
+  const label = document.getElementById('periodLabel');
+  if (label) label.textContent = timePeriod.toUpperCase();
+  const pastBtn = document.getElementById('pastBtn');
+  const presentBtn = document.getElementById('presentBtn');
+  const futureBtn = document.getElementById('futureBtn');
+  if (pastBtn) pastBtn.classList.toggle('active', timePeriod === 'past');
+  if (presentBtn) presentBtn.classList.toggle('active', timePeriod === 'present');
+  if (futureBtn) futureBtn.classList.toggle('active', timePeriod === 'future');
 }
 
 function triggerEffects(r) {
@@ -597,12 +985,86 @@ function playTone(rarityIndex) {
   const gain = audioCtx.createGain();
   osc.type = rarityIndex > 7 ? 'sawtooth' : 'sine';
   osc.frequency.value = 220 + rarityIndex * 90 + Math.random() * 40;
-  gain.gain.value = 0.05;
+  gain.gain.value = 0.12;
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
   osc.connect(gain);
   gain.connect(audioCtx.destination);
   osc.start();
   osc.stop(audioCtx.currentTime + 0.25);
+}
+
+function playAchievementSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.value = 0.2;
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15 + i * 0.1);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(audioCtx.currentTime + i * 0.1);
+    osc.stop(audioCtx.currentTime + 0.15 + i * 0.1);
+  });
+}
+
+function playPurchaseSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.value = 800;
+  osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.08);
+  gain.gain.value = 0.15;
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.15);
+}
+
+function playTimeTravelSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  // sweep up
+  const osc1 = audioCtx.createOscillator();
+  const gain1 = audioCtx.createGain();
+  osc1.type = 'sawtooth';
+  osc1.frequency.value = 200;
+  osc1.frequency.exponentialRampToValueAtTime(2000, audioCtx.currentTime + 1.0);
+  gain1.gain.value = 0.15;
+  gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+  osc1.connect(gain1);
+  gain1.connect(audioCtx.destination);
+  osc1.start();
+  osc1.stop(audioCtx.currentTime + 1.2);
+  // sweep down
+  const osc2 = audioCtx.createOscillator();
+  const gain2 = audioCtx.createGain();
+  osc2.type = 'sine';
+  osc2.frequency.value = 1500;
+  osc2.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 1.5);
+  gain2.gain.value = 0.1;
+  gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.8);
+  osc2.connect(gain2);
+  gain2.connect(audioCtx.destination);
+  osc2.start(audioCtx.currentTime + 0.8);
+  osc2.stop(audioCtx.currentTime + 1.8);
+}
+
+function playClickSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 600;
+  gain.gain.value = 0.1;
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.05);
 }
 
 function showRollText(r) {
@@ -657,12 +1119,29 @@ function draw() {
   const h = rect.height;
 
   // update cube rotation
-  cubeRot += 0.03;
+  if (isTimeTraveling) {
+    const progress = (Date.now() - timeTravelStart) / timeTravelDuration;
+    cubeRot += 0.05 + progress * 0.8;
+  } else if (isRolling) {
+    cubeRot += 0.15;
+  } else if (isDecelerating) {
+    const progress = (Date.now() - rollDecelStart) / rollDecelDuration;
+    const speed = 0.15 * (1 - progress) + 0.02;
+    cubeRot += speed;
+    rollGlow = 1 - progress;
+  } else {
+    cubeRot += 0.02;
+  }
 
   // draw 3d cube in webgl
   const col = getRarityColor(currentRarity, t);
   const glow = currentRarity.glow;
-  drawGLCube(col, glow, t);
+  drawGLCube(col, glow, t, rollGlow);
+
+  // spawn rolling particles
+  if (isRolling && Math.random() < 0.3) {
+    spawnParticles(3, currentRarity.color, currentRarity.glow);
+  }
 
   // draw particles on 2d canvas
   ctx.clearRect(0, 0, w, h);
@@ -675,9 +1154,13 @@ function draw() {
     if (shake < 0.3) shake = 0;
   }
 
-  // radial gradient background (transparent overlay)
+  // radial gradient background based on time period
+  let bgR, bgG, bgB;
+  if (timePeriod === 'past') { bgR = 60; bgG = 40; bgB = 10; }
+  else if (timePeriod === 'future') { bgR = 40; bgG = 10; bgB = 60; }
+  else { bgR = 20; bgG = 40; bgB = 58; }
   const grad = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.max(w, h) * 0.6);
-  grad.addColorStop(0, 'rgba(20, 40, 58, 0.15)');
+  grad.addColorStop(0, 'rgba(' + bgR + ',' + bgG + ',' + bgB + ', 0.25)');
   grad.addColorStop(1, 'rgba(2, 3, 4, 0)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
@@ -704,9 +1187,18 @@ function draw() {
 
   if (shake > 0) ctx.restore();
 
-  chromatic.style.opacity = Math.max(0, chroma * 0.35);
-  chroma *= 0.96;
-  if (chroma < 0.01) chroma = 0;
+  // time travel flicker
+  if (isTimeTraveling) {
+    const progress = (Date.now() - timeTravelStart) / timeTravelDuration;
+    const flicker = Math.random() < 0.3 + progress * 0.5;
+    chromatic.style.opacity = flicker ? 0.8 : 0;
+    // flicker the roll text
+    rollText.style.opacity = flicker ? 1 : 0.3;
+  } else {
+    chromatic.style.opacity = Math.max(0, chroma * 0.35);
+    chroma *= 0.96;
+    if (chroma < 0.01) chroma = 0;
+  }
 
   requestAnimationFrame(draw);
 }
@@ -716,6 +1208,9 @@ function updateUI() {
   luckEl.textContent = formatNum(luck) + 'x';
   rollsEl.textContent = formatNum(rolls);
   creditsEl.textContent = formatNum(credits);
+  const biome = biomes.find(b => b.name === currentBiome) || biomes[0];
+  biomeEl.textContent = biome.name.toUpperCase();
+  biomeEl.style.color = biome.color;
 
   autoInterval = 800;
 
@@ -725,7 +1220,9 @@ function updateUI() {
   renderInventory();
   lastRollEl.innerHTML = `last roll: <strong style="color:${currentRarity.color === 'rainbow' ? '#fff' : currentRarity.color === 'prism' ? '#fff' : currentRarity.color}">${currentRarity.name}</strong>`;
 
-  const best = rarities[bestRarityIndex];
+  const rar = getCurrentRarities();
+  const clampedIdx = Math.min(bestRarityIndex, rar.length - 1);
+  const best = rar[clampedIdx] || rar[0];
   bestRollStat.innerHTML = `<span style="color:${best.color === 'rainbow' ? '#fff' : best.color === 'prism' ? '#fff' : best.color}">${best.name}</span>`;
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   const pt = elapsed < 60 ? elapsed + 's' : elapsed < 3600 ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's' : Math.floor(elapsed / 3600) + 'h ' + Math.floor((elapsed % 3600) / 60) + 'm';
@@ -734,11 +1231,12 @@ function updateUI() {
 
 function renderRarityTable(luck) {
   const probs = getProbabilities();
+  const rar = getCurrentRarities();
   rarityTable.innerHTML = '';
-  for (let i = rarities.length - 1; i >= 0; i--) {
-    const r = rarities[i];
+  for (let i = rar.length - 1; i >= 0; i--) {
+    const r = rar[i];
     const p = probs[i];
-    const odds = p > 0 ? Math.round(1 / p) : '∞';
+    const odds = r.odds;
     const row = document.createElement('div');
     row.className = 'rarity-row';
     row.innerHTML = `
@@ -754,22 +1252,26 @@ function renderRarityTable(luck) {
 
 function renderInventory() {
   inventoryEl.innerHTML = '';
-  const list = rarities.slice().reverse().filter(r => inventory[r.name]);
+  const rar = getCurrentRarities();
+  const inv = getCurrentInventory();
+  const list = rar.slice().reverse().filter(r => inv[r.name] || mutatedInventory[r.name + ' (M)']);
   if (list.length === 0) {
     inventoryEl.innerHTML = '<div style="color:var(--muted);font-size:11px;text-align:center;padding-top:20px">no auras yet. roll.</div>';
     return;
   }
   for (const r of list) {
-    const count = inventory[r.name];
+    const count = inv[r.name] || 0;
+    const mutCount = mutatedInventory[r.name + ' (M)'] || 0;
     const item = document.createElement('div');
     item.className = 'inv-item';
+    const mutText = mutCount > 0 ? ' <span style="color:#ff80ff">(M)x' + formatNum(mutCount) + '</span>' : '';
     item.innerHTML = `
       <div class="icon" style="background:${r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color}; color:${r.color}"></div>
       <div class="info">
-        <div class="name" style="color:${r.color === 'rainbow' || r.color === 'prism' ? '#fff' : r.color}">${r.name}</div>
+        <div class="name" style="color:${r.color === 'rainbow' || r.color === 'prism' ? '#fff' : r.color}">${r.name}${mutText}</div>
         <div class="count">x${formatNum(count)}</div>
       </div>
-      <div class="bonus">+${formatNum(count * r.luck)}x luck</div>
+      <div class="bonus">x${formatNum(count)}</div>
     `;
     inventoryEl.appendChild(item);
   }
@@ -839,8 +1341,11 @@ function buyUpgrade(id) {
     if (unlocked[id] || credits < up.cost) return;
     credits -= up.cost;
     unlocked[id] = true;
-    if (id === 'x10' && multiplier === 100 && !unlocked.x100) multiplier = 1;
     if (id === 'auto') autoRoll = true;
+    if (id === 'timeMachine') {
+      document.getElementById('timeMachineUI').style.display = 'block';
+      updatePeriodUI();
+    }
   } else {
     const count = shopCounts[id] || 0;
     if (count >= up.max || credits < up.cost) return;
@@ -851,6 +1356,7 @@ function buyUpgrade(id) {
   renderShop();
   updateUI();
   saveGame();
+  playPurchaseSound();
 }
 
 function renderShop() {
@@ -921,6 +1427,10 @@ window.addEventListener('keydown', e => {
 window.addEventListener('resize', resize);
 
 document.getElementById('rollBtn').addEventListener('click', () => manualRoll());
+document.getElementById('quickRollBtn').addEventListener('click', () => {
+  quickRoll = !quickRoll;
+  document.getElementById('quickRollBtn').classList.toggle('active', quickRoll);
+});
 document.getElementById('autoBtn').addEventListener('click', toggleAuto);
 document.querySelectorAll('#controls button[data-mult]').forEach(b => {
   b.addEventListener('click', () => setMultiplier(parseInt(b.dataset.mult)));
@@ -938,12 +1448,116 @@ changelogClose.addEventListener('click', () => closeModal(changelogModal));
 changelogModal.addEventListener('click', e => { if (e.target === changelogModal) closeModal(changelogModal); });
 resetSaveBtn.addEventListener('click', resetSave);
 
+// admin panel
+const adminModal = document.getElementById('adminModal');
+const adminAuth = document.getElementById('adminAuth');
+const adminControls = document.getElementById('adminControls');
+const adminStatus = document.getElementById('adminStatus');
+const adminLog = document.getElementById('adminLog');
+const adminPass = document.getElementById('adminPass');
+
+function adminLogMsg(msg) {
+  const el = document.createElement('div');
+  el.textContent = '> ' + msg;
+  adminLog.appendChild(el);
+  adminLog.scrollTop = adminLog.scrollHeight;
+}
+
+document.getElementById('adminAuthBtn').addEventListener('click', () => {
+  const attempt = adminPass.value;
+  if (attempt === 'luxadmin') {
+    isAdmin = true;
+    adminAuth.style.display = 'none';
+    adminControls.style.display = 'block';
+    adminStatus.textContent = 'status: admin';
+    adminStatus.style.color = '#5ad0ff';
+    adminLogMsg('access granted');
+    localStorage.setItem('luxRngAdmin', '1');
+  } else {
+    adminLogMsg('access denied');
+  }
+});
+
+document.getElementById('adminGiveCredits').addEventListener('click', () => {
+  credits += 1000000;
+  updateUI();
+  adminLogMsg('gave 1M credits');
+  saveGame();
+});
+
+document.getElementById('adminMaxLuck').addEventListener('click', () => {
+  baseLuck = 100000000;
+  updateUI();
+  adminLogMsg('luck maxed');
+  saveGame();
+});
+
+document.getElementById('adminUnlockAll').addEventListener('click', () => {
+  unlocked.auto = true;
+  shopCounts.luckBracelet = 10;
+  shopCounts.luckyGloves = 5;
+  shopCounts.fortuneTalisman = 3;
+  shopCounts.creditsBracelet = 10;
+  document.getElementById('timeMachineUI').style.display = 'block';
+  updatePeriodUI();
+  updateUI();
+  renderShop();
+  adminLogMsg('all unlocked');
+  saveGame();
+});
+
+document.getElementById('adminToggleAuto').addEventListener('click', () => {
+  autoRoll = !autoRoll;
+  document.getElementById('autoBtn').classList.toggle('active', autoRoll);
+  adminLogMsg('auto: ' + autoRoll);
+});
+
+document.getElementById('adminResetSave').addEventListener('click', () => {
+  if (!confirm('reset all progress?')) return;
+  resetSave();
+  adminLogMsg('save reset');
+});
+
+document.getElementById('adminClose').addEventListener('click', () => closeModal(adminModal));
+
+// keybind: konami code to open admin panel
+const konamiSeq = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','KeyB','KeyA'];
+let konamiIdx = 0;
+window.addEventListener('keydown', e => {
+  if (e.code === konamiSeq[konamiIdx]) {
+    konamiIdx++;
+    if (konamiIdx === konamiSeq.length) {
+      konamiIdx = 0;
+      openModal(adminModal);
+    }
+  } else {
+    konamiIdx = 0;
+  }
+});
+
+// restore admin session
+if (localStorage.getItem('luxRngAdmin') === '1') {
+  isAdmin = true;
+  adminAuth.style.display = 'none';
+  adminControls.style.display = 'block';
+  adminStatus.textContent = 'status: admin';
+  adminStatus.style.color = '#5ad0ff';
+}
+document.getElementById('pastBtn').addEventListener('click', () => switchTimePeriod('past'));
+document.getElementById('presentBtn').addEventListener('click', () => switchTimePeriod('present'));
+document.getElementById('futureBtn').addEventListener('click', () => switchTimePeriod('future'));
+
+leaderboardBtn.addEventListener('click', () => { openModal(leaderboardModal); fetchLeaderboard(); });
+leaderboardClose.addEventListener('click', () => closeModal(leaderboardModal));
+leaderboardModal.addEventListener('click', e => { if (e.target === leaderboardModal) closeModal(leaderboardModal); });
+lbSubmit.addEventListener('click', submitScore);
+
 const SAVE_VERSION = 2;
 
 function saveGame() {
   try {
     localStorage.setItem('luxRngSave', JSON.stringify({
-      saveVersion: SAVE_VERSION, inventory, baseLuck, rolls, credits, unlocked, shopCounts, multiplier, autoRoll, achievementsUnlocked, bestRarityIndex, startTime
+      saveVersion: SAVE_VERSION, inventory, pastInventory, futureInventory, mutatedInventory, baseLuck, rolls, credits, unlocked, shopCounts, autoRoll, achievementsUnlocked, bestRarityIndex, startTime, currentBiome
     }));
   } catch (e) {}
 }
@@ -954,16 +1568,25 @@ function loadGame() {
     if (!raw) return;
     const data = JSON.parse(raw);
     if (data.inventory) inventory = data.inventory;
+    if (data.pastInventory) pastInventory = data.pastInventory;
+    if (data.futureInventory) futureInventory = data.futureInventory;
+    if (data.mutatedInventory) mutatedInventory = data.mutatedInventory;
+    timePeriod = 'present';
+    if (data.currentBiome) currentBiome = data.currentBiome;
     if (typeof data.baseLuck === 'number') baseLuck = data.baseLuck;
     if (typeof data.rolls === 'number') rolls = data.rolls;
     if (typeof data.credits === 'number') credits = data.credits;
     if (data.unlocked) unlocked = { ...unlocked, ...data.unlocked };
     if (data.shopCounts) shopCounts = { ...shopCounts, ...data.shopCounts };
-    if (typeof data.multiplier === 'number') multiplier = data.multiplier;
     if (typeof data.autoRoll === 'boolean') autoRoll = data.autoRoll;
     if (data.achievementsUnlocked) achievementsUnlocked = { ...achievementsUnlocked, ...data.achievementsUnlocked };
     if (typeof data.startTime === 'number') startTime = data.startTime;
     if (typeof data.bestRarityIndex === 'number' && data.saveVersion === SAVE_VERSION) bestRarityIndex = data.bestRarityIndex;
+    if (data.timePeriod) timePeriod = data.timePeriod;
+    if (unlocked.timeMachine) {
+      const tmUI = document.getElementById('timeMachineUI');
+      if (tmUI) tmUI.style.display = 'block';
+    }
 
     // migrate renamed rarities from pre-original-name saves
     const renameMap = { Divinus: 'Celestial', Crystallized: 'Frosted', Gilded: 'Auric', Arcane: 'Mystic', Galaxy: 'Nebula', Exalted: 'Ascended', Glorious: 'Radiant' };
@@ -985,17 +1608,20 @@ function showToast(text) {
 function resetSave() {
   if (!confirm('reset all progress? this cannot be undone.')) return;
   inventory = {};
+  pastInventory = {};
+  futureInventory = {};
+  mutatedInventory = {};
   baseLuck = 1;
   rolls = 0;
   credits = 0;
   autoRoll = false;
-  multiplier = 1;
-  unlocked = { auto: false, x10: false, x100: false };
+  unlocked = { auto: false };
   shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0 };
   achievementsUnlocked = {};
   bestRarityIndex = 0;
   startTime = Date.now();
   currentRarity = rarities[0];
+  timePeriod = 'present';
   localStorage.removeItem('luxRngSave');
   updateUI();
   showToast('save reset');
@@ -1011,13 +1637,22 @@ function checkAchievements() {
     }
   }
   if (newUnlock) {
+    playAchievementSound();
     saveGame();
     renderAchievements();
   }
 }
 
 function loop(ts) {
-  if (autoRoll) {
+  // biome rotation
+  if (biomeTimer === 0) biomeTimer = ts;
+  if (ts - biomeTimer > BIOME_DURATION) {
+    const idx = Math.floor(Math.random() * biomes.length);
+    currentBiome = biomes[idx].name;
+    biomeTimer = ts;
+  }
+
+  if (autoRoll && !isRolling) {
     if (ts - lastAuto > autoInterval) {
       triggerRoll(1);
       lastAuto = ts;
@@ -1027,6 +1662,12 @@ function loop(ts) {
 }
 
 loadGame();
+if (unlocked.timeMachine) {
+  const tmUI = document.getElementById('timeMachineUI');
+  if (tmUI) tmUI.style.display = 'block';
+  switchTimePeriod(timePeriod);
+}
+populateAuraFilter();
 resize();
 updateUI();
 draw();
