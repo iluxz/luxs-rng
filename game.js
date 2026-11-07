@@ -708,6 +708,7 @@ const upgrades = [
   { id: 'creditsBracelet', name: 'Credits Bracelet', desc: '+50 credits per roll, scales with rarity', cost: 1500, type: 'stack', effect: { credits: 50 }, max: 10 },
   { id: 'autoSpeed', name: 'Auto Speed', desc: 'auto roll 10% faster (stacks multiplicatively)', cost: 4000, type: 'stack', effect: { autoSpeed: 0.10 }, max: 10 },
   { id: 'mutationCharm', name: 'Mutation Charm', desc: '+15% mutation chance', cost: 7500, type: 'stack', effect: { mutationChance: 0.015 }, max: 5 },
+  { id: 'dustRemover', name: 'Dust Remover', desc: 'removes Dust from the roll pool', cost: 25000, type: 'unlock' },
   { id: 'luckAmplifier', name: 'Luck Amplifier', desc: 'exponentially more luck each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 3, baseLuck: 1, luckMult: 10, max: 20 },
   { id: 'creditsAmplifier', name: 'Credits Amplifier', desc: 'exponentially more credits each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 3, baseCredits: 1, creditsMult: 10, max: 20 },
   { id: 'timeMachine', name: 'Time Machine', desc: 'travel to past and future', cost: 50000, type: 'unlock' },
@@ -1334,6 +1335,7 @@ function getProbabilities() {
   if (!rar || rar.length === 0) return [];
   const biome = biomes.find(b => b.name === currentBiome) || biomes[0];
   const weights = rar.map((r, i) => {
+    if (unlocked.dustRemover && r.name === 'Dust') return 0;
     let eff = Math.min(r.odds <= 1 ? 1 : (1 / r.odds) * luck, (1 / r.odds) * r.cap);
     if (biome.boost.includes(i)) eff *= biome.mult;
     if (biome.name === 'Chaos') eff *= biome.mult;
@@ -1346,6 +1348,7 @@ function getProbabilities() {
 function getProbabilitiesForRarities(rarList) {
   const luck = getTotals() * bonusMultiplier;
   const weights = rarList.map(r => {
+    if (unlocked.dustRemover && r.name === 'Dust') return 0;
     let eff = Math.min(r.odds <= 1 ? 1 : (1 / r.odds) * luck, (1 / r.odds) * r.cap);
     return eff;
   });
@@ -2218,12 +2221,13 @@ function renderRarityTable(luck) {
     const odds = r.odds;
     const row = document.createElement('div');
     row.className = 'rarity-row';
+    const isRemoved = unlocked.dustRemover && r.name === 'Dust';
     row.innerHTML = `
       <div style="display:flex;align-items:center;flex:1">
         <div class="dot" style="background:${r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color2 ? 'linear-gradient(135deg,' + r.color + ',' + r.color2 + ')' : r.color}; color:${r.color}"></div>
         <span class="name">${r.name}</span>
       </div>
-      <span class="odds">1/${formatNum(odds)}</span>
+      <span class="odds">${isRemoved ? 'REMOVED' : '1/' + formatNum(odds)}</span>
     `;
     rarityTable.appendChild(row);
   }
@@ -2958,6 +2962,7 @@ document.getElementById('adminUnlockAll').addEventListener('click', () => {
   shopCounts.mutationCharm = 5;
   shopCounts.luckAmplifier = 10;
   shopCounts.creditsAmplifier = 10;
+  unlocked.dustRemover = true;
   document.getElementById('timeMachineUI').style.display = 'block';
   updatePeriodUI();
   updateUI();
