@@ -802,8 +802,10 @@ if (musicBtn) musicBtn.addEventListener('click', () => {
 });
 
 function updateFlashBtn() {
-  flashBtn.textContent = 'FLASH: ' + (flashesEnabled ? 'ON' : 'OFF');
-  flashBtn.classList.toggle('active', !flashesEnabled);
+  if (flashBtn) {
+    flashBtn.textContent = 'FLASH: ' + (flashesEnabled ? 'ON' : 'OFF');
+    flashBtn.classList.toggle('active', !flashesEnabled);
+  }
   updateSettingsBtns();
 }
 flashBtn.addEventListener('click', () => {
@@ -824,7 +826,7 @@ const upgrades = [
   { id: 'mutationCharm', name: 'Mutation Charm', desc: '+15% mutation chance', cost: 7500, type: 'stack', effect: { mutationChance: 0.015 }, max: 5 },
   { id: 'dustRemover', name: 'Dust Remover', desc: 'removes Dust from the roll pool', cost: 25000, type: 'unlock' },
   { id: 'dustReactor', name: 'Dust Reactor', desc: 'consume 5 dust for +20 permanent luck (stacks)', cost: 5000, type: 'stack', effect: { luck: 20 }, max: 20, dustCost: 5 },
-  { id: 'luckAmplifier', name: 'Luck Amplifier', desc: 'exponentially more luck each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 3, baseLuck: 1, luckMult: 10, max: 40 },
+  { id: 'luckAmplifier', name: 'Luck Amplifier', desc: 'exponentially more luck each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 2.5, baseLuck: 1, luckMult: 10, max: 30 },
   { id: 'creditsAmplifier', name: 'Credits Amplifier', desc: 'exponentially more credits each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 3, baseCredits: 1, creditsMult: 10, max: 20 },
   { id: 'timeMachine', name: 'Time Machine', desc: 'travel to past and future', cost: 50000, type: 'unlock' },
   { id: 'qmark', name: '?!?', desc: 'increases ??? change interval by 10 rolls and reveals ??? current odds', cost: 100000, type: 'unlock', requires: 'aboveEternity' },
@@ -1550,6 +1552,8 @@ function getTotals() {
   // biome luck boost
   const biomeObj = biomes.find(b => b.name === currentBiome) || biomes[0];
   if (biomeObj.luckBoost) luck *= biomeObj.luckBoost;
+  // flash safety: ensure flash hidden when disabled
+  if (!flashesEnabled && flash.style.opacity !== '0') flash.style.opacity = '0';
   // normal play caps at 1T; the admin panel can push the absolute max to Infinity
   if (!Number.isFinite(luck)) return Infinity;
   return Math.min(luck, LUCK_CAP);
@@ -3493,7 +3497,7 @@ document.getElementById('adminUnlockAll').addEventListener('click', () => {
   shopCounts.creditsBracelet = 10;
   shopCounts.autoSpeed = 10;
   shopCounts.mutationCharm = 5;
-  shopCounts.luckAmplifier = 40;
+  shopCounts.luckAmplifier = 30;
   shopCounts.creditsAmplifier = 20;
   shopCounts.dustReactor = 20;
   document.getElementById('timeMachineUI').style.display = 'block';
