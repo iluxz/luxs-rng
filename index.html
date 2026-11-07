@@ -144,6 +144,7 @@ main {
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
 }
 
 .rarity-row .dot {
@@ -668,6 +669,42 @@ button.locked::after {
   margin-left: 6px;
   font-size: 10px;
 }
+@media (max-width: 720px) {
+  main { grid-template-columns: 1fr; }
+  #stats { gap: 12px; font-size: 11px; }
+  header { padding: 8px 12px; flex-wrap: wrap; }
+  #controls button { padding: 8px 12px; font-size: 10px; }
+  .modal-window { width: 95vw; }
+}
+@keyframes distortText {
+  0% { transform: skewX(0deg) skewY(0deg); filter: blur(0px) hue-rotate(0deg); }
+  25% { transform: skewX(8deg) skewY(-4deg); filter: blur(1px) hue-rotate(90deg); }
+  50% { transform: skewX(-6deg) skewY(3deg); filter: blur(2px) hue-rotate(180deg); }
+  75% { transform: skewX(4deg) skewY(-2deg); filter: blur(1px) hue-rotate(270deg); }
+  100% { transform: skewX(0deg) skewY(0deg); filter: blur(0px) hue-rotate(360deg); }
+}
+.distort-name {
+  display: inline-block;
+  animation: distortText 1.5s infinite;
+  color: #fff;
+  text-shadow: 0 0 10px #fff, 0 0 20px #ff0040;
+}
+@keyframes diceRoll {
+  0% { transform: rotate(0deg) scale(1); }
+  20% { transform: rotate(15deg) scale(1.05); }
+  40% { transform: rotate(-10deg) scale(1); }
+  60% { transform: rotate(20deg) scale(1.05); }
+  80% { transform: rotate(-5deg) scale(1); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+.dice-name {
+  display: inline-block;
+  animation: diceRoll 2s ease-in-out infinite;
+  animation-delay: 1s;
+  transform-origin: center center;
+  color: #fff;
+  text-shadow: 0 0 10px #ff0, 0 0 20px #f80;
+}
   </style>
 </head>
 <body>
@@ -692,8 +729,8 @@ button.locked::after {
         <button id="leaderboardBtn">LEADERBOARD</button>
         <button id="dailyBtn">DAILY</button>
         <button id="shopBtn">SHOP</button>
-        <button id="musicBtn">♪ ON</button>
-<button id="flashBtn">FLASH ON</button>
+        <button id="fuseBtn">FUSE</button>
+<button id="settingsBtn">SETTINGS</button>
       </div>
     </div>
   </header>
@@ -734,6 +771,7 @@ button.locked::after {
       <h2>INVENTORY</h2>
       <div id="inventory"></div>
       <div id="lastRoll">last roll: <strong>-</strong></div>
+      <div id="rollHistory" style="margin-top:8px;font-size:10px;color:var(--muted);max-height:80px;overflow-y:auto"></div>
       <div id="timeMachineUI" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(43,208,208,0.18)">
         <h2 style="font-family:Georgia,serif;font-size:13px;letter-spacing:3px;color:var(--cyan);margin-bottom:8px">TIME MACHINE</h2>
         <div id="timePeriod" style="font-size:11px;color:var(--muted);margin-bottom:8px">period: <strong id="periodLabel" style="color:var(--cyan-bright)">PRESENT</strong></div>
@@ -780,6 +818,7 @@ button.locked::after {
         <div class="credit-line">rebirths: <strong id="prestigeCount">0</strong></div>
         <div class="credit-line">next gain: <strong id="prestigeGain">0</strong></div>
         <button id="prestigeBtn" style="width:100%;margin-top:8px">REBIRTH</button>
+        <button id="transcendBtn" style="width:100%;margin-top:8px;border-color:rgba(255,200,100,0.45);color:#ffd080">TRANSCEND</button>
       </div>
       <button id="shopClose" class="modal-close">CLOSE</button>
     </div>
@@ -807,6 +846,26 @@ button.locked::after {
   </div>
 
   <div id="toast"></div>
+  <div id="svgBank" style="display:none">
+    <svg viewBox="0 0 24 24" width="40" height="40"><rect x="2" y="2" width="20" height="20" fill="none" stroke="#2bd0d0" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#2bd0d0"/></svg>
+    <svg viewBox="0 0 24 24" width="40" height="40"><polygon points="12,2 22,22 2,22" fill="none" stroke="#ff00ff" stroke-width="2"/></svg>
+    <svg viewBox="0 0 24 24" width="40" height="40"><circle cx="12" cy="12" r="10" fill="none" stroke="#ffff00" stroke-width="2"/></svg>
+    <svg viewBox="0 0 24 24" width="40" height="40"><path d="M2 12 L12 2 L22 12 L12 22 Z" fill="none" stroke="#00ff80" stroke-width="2"/></svg>
+    <svg viewBox="0 0 24 24" width="40" height="40"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="#ff8000" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="#ff8000"/></svg>
+    <svg viewBox="0 0 24 24" width="40" height="40"><path d="M4 4 L20 20 M20 4 L4 20" stroke="#ff0040" stroke-width="2"/></svg>
+    <svg viewBox="0 0 24 24" width="40" height="40"><circle cx="12" cy="12" r="8" fill="none" stroke="#00ffff" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="#00ffff"/></svg>
+    <svg viewBox="0 0 24 24" width="40" height="40"><polygon points="12,4 16,10 22,10 17,15 19,21 12,17 5,21 7,15 2,10 8,10" fill="none" stroke="#ffd24a" stroke-width="2"/></svg>
+    <svg viewBox="0 0 24 24" width="40" height="40"><rect x="3" y="3" width="18" height="18" fill="none" stroke="#c040ff" stroke-width="2"/><line x1="3" y1="12" x2="21" y2="12" stroke="#c040ff" stroke-width="2"/></svg>
+    <svg viewBox="0 0 24 24" width="40" height="40"><path d="M12 2 C6 2 2 6 2 12 C2 18 6 22 12 22 C18 22 22 18 22 12" fill="none" stroke="#80ffc0" stroke-width="2"/></svg>
+  </div>
+  <div id="corruptOverlay" style="display:none;position:fixed;inset:0;z-index:250;pointer-events:all;background:#000;overflow:hidden">
+    <div id="corruptLogo" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ff0040;font-family:Consolas,monospace;font-size:32px;letter-spacing:8px;text-shadow:0 0 30px #ff0040;opacity:0.9;z-index:10">LUX'S RNG</div>
+    <div id="corruptSmear" style="position:absolute;inset:0;z-index:5"></div>
+  </div>
+  <div id="driveAnim" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(2,3,4,0.85);align-items:center;justify-content:center;flex-direction:column;gap:12px">
+    <div id="driveIcon" style="font-size:64px">💾</div>
+    <div id="driveText" style="color:var(--cyan-bright);font-size:12px;letter-spacing:2px"></div>
+  </div>
 
   <div id="leaderboardModal" class="modal">
     <div id="leaderboardWindow" class="modal-window">
@@ -827,6 +886,86 @@ button.locked::after {
       <button id="dailyClose" class="modal-close" style="margin-top:10px">CLOSE</button>
     </div>
   </div>
+  <div id="fuseModal" class="modal">
+    <div id="fuseWindow" class="modal-window" style="width:520px">
+      <h2>AURA FUSION</h2>
+      <div class="credit-line">drag two auras into the forge to combine them</div>
+      <div style="display:flex;gap:12px;margin:12px 0">
+        <div id="fusePalette" style="flex:1;overflow-y:auto;max-height:240px;display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,0.3)"></div>
+        <div id="fuseForge" style="width:160px;min-height:120px;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,0.3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:2px">FORGE</div>
+          <div id="forgeSlots" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center"></div>
+          <div id="forgeResult" style="font-size:11px;color:var(--cyan-bright);margin-top:6px;text-align:center"></div>
+          <button id="forgeCombine" style="font-size:10px;padding:4px 10px;margin-top:6px">COMBINE</button>
+        </div>
+      </div>
+      <div id="fuseList" style="overflow-y:auto;max-height:120px;font-size:11px"></div>
+      <button id="fuseClose" class="modal-close" style="margin-top:10px">CLOSE</button>
+    </div>
+  </div>
+  <div id="eventsModal" class="modal">
+    <div id="eventsWindow" class="modal-window">
+      <h2>EVENTS</h2>
+      <div id="eventsList" style="overflow-y:auto;max-height:300px;font-size:11px"></div>
+      <button id="eventsClose" class="modal-close" style="margin-top:10px">CLOSE</button>
+    </div>
+  </div>
+  <div id="statsModal" class="modal">
+    <div id="statsWindow" class="modal-window">
+      <h2>STATISTICS</h2>
+      <div id="statsList" style="overflow-y:auto;max-height:300px;font-size:11px"></div>
+      <button id="statsClose" class="modal-close" style="margin-top:10px">CLOSE</button>
+    </div>
+  </div>
+  <div id="settingsModal" class="modal">
+    <div id="settingsWindow" class="modal-window">
+      <h2>SETTINGS</h2>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button id="settingsFlashBtn" style="width:100%">FLASH: ON</button>
+        <div id="musicWrap" style="position:relative">
+          <button id="settingsMusicBtn" style="width:100%">MUSIC: ON</button>
+          <div id="musicDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:6px;z-index:10;margin-top:2px"></div>
+        </div>
+        <div style="display:flex;gap:4px">
+          <button id="slot1Btn" style="flex:1">SLOT 1</button>
+          <button id="slot2Btn" style="flex:1">SLOT 2</button>
+          <button id="slot3Btn" style="flex:1">SLOT 3</button>
+        </div>
+        <button id="settingsAutoFuseBtn" style="width:100%">AUTO-FUSE: OFF</button>
+        <button id="settingsEvolveBtn" style="width:100%">EVOLVE AURAS</button>
+        <button id="settingsRecipeBtn" style="width:100%">RECIPE BOOK</button>
+        <button id="settingsShowcaseBtn" style="width:100%">RARITY SHOWCASE</button>
+        <button id="settingsAutoEquipBtn" style="width:100%">AUTO-EQUIP BEST: OFF</button>
+        <button id="settingsStatsBtn" style="width:100%">VIEW STATS</button>
+        <button id="settingsExportBtn" style="width:100%">EXPORT SAVE</button>
+        <button id="settingsImportBtn" style="width:100%">IMPORT SAVE</button>
+        <button id="settingsEventsBtn" style="width:100%">VIEW EVENTS</button>
+      </div>
+      <button id="settingsClose" class="modal-close" style="margin-top:10px">CLOSE</button>
+    </div>
+  </div>
+  <div id="evolveModal" class="modal">
+    <div id="evolveWindow" class="modal-window">
+      <h2>AURA EVOLUTION</h2>
+      <div class="credit-line">combine 5 of the same aura into 1 evolved (E) version (+10% luck)</div>
+      <div id="evolveList" style="overflow-y:auto;max-height:300px;font-size:11px"></div>
+      <button id="evolveClose" class="modal-close" style="margin-top:10px">CLOSE</button>
+    </div>
+  </div>
+  <div id="showcaseModal" class="modal">
+    <div id="showcaseWindow" class="modal-window">
+      <h2>RARITY SHOWCASE</h2>
+      <div id="showcaseContent" style="text-align:center;padding:20px"></div>
+      <button id="showcaseClose" class="modal-close" style="margin-top:10px">CLOSE</button>
+    </div>
+  </div>
+  <div id="recipeModal" class="modal">
+    <div id="recipeWindow" class="modal-window">
+      <h2>RECIPE BOOK</h2>
+      <div id="recipeList" style="overflow-y:auto;max-height:320px;font-size:11px"></div>
+      <button id="recipeClose" class="modal-close" style="margin-top:10px">CLOSE</button>
+    </div>
+  </div>
   <div id="adminModal" class="modal">
     <div id="adminWindow" class="modal-window">
       <h2>ADMIN PANEL</h2>
@@ -837,7 +976,7 @@ button.locked::after {
       </div>
       <div id="adminControls" style="display:none">
         <div style="display:flex;gap:6px;margin-bottom:8px">
-          <button id="adminGiveCredits" style="flex:1;font-size:10px;padding:6px 4px">+1M CREDITS</button>
+          <button id="adminGiveCredits" style="flex:1;font-size:10px;padding:6px 4px">+INF CREDITS</button>
           <button id="adminMaxLuck" style="flex:1;font-size:10px;padding:6px 4px">MAX LUCK</button>
         </div>
         <div style="display:flex;gap:6px;margin-bottom:8px">
@@ -1419,6 +1558,22 @@ const leaderboardBtn = document.getElementById('leaderboardBtn');
 const leaderboardModal = document.getElementById('leaderboardModal');
 const dailyBtn = document.getElementById('dailyBtn');
 const dailyModal = document.getElementById('dailyModal');
+const fuseBtn = document.getElementById('fuseBtn');
+const fuseModal = document.getElementById('fuseModal');
+if (fuseBtn) fuseBtn.addEventListener('click', () => { openModal(fuseModal); renderFuse(); });
+const fuseList = document.getElementById('fuseList');
+const eventsModal = document.getElementById('eventsModal');
+const eventsList = document.getElementById('eventsList');
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const evolveModal = document.getElementById('evolveModal');
+const evolveList = document.getElementById('evolveList');
+const showcaseModal = document.getElementById('showcaseModal');
+const showcaseContent = document.getElementById('showcaseContent');
+const recipeModal = document.getElementById('recipeModal');
+const recipeList = document.getElementById('recipeList');
+const statsModal = document.getElementById('statsModal');
+const statsList = document.getElementById('statsList');
 const dailyList = document.getElementById('dailyList');
 const dailyClose = document.getElementById('dailyClose');
 const leaderboardList = document.getElementById('leaderboardList');
@@ -1505,7 +1660,7 @@ const bestRollStat = document.getElementById('bestRollStat');
 const playtimeStat = document.getElementById('playtimeStat');
 const resetSaveBtn = document.getElementById('resetSaveBtn');
 const musicBtn = document.getElementById('musicBtn');
-const flashBtn = document.getElementById('flashBtn');
+const flashBtn = document.getElementById('settingsFlashBtn');
 let flashesEnabled = true;
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1517,6 +1672,86 @@ bgmAudio.loop = true;
 bgmAudio.volume = 0.25;
 // music per time period (swap files when provided)
 const periodMusic = { present: 'bgm.mp3', past: 'past_bgm.mp3', future: 'future_bgm.mp3' };
+const musicTracks = [
+  { name: 'Ancient Ruins Courtyard', src: 'Ancient Ruins Courtyard.mp3' },
+  { name: 'Ancient Ruins Late Night', src: 'Ancient Ruins Late Night.mp3' },
+  { name: 'Ancient Ruins Night', src: 'Ancient Ruins Night.mp3' },
+  { name: 'Ancient Ruins Relaxed', src: 'Ancient Ruins Relaxed.mp3' },
+  { name: 'Ancient Ruins Theme', src: 'Ancient Ruins Theme.mp3' },
+  { name: 'Desert Firestorm', src: 'Desert Firestorm.mp3' },
+  { name: 'Desert Heating Up', src: 'Desert Heating Up.mp3' },
+  { name: 'Dry Reef Late Night', src: 'Dry Reef Late Night.mp3' },
+  { name: 'Dry Reef Night', src: 'Dry Reef Night.mp3' },
+  { name: 'Dry Reef Relaxed', src: 'Dry Reef Relaxed.mp3' },
+  { name: 'Dry Reef Theme', src: 'Dry Reef Theme.mp3' },
+  { name: 'Glass Desert Night', src: 'Glass Desert Night.mp3' },
+  { name: 'Glass Desert Relaxed', src: 'Glass Desert Relaxed.mp3' },
+  { name: 'Glass Desert Theme', src: 'Glass Desert Theme.mp3' },
+  { name: 'Indigo Quarry Late Night', src: 'Indigo Quarry Late Night.mp3' },
+  { name: 'Indigo Quarry Night', src: 'Indigo Quarry Night.mp3' },
+  { name: 'Indigo Quarry Relaxed', src: 'Indigo Quarry Relaxed.mp3' },
+  { name: 'Indigo Quarry Theme', src: 'Indigo Quarry Theme.mp3' },
+  { name: 'Less Awful Ravenous Rainbows', src: 'Less Awful Ravenous Rainbows.mp3' },
+  { name: 'Let\'s Go, Beatrix!', src: 'Let\'s Go, Beatrix!.mp3' },
+  { name: 'Mochi\'s Manor Night', src: 'Mochi\'s Manor Night.mp3' },
+  { name: 'Mochi\'s Manor Theme', src: 'Mochi\'s Manor Theme.mp3' },
+  { name: 'Moss Blanket Late Night', src: 'Moss Blanket Late Night.mp3' },
+  { name: 'Moss Blanket Night', src: 'Moss Blanket Night.mp3' },
+  { name: 'Moss Blanket Relaxed', src: 'Moss Blanket Relaxed.mp3' },
+  { name: 'Moss Blanket Theme', src: 'Moss Blanket Theme.mp3' },
+  { name: 'Nimble Valley Race', src: 'Nimble Valley Race.mp3' },
+  { name: 'Nimble Valley Theme', src: 'Nimble Valley Theme.mp3' },
+  { name: 'Ogden\'s Retreat Night', src: 'Ogden\'s Retreat Night.mp3' },
+  { name: 'Ogden\'s Retreat Theme', src: 'Ogden\'s Retreat Theme.mp3' },
+  { name: 'Party Gordo Theme', src: 'Party Gordo Theme.mp3' },
+  { name: 'Radio Elevator Shimmy', src: 'Radio Elevator Shimmy.mp3' },
+  { name: 'Radio Good Morning', src: 'Radio Good Morning.mp3' },
+  { name: 'Radio Jazzy', src: 'Radio Jazzy.mp3' },
+  { name: 'Radio Romantic', src: 'Radio Romantic.mp3' },
+  { name: 'Ranch Late Night', src: 'Ranch Late Night.mp3' },
+  { name: 'Ranch Night', src: 'Ranch Night.mp3' },
+  { name: 'Ranch Theme', src: 'Ranch Theme.mp3' },
+  { name: 'Ranch Wistful', src: 'Ranch Wistful.mp3' },
+  { name: 'Shadows of Evil - Round changing music [Slowed, reverbed & extended] - Black Ops 3 Zombies', src: 'Shadows of Evil - Round changing music [Slowed, reverbed & extended] - Black Ops 3 Zombies.mp3' },
+  { name: 'She\'s on Fire!', src: 'She\'s on Fire!.mp3' },
+  { name: 'Slime Sea Moonlit Calm', src: 'Slime Sea Moonlit Calm.mp3' },
+  { name: 'Slime Sea Sunlit Waves', src: 'Slime Sea Sunlit Waves.mp3' },
+  { name: 'The Slimeulation Corruption (Bonus Track)', src: 'The Slimeulation Corruption (Bonus Track).mp3' },
+  { name: 'The Slimeulation Dry Reef', src: 'The Slimeulation Dry Reef.mp3' },
+  { name: 'The Slimeulation Indigo Quarry', src: 'The Slimeulation Indigo Quarry.mp3' },
+  { name: 'The Slimeulation Moss Blanket', src: 'The Slimeulation Moss Blanket.mp3' },
+  { name: 'The Wilds Night', src: 'The Wilds Night.mp3' },
+  { name: 'The Wilds Theme', src: 'The Wilds Theme.mp3' },
+  { name: 'Those Awful Ravenous Rainbows', src: 'Those Awful Ravenous Rainbows.mp3' },
+  { name: 'Viktor\'s Workshop Night', src: 'Viktor\'s Workshop Night.mp3' },
+  { name: 'Viktor\'s Workshop Theme', src: 'Viktor\'s Workshop Theme.mp3' },
+  { name: 'Wiggly Wonderland Theme', src: 'Wiggly Wonderland Theme.mp3' },
+  { name: 'badthings-01', src: 'badthings-01.mp3' },
+  { name: 'badthings-02', src: 'badthings-02.mp3' },
+  { name: 'badthings-03', src: 'badthings-03.mp3' },
+  { name: 'badthings-04', src: 'badthings-04.mp3' },
+  { name: 'badthings-05', src: 'badthings-05.mp3' },
+  { name: 'badthings-06', src: 'badthings-06.mp3' },
+  { name: 'badthings-07', src: 'badthings-07.mp3' },
+  { name: 'badthings-08', src: 'badthings-08.mp3' },
+  { name: 'badthings-09', src: 'badthings-09.mp3' },
+  { name: 'badthings-10', src: 'badthings-10.mp3' },
+  { name: 'badthings-11', src: 'badthings-11.mp3' },
+  { name: 'badthings-12', src: 'badthings-12.mp3' },
+  { name: 'badthings-13', src: 'badthings-13.mp3' },
+  { name: 'badthings-14', src: 'badthings-14.mp3' },
+  { name: 'badthings-15', src: 'badthings-15.mp3' },
+  { name: 'badthings-16', src: 'badthings-16.mp3' },
+  { name: 'badthings-17', src: 'badthings-17.mp3' },
+  { name: 'badthings-18', src: 'badthings-18.mp3' },
+  { name: 'badthings-19', src: 'badthings-19.mp3' },
+  { name: 'badthings-20', src: 'badthings-20.mp3' },
+  { name: 'badthings-21', src: 'badthings-21.mp3' },
+  { name: 'badthings-22', src: 'badthings-22.mp3' },
+  { name: 'bgm', src: 'bgm.mp3' },
+  { name: 'future_bgm', src: 'future_bgm.mp3' },
+  { name: 'past_bgm', src: 'past_bgm.mp3' }
+];
 let currentMusicPeriod = 'present';
 
 function switchPeriodMusic(period) {
@@ -1524,7 +1759,7 @@ function switchPeriodMusic(period) {
   currentMusicPeriod = period;
   const wasPlaying = musicPlaying;
   bgmAudio.pause();
-  bgmAudio.src = periodMusic[period];
+  bgmAudio.src = period === 'present' ? currentTrack : (periodMusic[period] || 'bgm.mp3');
   bgmAudio.load();
   if (wasPlaying) bgmAudio.play().catch(() => {});
 }
@@ -1534,7 +1769,7 @@ let musicStarted = false;
 function tryStartMusic() {
   if (musicStarted) return;
   musicStarted = true;
-  bgmAudio.play().catch(() => { musicPlaying = false; musicBtn.textContent = '♪ OFF'; });
+  bgmAudio.play().catch(() => { musicPlaying = false; if (musicBtn) musicBtn.textContent = '♪ OFF'; });
 }
 document.addEventListener('click', tryStartMusic, { once: true });
 document.addEventListener('keydown', tryStartMusic, { once: true });
@@ -1542,25 +1777,29 @@ document.addEventListener('keydown', tryStartMusic, { once: true });
 function startMusic() {
   if (musicPlaying) return;
   musicPlaying = true;
-  musicBtn.textContent = '♪ ON';
+  if (musicBtn) musicBtn.textContent = '♪ ON';
   bgmAudio.play().catch(() => {});
+  updateSettingsBtns();
 }
 
 function stopMusic() {
   if (!musicPlaying) return;
   musicPlaying = false;
-  musicBtn.textContent = '♪ OFF';
+  if (musicBtn) musicBtn.textContent = '♪ OFF';
   bgmAudio.pause();
+  updateSettingsBtns();
 }
 
-musicBtn.addEventListener('click', () => {
+if (musicBtn) musicBtn.addEventListener('click', () => {
   if (musicPlaying) stopMusic();
   else startMusic();
+  updateSettingsBtns();
 });
 
 function updateFlashBtn() {
-  flashBtn.textContent = flashesEnabled ? 'FLASH ON' : 'FLASH OFF';
+  flashBtn.textContent = 'FLASH: ' + (flashesEnabled ? 'ON' : 'OFF');
   flashBtn.classList.toggle('active', !flashesEnabled);
+  updateSettingsBtns();
 }
 flashBtn.addEventListener('click', () => {
   flashesEnabled = !flashesEnabled;
@@ -1572,17 +1811,35 @@ updateFlashBtn();
 
 const upgrades = [
   { id: 'auto', name: 'Auto Roll', desc: 'rolls automatically every 0.8s', cost: 50, type: 'unlock' },
-  { id: 'luckBracelet', name: 'Luck Bracelet', desc: '+0.5 permanent luck', cost: 500, type: 'stack', effect: { luck: 0.5 }, max: 10 },
-  { id: 'luckyGloves', name: 'Lucky Gloves', desc: '+2 permanent luck', cost: 2500, type: 'stack', effect: { luck: 2 }, max: 5 },
-  { id: 'fortuneTalisman', name: 'Fortune Talisman', desc: '+10 permanent luck', cost: 12500, type: 'stack', effect: { luck: 10 }, max: 3 },
+  { id: 'luckBracelet', name: 'Luck Bracelet', desc: '+0.5 permanent luck', cost: 500, type: 'stack', effect: { luck: 0.5 }, max: 50 },
+  { id: 'luckyGloves', name: 'Lucky Gloves', desc: '+2 permanent luck', cost: 2500, type: 'stack', effect: { luck: 2 }, max: 25 },
+  { id: 'fortuneTalisman', name: 'Fortune Talisman', desc: '+10 permanent luck', cost: 12500, type: 'stack', effect: { luck: 10 }, max: 15 },
   { id: 'creditsBracelet', name: 'Credits Bracelet', desc: '+50 credits per roll, scales with rarity', cost: 1500, type: 'stack', effect: { credits: 50 }, max: 10 },
   { id: 'autoSpeed', name: 'Auto Speed', desc: 'auto roll 10% faster (stacks multiplicatively)', cost: 4000, type: 'stack', effect: { autoSpeed: 0.10 }, max: 10 },
   { id: 'mutationCharm', name: 'Mutation Charm', desc: '+15% mutation chance', cost: 7500, type: 'stack', effect: { mutationChance: 0.015 }, max: 5 },
   { id: 'dustRemover', name: 'Dust Remover', desc: 'removes Dust from the roll pool', cost: 25000, type: 'unlock' },
-  { id: 'luckAmplifier', name: 'Luck Amplifier', desc: 'exponentially more luck each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 3, baseLuck: 1, luckMult: 10, max: 20 },
+  { id: 'dustReactor', name: 'Dust Reactor', desc: 'consume 5 dust for +20 permanent luck (stacks)', cost: 5000, type: 'stack', effect: { luck: 20 }, max: 20, dustCost: 5 },
+  { id: 'luckAmplifier', name: 'Luck Amplifier', desc: 'exponentially more luck each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 3, baseLuck: 1, luckMult: 10, max: 40 },
   { id: 'creditsAmplifier', name: 'Credits Amplifier', desc: 'exponentially more credits each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 3, baseCredits: 1, creditsMult: 10, max: 20 },
   { id: 'timeMachine', name: 'Time Machine', desc: 'travel to past and future', cost: 50000, type: 'unlock' },
+  { id: 'qmark', name: '?!?', desc: 'increases ??? change interval by 10 rolls and reveals ??? current odds', cost: 100000, type: 'unlock', requires: 'aboveEternity' },
 ];
+
+const gameEvents = [
+  { id: 'void_week', name: 'Void Week', desc: 'void zone rewards doubled', bonus: { credits: 2, luck: 1.5 }, active: true },
+  { id: 'fusion_fest', name: 'Fusion Fest', desc: 'fusion costs 2 instead of 3', bonus: { fuseCost: 2 }, active: false },
+  { id: 'streak_surge', name: 'Streak Surge', desc: 'streak threshold halved', bonus: { streakMult: 2 }, active: false },
+  { id: 'dust_blessing', name: 'Dust Blessing', desc: 'dust sells for 10x', bonus: { dustSellMult: 10 }, active: false },
+  { id: 'cosmic_storm', name: 'Cosmic Storm', desc: 'cosmic+ rarities 3x more likely', bonus: { cosmicMult: 3 }, active: false },
+  { id: 'prestige_rush', name: 'Prestige Rush', desc: 'prestige gain doubled', bonus: { prestigeMult: 2 }, active: false },
+];
+
+function getCurrentEvent() {
+  // rotate events by day-of-year
+  const day = Math.floor(Date.now() / 86400000);
+  const idx = day % gameEvents.length;
+  return gameEvents[idx];
+}
 
 const quests = [
   // past (desert) card battles
@@ -1609,7 +1866,6 @@ const futureDeck = [
   { name: 'Mainframe', atk: 4, def: 4 },
   { name: 'Glitch', atk: 3, def: 3 },
 ];
-
 let cardBattle = { active: false, playerHand: [], npcHand: [], pScore: 0, nScore: 0, round: 0, chosen: null, npcChosen: null, result: null, gameOver: false };
 
 const achievements = [
@@ -1649,9 +1905,17 @@ const achievements = [
   { id: 'absolute', name: 'Final Form', desc: 'roll an Absolute cube', check: () => (inventory['Absolute'] || 0) > 0, reward: { luck: 5000 } },
   { id: 'secret', name: '????', desc: 'roll a ??? cube', check: () => (inventory['???'] || 0) > 0, reward: { luck: 50000 } },
   { id: 'unlockAuto', name: 'Lazy Mode', desc: 'buy auto roll', check: () => unlocked.auto, reward: { luck: 0.1 } },
+  { id: 'firstFusion', name: 'Alchemist', desc: 'fuse 3 auras into one', check: () => (window.fusionCount || 0) >= 1, reward: { luck: 10 } },
+  { id: 'fusion10', name: 'Master Alchemist', desc: 'fuse 10 times', check: () => (window.fusionCount || 0) >= 10, reward: { luck: 50 } },
+  { id: 'firstTranscend', name: 'Beyond Mortal', desc: 'transcend once', check: () => transcendenceCount >= 1, reward: { luck: 100 } },
+  { id: 'transcend5', name: 'Ascended Being', desc: 'transcend 5 times', check: () => transcendenceCount >= 5, reward: { luck: 500 } },
+  { id: 'firstEquip', name: 'Fashion Sense', desc: 'equip a rarity', check: () => equippedRarity !== null, reward: { luck: 5 } },
+  { id: 'qmarkUnlock', name: 'Mystery Solved', desc: 'unlock the ?!? upgrade', check: () => !!unlocked.qmark, reward: { luck: 200 } },
+  { id: 'eventParticipate', name: 'Event Goer', desc: 'play during an active event', check: () => true, reward: { luck: 1 } },
 ];
 
 const changelog = [
+  { version: 'v0.8', note: 'massive update: aura fusion (combine 3 of same aura into next tier, plus 2-tabula->core and craft-only chain core->nexus->alpha->genesis->creation->eternia->omnipotence); transcendence system (permanent +50% luck per transcendence, requires 3+ rebirths); events system (daily-rotating events with bonuses: void week, fusion fest, streak surge, dust blessing, cosmic storm, prestige rush); settings menu (decluttered topbar, flash/music/auto-fuse/auto-equip toggles, save slots, stats, import/export); mobile responsive layout; flash toggle; ??? dynamic rarity (odds change every 20 rolls between 1/160qd and 1/646qd, censored name, ?!? upgrade reveals odds and +10 roll interval); equip rarity system; corruption mode (cubeful harmony: black screen, smeared game graphics, fearful harmony audio, progressive distortion, seeded by clipboard content); checksum guard (anti-tamper: modified saves trigger corruption); dust economy rework (under-epic sells for 1.5, dust sells for 1, dust (R) after 1T luck sells for higher, dust reactor consumes dust for luck, refund system); rarity sets (rainbow/prism/top tier) with luck rewards; auto-fuse; roll history panel; keyboard shortcuts (space=roll, S=shop, A=auto, esc=close); tooltips on rarity rows; 3 new biomes (lucky, greedy, frenzy); 12 new daily challenges; sound effects (fusion chime, transcendence fanfare); save slots (3); rarity evolution (5 of same -> evolved (E) +10% luck); daily login bonus; prestige milestones (5/10/25 rebirths); rarity showcase modal; sell price rebalanced (power-scaled); more rarities above core (nexus, singularity, apex, zenith, omega, alpha, xenogenesis, creation, eternia, omnipotence); luck cap extended to 10Sx; luck upgrades extended (max 50/25/15/40); admin infinite credits; cosmic moved to 1/150qd; extra aura for top rarities; prestige credits boost + shop discount; ??? glaze' },
   { version: 'v0.7', note: 'removed quick roll, added shopkeeper dialogue, prestige/rebirth, daily challenges, more shop upgrades (x10, x100, auto speed, mutation charm), enhanced cube visuals, offline leaderboard, bug fixes; shop menu now scrolls, luck cap extended to 1T with Infinity via admin, removed common Null, gradients for top rarities, new rarities (Google, Perplexity, The Box, Jbo, Sigma, Tophat, Tabula), draggable cube background, obj nod inside the cube, obj now speaks, achievement luck economy rebalanced; biome change timer + biome-based ui colors; luck cap raised to 1Qn, rarity odds made monotonic so Tabula is rarest and reachable; freeze fixed, perf fixes (merged rAF, particle cap, hex cache); luck amplifier + credits amplifier exp upgrades; credits bracelet amplified with rarity scaling; pity system, streak counter with temp luck boosts, jackpot celebration on Tabula, auto-sell + manual sell, collection tracker with completion reward; time machine reworked into quest zones: past = desert with card battles, future = city with card battles, NPCs, themed backgrounds, no cube/rarities/inventory in those periods' },
   { version: 'v0.6', note: 'time travel (past/future/present), bg music, webgl 3d cube, 50 rarities per period, biomes, mutations, breakthroughs, bonus rolls, quick roll, aura filter, auto-equip, admin panel (konami code), cloudflare leaderboard, sound effects, credits bracelet' },
   { version: 'v0.5', note: 'removed speed stat, credits scale with rarity, x100 is 50k, 33 rarities, luck caps at 100M (bracelets bypass)' },
@@ -1715,7 +1979,6 @@ const rarities = [
   { name: 'Mystic',      odds: 400000,     cap: 2500000,    color: '#a020f0', glow: '#d080ff', luck: 12000,   particles: 170, shake: 25,   flash: 0.50, chroma: 0.50 },
   { name: 'Divine',      odds: 800000,     cap: 3000000,    color: '#a0f0ff', glow: '#e0ffff', luck: 15000,   particles: 180, shake: 28,   flash: 0.55, chroma: 0.55 },
   { name: 'Nebula',      odds: 5000000,    cap: 25000000,   color: '#4050ff', glow: '#8090ff', luck: 80000,   particles: 220, shake: 34,   flash: 0.65, chroma: 0.62 },
-  { name: 'Cosmic',      odds: 12000000,   cap: 60000000,   color: 'rainbow',  glow: '#ffffff', luck: 250000,  particles: 260, shake: 40,   flash: 0.75, chroma: 0.72 },
   { name: 'Ascended',    odds: 150000000,  cap: 800000000,  color: '#ff8040', glow: '#ffbc80', luck: 2500000, particles: 320, shake: 50,   flash: 0.82, chroma: 0.78 },
   { name: 'Radiant',     odds: 3000000000, cap: 20000000000,color: '#fff0c0', glow: '#fffee0', luck: 50000000,particles: 430, shake: 80,   flash: 0.95, chroma: 0.95 },
   { name: 'Ethereal',    odds: 10000000000,cap: 65000000000,color: '#c0c0ff', glow: '#e0e0ff', luck: 150000000,particles: 460, shake: 90,   flash: 0.96, chroma: 0.96 },
@@ -1730,7 +1993,6 @@ const rarities = [
   { name: 'Apotheosis',  odds: 3.76e15,cap: 1.77e16,color:'#ff80c0', glow: '#ffc0e0', luck: 90000000000000,particles: 730, shake: 180,  flash: 0.998,chroma: 0.998},
   { name: 'Omnipotent',  odds: 1.94e16,cap: 9.11e16,color:'#00ff80', glow: '#80ffc0', luck: 600000000000000,particles: 760, shake: 190,  flash: 0.999,chroma: 0.999},
   { name: 'Absolute',    odds: 1e17,cap: 4.7e17,color:'#ff0000', glow: '#ffff00', luck: 5000000000000000,particles: 790, shake: 200,  flash: 1.00, chroma: 1.00 },
-  { name: '???',         odds: 1.5e17,cap:150000000000000000,color:'prism',    glow: '#ffffff', luck: 50000000000000000,particles: 850, shake: 220,  flash: 1.00, chroma: 1.00 },
   { name: 'Beyond',      odds: 1.6e17,        cap: 7.52e17,     color: '#0a1a2a', glow: '#1a3a5a', luck: 5.24e14,  particles: 620, shake: 122,  flash: 1.00, chroma: 0.96 },
   { name: 'Abyss',       odds: 1.75e17,        cap: 8.21e17,     color: '#081525', glow: '#152a4a', luck: 1.05e15,  particles: 640, shake: 126,  flash: 1.00, chroma: 0.97 },
   { name: 'Eternity',    odds: 1.91e17,        cap: 8.95e17,     color: '#061020', glow: '#102040', luck: 2.1e15,   particles: 660, shake: 130,  flash: 1.00, chroma: 0.97 },
@@ -1748,11 +2010,26 @@ const rarities = [
   { name: 'Omniverse',   odds: 5.43e17,        cap: 2.55e18,     color: '#000000', glow: '#000000', luck: 8.59e18,  particles: 900, shake: 178,  flash: 1.00, chroma: 1.00 },
   { name: 'Google',      odds: 5.92e17,       cap: 2.78e18,    color: '#000000', glow: '#000000', luck: 1.72e19,  particles: 920, shake: 182,  flash: 1.00, chroma: 1.00 },
   { name: 'Perplexity',  odds: 6.46e17,       cap: 3.04e18,    color: '#5af0ff', color2: '#a060ff', glow: '#bffaff', glow2: '#d0b0ff', luck: 3.44e19,  particles: 940,  shake: 186,  flash: 1.00, chroma: 1.00 },
+  { name: '???',         odds: 1.6e17, cap: 6.46e17, color: 'prism', glow: '#ffffff', luck: 50000000000000000, particles: 850, shake: 220, flash: 1.00, chroma: 1.00 },
+  { name: 'Cosmic',      odds: 1.5e17,       cap: 7.05e17,    color: 'rainbow',  glow: '#ffffff', color2: '#ff00ff', glow2: '#ff80ff', luck: 250000,  particles: 260, shake: 40,   flash: 0.75, chroma: 0.72 },
   { name: 'The Box',     odds: 7.05e17,       cap: 3.32e18,    color: '#ffd24a', color2: '#ff8a2a', glow: '#fff0a0', glow2: '#ffc080', luck: 6.88e19,  particles: 960,  shake: 190,  flash: 1.00, chroma: 1.00 },
   { name: 'Jbo',         odds: 7.7e17,       cap: 3.62e18,    color: '#ff8a2a', color2: '#ffd24a', glow: '#ffc080', glow2: '#fff0a0', luck: 1.38e20,  particles: 980,  shake: 194,  flash: 1.00, chroma: 1.00 },
   { name: 'Sigma',       odds: 8.4e17,       cap: 3.95e18,    color: '#7dff7a', color2: '#2bd0d0', glow: '#bfffc0', glow2: '#a0ffff', luck: 2.75e20,  particles: 1000, shake: 198,  flash: 1.00, chroma: 1.00 },
   { name: 'Tophat',      odds: 9.16e17,       cap: 4.31e18,    color: '#b060ff', color2: '#ff5ad0', glow: '#d0a0ff', glow2: '#ffb0ea', luck: 5.5e20,   particles: 1020, shake: 202,  flash: 1.00, chroma: 1.00 },
   { name: 'Tabula',      odds: 1e18,       cap: 4.7e18,    color: '#2bd0d0', color2: '#8a5cff', glow: '#a0ffff', glow2: '#c0a0ff', luck: 1.1e21,   particles: 1040, shake: 206,  flash: 1.00, chroma: 1.00 },
+  { name: 'Core',        odds: 1e19,       cap: 4.7e19,    color: '#ffffff', color2: '#ff00ff', glow: '#ffffff', glow2: '#ff80ff', luck: 1.1e22,   particles: 1200, shake: 250,  flash: 1.00, chroma: 1.00 },
+  { name: 'Nexus',       odds: 5e19,       cap: 2.35e20,   color: '#ff00ff', color2: '#00ffff', glow: '#ff80ff', glow2: '#80ffff', luck: 2.2e22,   particles: 1250, shake: 255,  flash: 1.00, chroma: 1.00 },
+  { name: 'Singularity', odds: 1e20,       cap: 4.7e20,    color: '#00ffff', color2: '#ff00ff', glow: '#80ffff', glow2: '#ff80ff', luck: 4.4e22,   particles: 1300, shake: 260,  flash: 1.00, chroma: 1.00 },
+  { name: 'Apex',        odds: 5e20,       cap: 2.35e21,   color: '#ffff00', color2: '#ff00ff', glow: '#ffff80', glow2: '#ff80ff', luck: 8.8e22,   particles: 1350, shake: 265,  flash: 1.00, chroma: 1.00 },
+  { name: 'Zenith',      odds: 1e21,       cap: 4.7e21,    color: '#00ff00', color2: '#00ffff', glow: '#80ff80', glow2: '#80ffff', luck: 1.76e23,  particles: 1400, shake: 270,  flash: 1.00, chroma: 1.00 },
+  { name: 'Omega',       odds: 5e21,       cap: 2.35e22,   color: '#ff8000', color2: '#ffff00', glow: '#ffc080', glow2: '#ffff80', luck: 3.52e23,  particles: 1450, shake: 275,  flash: 1.00, chroma: 1.00 },
+  { name: 'Alpha',       odds: 1e22,       cap: 4.7e22,    color: '#ffffff', color2: '#000000', glow: '#ffffff', glow2: '#808080', luck: 7.04e23,  particles: 1500, shake: 280,  flash: 1.00, chroma: 1.00, craftOnly: true },
+  { name: 'Xenogenesis', odds: 2e22,       cap: 9.4e22,    color: '#000000', color2: '#ffffff', glow: '#808080', glow2: '#ffffff', luck: 1.4e24,   particles: 1550, shake: 285,  flash: 1.00, chroma: 1.00, craftOnly: true },
+  { name: 'Creation',    odds: 5e22,       cap: 2.35e23,   color: '#ff00ff', color2: '#00ff00', glow: '#ff80ff', glow2: '#80ff80', luck: 2.8e24,   particles: 1600, shake: 290,  flash: 1.00, chroma: 1.00, craftOnly: true },
+  { name: 'Eternia',     odds: 1e23,       cap: 4.7e23,    color: '#00ffff', color2: '#ffff00', glow: '#80ffff', glow2: '#ffff80', luck: 5.6e24,   particles: 1650, shake: 295,  flash: 1.00, chroma: 1.00, craftOnly: true },
+  { name: 'Omnipotence', odds: 1e24,      cap: 4.7e24,    color: '#ffd700', color2: '#ff0040', glow: '#ffe080', glow2: '#ff80a0', luck: 1.12e25,  particles: 1700, shake: 300,  flash: 1.00, chroma: 1.00, craftOnly: true },
+  { name: 'End',         odds: 1e25,      cap: 4.7e25,    color: '#000000', color2: '#1a1a1a', glow: '#ffffff', glow2: '#808080', luck: 1e26,     particles: 2000, shake: 400,  flash: 1.00, chroma: 1.00, craftOnly: true, distort: true },
+  { name: 'RNG',         odds: 3.33e26,   cap: 4.7e26,    color: 'prism',    glow: '#ffffff', luck: 1e27,     particles: 5000, shake: 500,  flash: 1.00, chroma: 1.00 },
 ];
 
 // past rarities (amber/brown theme) — scaled to match present rarity odds (rarest = 1 in 150 quadrillion)
@@ -1870,7 +2147,7 @@ futureRarities = [];
 // the old post-??? tiers were literally black. give every one of them a live
 // two-colour gradient so the top of each period actually looks like an endgame.
 function applyLateGradients(list, theme) {
-  const start = list.findIndex(r => r.name === '???');
+  const start = list.findIndex(r => r.name === 'Beyond');
   if (start < 0) return;
   const end = list.length - 1;
   for (let i = start; i < list.length; i++) {
@@ -1881,10 +2158,10 @@ function applyLateGradients(list, theme) {
     if (theme === 'past') h = 24 + p * 300;
     else if (theme === 'future') h = 300 - p * 200;
     else h = 185 + p * 190;
-    r.color = hslHex(h, 88, 56);
-    r.color2 = hslHex(h + 55, 95, 64);
-    r.glow = hslHex(h, 100, 70);
-    r.glow2 = hslHex(h + 55, 100, 78);
+    r.color = hslHex(h, 95, 62);
+    r.color2 = hslHex(h + 60, 100, 72);
+    r.glow = hslHex(h, 100, 78);
+    r.glow2 = hslHex(h + 60, 100, 85);
     r.gradPhase = i * 0.6;
   }
 }
@@ -1893,10 +2170,42 @@ applyLateGradients(rarities, 'present');
 applyLateGradients(pastRarities, 'past');
 applyLateGradients(futureRarities, 'future');
 
+// extra aura for rarities above Transcendent: give them color2/glow2 gradients
+function applyExtraAura(list) {
+  const start = list.findIndex(r => r.name === 'Transcendent');
+  if (start < 0) return;
+  for (let i = start; i < list.length; i++) {
+    const r = list[i];
+    if (r.color2) continue;
+    if (r.color === 'rainbow' || r.color === 'prism') {
+      r.color2 = r.glow || '#ffffff';
+      r.glow2 = r.color || '#ffffff';
+    } else {
+      r.color2 = r.glow || r.color;
+      r.glow2 = r.color || r.glow;
+    }
+  }
+}
+applyExtraAura(rarities);
+
+// boost aura for top rarities (Transcendent and above): more particles, shake, chroma, flash
+function applyAuraBoost(list) {
+  const start = list.findIndex(r => r.name === 'Transcendent');
+  if (start < 0) return;
+  for (let i = start; i < list.length; i++) {
+    const r = list[i];
+    r.particles = Math.max(r.particles || 0, 400 + (i - start) * 40);
+    r.shake = Math.max(r.shake || 0, 80 + (i - start) * 8);
+    r.flash = 1.00;
+    r.chroma = Math.min(1, 0.95 + (i - start) * 0.005);
+  }
+}
+applyAuraBoost(rarities);
+
 let inventory = {};
 let pastInventory = {};
 let futureInventory = {};
-const LUCK_CAP = 1e18; // normal max: 1 quintillion (1Qn)
+const LUCK_CAP = 1e22; // normal max: 10 sextillion (10Sx)
 let baseLuck = 1;
 let rolls = 0;
 let credits = 0;
@@ -1906,6 +2215,29 @@ let isAdmin = false;
 let shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0, autoSpeed: 0, mutationCharm: 0, luckAmplifier: 0, creditsAmplifier: 0 };
 let prestigePoints = 0;
 let prestigeCount = 0;
+let transcendencePoints = 0;
+let transcendenceCount = 0;
+// ??? dynamic rarity
+let qMarkOdds = 1.6e17;
+let qMarkRollCounter = 0;
+let qMarkChangeInterval = 20;
+let qMarkShowChance = false;
+let equippedRarity = null;
+let fusionCount = 0;
+let autoFuse = false;
+let corrupted = false;
+let rollHistory = []; // last 20 rolls
+let lastLoginDate = localStorage.getItem('luxRngLastLogin') || '';
+let loginStreak = parseInt(localStorage.getItem('luxRngLoginStreak') || '0', 10) || 0;
+let rngUnlocked = false;
+const raritySets = [
+  { id: 'rainbowSet', name: 'Rainbow Set', rarities: ['Cosmic'], check: (inv) => (inv['Cosmic']||0) > 0, reward: { luck: 50 } },
+  { id: 'prismSet', name: 'Prism Set', rarities: ['???'], check: (inv) => (inv['???']||0) > 0, reward: { luck: 100 } },
+  { id: 'topSet', name: 'Top Tier Set', rarities: ['Tabula','Core','Nexus'], check: (inv) => (inv['Tabula']||0)>0 && (inv['Core']||0)>0 && (inv['Nexus']||0)>0, reward: { luck: 500 } },
+];
+let setsClaimed = {};
+let currentSlot = parseInt(localStorage.getItem('luxRngSlot') || '1', 10) || 1;
+function saveKey() { return 'luxRngSave_' + currentSlot; }
 let lifetimeRolls = 0;
 let lifetimeCredits = 0;
 let dailyChallenges = [];
@@ -1919,12 +2251,15 @@ let bonusMultiplier = 1;
 let auraFilterMin = 0; // minimum rarity index to keep (0 = keep all)
 let autoEquipBest = false;
 const biomes = [
-  { name: 'Normal', boost: [], color: '#2bd0d0', mult: 1 },
-  { name: 'Void', boost: [0, 1, 2], color: '#8000ff', mult: 3 }, // boosts common rarities
-  { name: 'Cyber', boost: [5, 6, 7], color: '#00ffff', mult: 3 }, // boosts mid rarities
-  { name: 'Ancient', boost: [8, 9, 10], color: '#d4a040', mult: 3 }, // boosts high rarities
-  { name: 'Cosmic', boost: [11, 12, 13], color: '#ff00ff', mult: 3 }, // boosts ultra rarities
-  { name: 'Chaos', boost: [], color: '#ff0040', mult: 5 }, // boosts everything
+  { name: 'Normal', boost: [], color: '#2bd0d0', mult: 1, creditMult: 1 },
+  { name: 'Void', boost: [0, 1, 2], color: '#8000ff', mult: 3, creditMult: 1.5 }, // boosts common rarities
+  { name: 'Cyber', boost: [5, 6, 7], color: '#00ffff', mult: 3, creditMult: 1.5 }, // boosts mid rarities
+  { name: 'Ancient', boost: [8, 9, 10], color: '#d4a040', mult: 3, creditMult: 2 }, // boosts high rarities
+  { name: 'Cosmic', boost: [11, 12, 13], color: '#ff00ff', mult: 3, creditMult: 2 }, // boosts ultra rarities
+  { name: 'Lucky', boost: [], color: '#ffd700', mult: 1, creditMult: 1, luckBoost: 2 }, // doubles luck
+  { name: 'Greedy', boost: [], color: '#00ff80', mult: 1, creditMult: 4 }, // quadruples credits
+  { name: 'Frenzy', boost: [0,1,2,3,4], color: '#ff8000', mult: 4, creditMult: 2 }, // boosts low rarities
+  { name: 'Chaos', boost: [], color: '#ff0040', mult: 5, creditMult: 3 }, // boosts everything
 ];
 
 let currentBiome = 'normal';
@@ -2161,7 +2496,13 @@ function getShopBonus() {
 }
 
 function sellPrice(r) {
-  return Math.max(1, Math.floor((r.luck || 1) * 10));
+  if (r.name === 'Dust') return 1;
+  if (r.name === 'Dust (R)') { const lk = getTotals(); const fl = Number.isFinite(lk) ? lk : LUCK_CAP; return Math.max(2, Math.floor(Math.log10(fl + 10) * 50)); }
+  const rar = getCurrentRarities();
+  const epicIdx = rar.findIndex(x => x.name === 'Epic');
+  const idx = rar.findIndex(x => x.name === r.name);
+  if (epicIdx >= 0 && idx >= 0 && idx < epicIdx) return 1.5;
+  return Math.max(1, Math.floor(Math.pow((r.luck || 1) + 1, 0.2) * 10));
 }
 
 function getCurrentRarities() {
@@ -2189,11 +2530,21 @@ function getTotals() {
   for (const r of rar) {
     const mutCount = mutatedInventory[r.name + ' (M)'] || 0;
     luck += mutCount * r.luck * 2;
+    const evoCount = (getCurrentInventory()[r.name + ' (E)'] || 0);
+    luck += evoCount * r.luck * 0.1;
   }
   // prestige bonus: +1% luck per prestige point
   luck *= (1 + prestigePoints * 0.01);
+  // transcendence bonus: +50% luck per transcendence point
+  luck *= (1 + transcendencePoints * 0.5);
+  // event bonus
+  const ev = getCurrentEvent();
+  if (ev && ev.bonus && ev.bonus.luck) luck *= ev.bonus.luck;
   // streak bonus
   if (Date.now() < streakBonusUntil) luck *= streakBonusMult;
+  // biome luck boost
+  const biomeObj = biomes.find(b => b.name === currentBiome) || biomes[0];
+  if (biomeObj.luckBoost) luck *= biomeObj.luckBoost;
   // normal play caps at 1T; the admin panel can push the absolute max to Infinity
   if (!Number.isFinite(luck)) return Infinity;
   return Math.min(luck, LUCK_CAP);
@@ -2206,7 +2557,11 @@ function getProbabilities() {
   const biome = biomes.find(b => b.name === currentBiome) || biomes[0];
   const weights = rar.map((r, i) => {
     if (unlocked.dustRemover && r.name === 'Dust') return 0;
-    let eff = Math.min(r.odds <= 1 ? 1 : (1 / r.odds) * luck, (1 / r.odds) * r.cap);
+    if (r.craftOnly) return 0;
+    if (r.name === 'RNG' && !rngUnlocked) return 0;
+    let odds = r.odds;
+    if (r.name === '???') odds = qMarkOdds;
+    let eff = Math.min(odds <= 1 ? 1 : (1 / odds) * luck, (1 / odds) * r.cap);
     if (biome.boost.includes(i)) eff *= biome.mult;
     if (biome.name === 'Chaos') eff *= biome.mult;
     return eff;
@@ -2219,7 +2574,11 @@ function getProbabilitiesForRarities(rarList) {
   const luck = getTotals() * bonusMultiplier;
   const weights = rarList.map(r => {
     if (unlocked.dustRemover && r.name === 'Dust') return 0;
-    let eff = Math.min(r.odds <= 1 ? 1 : (1 / r.odds) * luck, (1 / r.odds) * r.cap);
+    if (r.craftOnly) return 0;
+    if (r.name === 'RNG' && !rngUnlocked) return 0;
+    let odds = r.odds;
+    if (r.name === '???') odds = qMarkOdds;
+    let eff = Math.min(odds <= 1 ? 1 : (1 / odds) * luck, (1 / odds) * r.cap);
     return eff;
   });
   const total = weights.reduce((a, b) => a + b, 0);
@@ -2240,6 +2599,7 @@ function rollOne() {
 
 function triggerRoll(count = 1) {
   if (isRolling) return;
+  if (count <= 0) return;
   isRolling = true;
   rollAnimStart = Date.now();
 
@@ -2327,13 +2687,23 @@ function triggerRoll(count = 1) {
       inv[btName] = (inv[btName] || 0) + 1;
       applied = btName;
     } else {
-      beforeCount = inv[r.name] || 0;
-      inv[r.name] = (inv[r.name] || 0) + 1;
-      applied = r.name;
+      let key = r.name;
+      if (r.name === 'Dust' && getTotals() >= 1e12) key = 'Dust (R)';
+      beforeCount = inv[key] || 0;
+      inv[key] = (inv[key] || 0) + 1;
+      applied = key;
     }
     appliedNames.push({ name: r.name, applied, beforeCount, mutated: isMutated });
     rolls++;
-    credits += 1 + getShopBonus().credits + Math.floor(Math.log10(r.luck + 10) * 0.5) + (shopCounts.creditsBracelet || 0) * Math.floor(Math.log10(r.luck + 10) * 2);
+    const biomeCM = (biomes.find(b => b.name === currentBiome) || biomes[0]).creditMult || 1;
+    const prestigeCreditMult = 1 + prestigePoints * 0.01;
+    credits += Math.round((1 + getShopBonus().credits + Math.floor(Math.log10(r.luck + 10) * 0.5) + (shopCounts.creditsBracelet || 0) * Math.floor(Math.log10(r.luck + 10) * 2)) * biomeCM * prestigeCreditMult);
+  }
+  // ??? dynamic odds: change every N rolls
+  qMarkRollCounter += count;
+  if (qMarkRollCounter >= qMarkChangeInterval) {
+    qMarkOdds = 1.6e17 + Math.random() * (6.46e17 - 1.6e17);
+    qMarkRollCounter = 0;
   }
   // guard: ensure every rolled rarity that was supposed to be kept actually incremented
   for (const entry of appliedNames) {
@@ -2346,6 +2716,7 @@ function triggerRoll(count = 1) {
     }
   }
   setCurrentInventory(inv);
+  autoFuseAll();
 
   // start deceleration
   setTimeout(() => {
@@ -2373,13 +2744,20 @@ function triggerRoll(count = 1) {
 
   // reveal after deceleration
   setTimeout(() => {
+    if (!best) best = getCurrentRarities()[0] || currentRarity;
     currentRarity = best;
     const idx = getCurrentRarities().indexOf(best);
+    // roll history
+    if (best) rollHistory.unshift(best.name);
+    if (rollHistory.length > 20) rollHistory.pop();
+    const rh = document.getElementById('rollHistory');
+    if (rh) rh.innerHTML = rollHistory.map(n => '<div>' + n + '</div>').join('');
     const isNewBest = idx > bestRarityIndex;
     if (isNewBest) {
       bestRarityIndex = idx;
       if (autoEquipBest) {
-        showToast('new best: ' + best.name);
+        equippedRarity = best.name;
+        showToast('auto-equipped ' + best.name);
       }
       objSay('newbest');
       pityCounter = 0;
@@ -2667,6 +3045,40 @@ function playPurchaseSound() {
   osc.stop(audioCtx.currentTime + 0.15);
 }
 
+function playFusionSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const notes = [440, 554, 659, 880];
+  notes.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gain.gain.value = 0.15;
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12 + i * 0.08);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(audioCtx.currentTime + i * 0.08);
+    osc.stop(audioCtx.currentTime + 0.12 + i * 0.08);
+  });
+}
+
+function playTranscendSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const notes = [392, 523, 659, 784, 1047, 1319];
+  notes.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.value = 0.2;
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2 + i * 0.1);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(audioCtx.currentTime + i * 0.1);
+    osc.stop(audioCtx.currentTime + 0.2 + i * 0.1);
+  });
+}
+
 function playTimeTravelSound() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
   // sweep up
@@ -2829,6 +3241,7 @@ function drawDesertScene(ctx, w, h) {
   }
 }
 
+
 function drawCityScene(ctx, w, h) {
   // night sky
   const sky = ctx.createLinearGradient(0, 0, 0, h);
@@ -2890,8 +3303,14 @@ function drawCityScene(ctx, w, h) {
   }
 }
 
+
 function draw() {
   const t = Date.now() / 1000;
+  if (corrupted) {
+    shake = Math.max(shake, 20 + Math.random() * 20);
+    chroma = 1;
+    if (Math.random() < 0.4) spawnParticles(8, '#ff0040', '#ff80a0');
+  }
 
   // quest zones (past/future) have no cube, no background, no particles
   if (timePeriod !== 'present') {
@@ -2997,8 +3416,14 @@ function draw() {
   bgPanY = Math.max(-0.5, Math.min(0.5, bgPanY));
 
   // draw 3d cube in webgl + ambient backdrop
-  const col = getRarityColor(currentRarity, t);
-  const glow = getRarityGlow(currentRarity, t);
+  let displayRarity = currentRarity;
+  if (equippedRarity) {
+    const rar = getCurrentRarities();
+    const eq = rar.find(r => r.name === equippedRarity);
+    if (eq) displayRarity = eq;
+  }
+  const col = getRarityColor(displayRarity, t);
+  const glow = getRarityGlow(displayRarity, t);
   drawBackground(w, h, t, col, glow);
   drawGLCube(col, glow, t, rollGlow);
 
@@ -3093,6 +3518,7 @@ function updateUI() {
   renderQuests();
   renderRarityTable(luck);
   renderInventory();
+  checkSets();
   lastRollEl.innerHTML = `last roll: <strong style="color:${currentRarity.color === 'rainbow' ? '#fff' : currentRarity.color === 'prism' ? '#fff' : currentRarity.color}">${currentRarity.name}</strong>`;
   updatePrestigeUI();
 
@@ -3113,16 +3539,20 @@ function renderRarityTable(luck) {
   for (let i = rar.length - 1; i >= 0; i--) {
     const r = rar[i];
     const p = probs[i];
-    const odds = r.odds;
+    let odds = r.odds;
+    if (r.name === '???' && qMarkShowChance) odds = qMarkOdds;
+    const isCraftOnly = !!r.craftOnly;
+    const isLocked = r.name === 'RNG' && !rngUnlocked;
     const row = document.createElement('div');
     row.className = 'rarity-row';
     const isRemoved = unlocked.dustRemover && r.name === 'Dust';
+    row.title = r.name + ' | odds: 1/' + formatNum(odds) + ' | luck: ' + formatNum(r.luck) + ' | particles: ' + r.particles;
     row.innerHTML = `
       <div style="display:flex;align-items:center;flex:1">
-        <div class="dot" style="background:${r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color2 ? 'linear-gradient(135deg,' + r.color + ',' + r.color2 + ')' : r.color}; color:${r.color}"></div>
-        <span class="name">${r.name}</span>
+        <div class="dot" style="background:${r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color2 ? 'linear-gradient(135deg,' + r.color + ',' + r.color2 + ')' : r.color}; color:${r.color};box-shadow:0 0 10px ${r.color === 'rainbow' || r.color === 'prism' ? r.glow : r.color};width:12px;height:12px">${r.name === 'RNG' ? '<svg viewBox="0 0 24 24" width="12" height="12"><rect x="2" y="2" width="20" height="20" rx="3" fill="#222" stroke="#fff" stroke-width="1.5"/><circle cx="7" cy="7" r="1.5" fill="#fff"/><circle cx="17" cy="7" r="1.5" fill="#fff"/><circle cx="12" cy="12" r="1.5" fill="#fff"/><circle cx="7" cy="17" r="1.5" fill="#fff"/><circle cx="17" cy="17" r="1.5" fill="#fff"/></svg>' : ''}</div>
+        <span class="name ${r.name === 'End' ? 'distort-name' : ''} ${r.name === 'RNG' ? 'dice-name' : ''}" style="color:${r.name === 'End' ? '#fff' : (r.color === 'rainbow' || r.color === 'prism' ? r.glow : r.color2 ? r.color2 : r.color)};text-shadow:0 0 6px ${r.name === 'End' ? '#fff' : (r.color === 'rainbow' || r.color === 'prism' ? r.glow : r.color)};${r.color2 && r.color !== 'rainbow' && r.color !== 'prism' && r.name !== 'End' ? 'background:linear-gradient(90deg,' + r.color + ',' + r.color2 + ');-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text' : ''};${r.name === '???' && !qMarkShowChance ? 'filter:blur(6px);user-select:none' : ''}">${r.name === '???' && !qMarkShowChance ? '███████' : r.name}</span>
       </div>
-      <span class="odds">${isRemoved ? 'REMOVED' : '1/' + formatNum(odds)}</span>
+      <span class="odds">${isRemoved ? 'REMOVED' : isLocked ? 'LOCKED' : isCraftOnly ? 'CRAFT ONLY' : '1/' + formatNum(odds)}</span>
     `;
     rarityTable.appendChild(row);
   }
@@ -3142,7 +3572,7 @@ function renderInventory() {
   }
   const allRar = [].concat(rarities, pastRarities, futureRarities);
   const findR = (name) => {
-    const base = name.replace(' (BT)', '').replace(' (M)', '');
+    const base = name.replace(' (BT)', '').replace(' (M)', '').replace(' (R)', '').replace(' (E)', '');
     return allRar.find(x => x.name === base);
   };
   for (const key of keys) {
@@ -3182,6 +3612,21 @@ function renderInventory() {
     bonusEl.textContent = 'x' + formatNum(count);
     topRow.appendChild(bonusEl);
     item.appendChild(topRow);
+    const equipBtn = document.createElement('button');
+    equipBtn.textContent = equippedRarity === key.replace(' (M)','').replace(' (BT)','') ? 'EQUIPPED' : 'EQUIP';
+    equipBtn.style.fontSize = '9px';
+    equipBtn.style.padding = '2px 6px';
+    equipBtn.style.marginTop = '4px';
+    equipBtn.style.marginRight = '4px';
+    equipBtn.style.alignSelf = 'flex-start';
+    equipBtn.addEventListener('click', () => {
+      const base = key.replace(' (M)','').replace(' (BT)','');
+      equippedRarity = (equippedRarity === base) ? null : base;
+      saveGame();
+      updateUI();
+      showToast(equippedRarity ? 'equipped ' + equippedRarity : 'unequipped');
+    });
+    item.appendChild(equipBtn);
     const sellBtn = document.createElement('button');
     sellBtn.textContent = 'SELL 1 (' + formatNum(r ? sellPrice(r) : 1) + ' CR)';
     sellBtn.style.fontSize = '9px';
@@ -3333,24 +3778,36 @@ function closeShop() {
 function buyUpgrade(id) {
   const up = upgrades.find(u => u.id === id);
   if (up.type === 'unlock') {
-    if (unlocked[id] || credits < up.cost) return false;
-    credits -= up.cost;
+    const cost = shopCost(up, 0);
+    if (unlocked[id] || credits < cost) return false;
+    credits -= cost;
     unlocked[id] = true;
     if (id === 'auto') autoRoll = true;
     if (id === 'timeMachine') {
       document.getElementById('timeMachineUI').style.display = 'block';
       updatePeriodUI();
     }
+    if (id === 'qmark') {
+      qMarkChangeInterval += 10;
+      qMarkShowChance = true;
+    }
   } else if (up.type === 'exp') {
     const count = shopCounts[id] || 0;
-    const cost = Math.round(up.baseCost * Math.pow(up.costMult, count));
+    const cost = shopCost(up, count);
     if (count >= up.max || credits < cost) return false;
     credits -= cost;
     shopCounts[id] = count + 1;
   } else {
     const count = shopCounts[id] || 0;
-    if (count >= up.max || credits < up.cost) return false;
-    credits -= up.cost;
+    const cost = shopCost(up, count);
+    if (count >= up.max || credits < cost) return false;
+    if (up.dustCost) {
+      const inv = getCurrentInventory();
+      if ((inv['Dust'] || 0) < up.dustCost) { showToast('need ' + up.dustCost + ' dust'); return false; }
+      inv['Dust'] -= up.dustCost;
+      setCurrentInventory(inv);
+    }
+    credits -= cost;
     shopCounts[id] = count + 1;
   }
   renderControls();
@@ -3360,6 +3817,48 @@ function buyUpgrade(id) {
   playPurchaseSound();
   const line = shopkeeperBuyLines[id] || 'good buy. no refunds.';
   shopkeeperSay(Math.random() < 0.25 ? line + ' pleasure doing business.' : line);
+  return true;
+}
+
+function refundUpgrade(id) {
+  const up = upgrades.find(u => u.id === id);
+  if (!up) return false;
+  if (up.type === 'unlock') {
+    if (!unlocked[id]) return false;
+    // refund cost
+    const cost = shopCost(up, 0);
+    credits += cost;
+    unlocked[id] = false;
+    if (id === 'auto') autoRoll = false;
+    if (id === 'timeMachine') {
+      document.getElementById('timeMachineUI').style.display = 'none';
+      updatePeriodUI();
+    }
+    if (id === 'dustRemover') {
+      // re-enable dust in pool (already handled by unlocked flag)
+    }
+    if (id === 'qmark') {
+      qMarkChangeInterval = Math.max(20, qMarkChangeInterval - 10);
+      qMarkShowChance = false;
+    }
+  } else {
+    const count = shopCounts[id] || 0;
+    if (count <= 0) return false;
+    const cost = shopCost(up, count - 1);
+    credits += cost;
+    shopCounts[id] = count - 1;
+    // refund dust if applicable
+    if (up.dustCost) {
+      const inv = getCurrentInventory();
+      inv['Dust'] = (inv['Dust'] || 0) + up.dustCost;
+      setCurrentInventory(inv);
+    }
+  }
+  renderControls();
+  renderShop();
+  updateUI();
+  saveGame();
+  showToast('refunded ' + up.name);
   return true;
 }
 
@@ -3377,6 +3876,10 @@ function prestige() {
   if (!confirm('rebirth? you will lose credits, rolls, inventory, and shop upgrades, but gain ' + gain + ' prestige points')) return;
   prestigePoints += gain;
   prestigeCount++;
+  // prestige milestones
+  if (prestigeCount === 5) { baseLuck += 50; showToast('prestige milestone: 5 rebirths! +50 luck'); }
+  if (prestigeCount === 10) { baseLuck += 200; showToast('prestige milestone: 10 rebirths! +200 luck'); }
+  if (prestigeCount === 25) { baseLuck += 1000; showToast('prestige milestone: 25 rebirths! +1000 luck'); }
   lifetimeRolls += rolls;
   lifetimeCredits += credits;
   // reset
@@ -3400,6 +3903,18 @@ function prestige() {
   autoSellThreshold = -1;
   flashesEnabled = true;
   updateFlashBtn();
+  qMarkOdds = 1.6e17;
+  qMarkRollCounter = 0;
+  qMarkChangeInterval = 20;
+  qMarkShowChance = false;
+  equippedRarity = null;
+  fusionCount = 0;
+  autoFuse = false;
+  updateAutoFuseBtn();
+  autoEquipBest = false;
+  updateAutoEquipBtn();
+  setsClaimed = {};
+  rngUnlocked = false;
   questClaimed = {};
   taskProgress = {};
   currentRarity = rarities[0];
@@ -3414,6 +3929,65 @@ function prestige() {
   updateUI();
   updatePrestigeUI();
   showToast('rebirth #' + prestigeCount + ' complete! +' + gain + ' prestige');
+}
+
+function transcend() {
+  if (prestigeCount < 3) { showToast('need 3+ rebirths to transcend'); return; }
+  if (transcendencePoints >= 10) { showToast('max transcendence reached'); return; }
+  if (!confirm('transcend? resets everything (including prestige) but grants a permanent +50% luck multiplier')) return;
+  transcendencePoints++;
+  transcendenceCount++;
+  lifetimeRolls += rolls;
+  lifetimeCredits += credits;
+  // full reset including prestige
+  prestigePoints = 0;
+  prestigeCount = 0;
+  credits = 0;
+  rolls = 0;
+  baseLuck = 1;
+  inventory = {};
+  pastInventory = {};
+  futureInventory = {};
+  mutatedInventory = {};
+  shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0, autoSpeed: 0, mutationCharm: 0, luckAmplifier: 0, creditsAmplifier: 0 };
+  unlocked = { auto: false, x10: true, x100: true };
+  autoRoll = false;
+  bestRarityIndex = 0;
+  ownedRarities = {};
+  collectionRewardClaimed = false;
+  pityCounter = 0;
+  rollStreak = 0;
+  streakBonusMult = 1;
+  streakBonusUntil = 0;
+  autoSellThreshold = -1;
+  flashesEnabled = true;
+  updateFlashBtn();
+  qMarkOdds = 1.6e17;
+  qMarkRollCounter = 0;
+  qMarkChangeInterval = 20;
+  qMarkShowChance = false;
+  equippedRarity = null;
+  fusionCount = 0;
+  autoFuse = false;
+  updateAutoFuseBtn();
+  autoEquipBest = false;
+  updateAutoEquipBtn();
+  setsClaimed = {};
+  rngUnlocked = false;
+  questClaimed = {};
+  taskProgress = {};
+  currentRarity = rarities[0];
+  timePeriod = 'present';
+  document.documentElement.style.setProperty('--cyan', '#2bd0d0');
+  document.documentElement.style.setProperty('--cyan-bright', '#5ad0ff');
+  document.documentElement.style.setProperty('--border', 'rgba(43, 208, 208, 0.35)');
+  const tmUI = document.getElementById('timeMachineUI');
+  if (tmUI) tmUI.style.display = 'none';
+  saveGame();
+  updateUI();
+  updatePrestigeUI();
+  playTranscendSound();
+  showToast('transcendence #' + transcendenceCount + ' — +50% luck forever');
 }
 
 function updatePrestigeUI() {
@@ -3436,6 +4010,14 @@ const dailyChallengeTemplates = [
   { id: 'mutated', name: 'Roll a mutated cube', check: (p) => Object.keys(mutatedInventory).length > 0, reward: 1500 },
   { id: 'breakthrough', name: 'Trigger a breakthrough', check: (p) => p.bt, reward: 1000 },
   { id: 'bonus', name: 'Trigger a bonus roll', check: (p) => p.bonus, reward: 500 },
+  { id: 'fuse', name: 'Fuse 3 auras', check: (p) => fusionCount >= 1, reward: 1500 },
+  { id: 'equip', name: 'Equip a rarity', check: (p) => equippedRarity !== null, reward: 300 },
+  { id: 'transcend', name: 'Transcend', check: (p) => transcendenceCount >= 1, reward: 5000 },
+  { id: 'prestige', name: 'Rebirth', check: (p) => prestigeCount >= 1, reward: 2000 },
+  { id: 'fuse3', name: 'Fuse 3 times', check: (p) => fusionCount >= 3, reward: 2000 },
+  { id: 'equip', name: 'Equip a rarity', check: (p) => equippedRarity !== null, reward: 500 },
+  { id: 'dustReactor', name: 'Build a Dust Reactor', check: (p) => (shopCounts.dustReactor || 0) >= 1, reward: 3000 },
+  { id: 'roll1000', name: 'Roll 1000 times', check: (p) => rolls >= 1000, reward: 5000 },
 ];
 
 function getDailySeed() {
@@ -3653,16 +4235,30 @@ function renderQuests() {
 
 function claimQuest(id) { /* handled inline */ }
 
+function shopCost(up, count) {
+  let base;
+  if (up.type === 'exp') base = Math.round(up.baseCost * Math.pow(up.costMult, count));
+  else base = up.cost;
+  const discount = Math.min(0.5, prestigePoints * 0.005);
+  return Math.max(1, Math.round(base * (1 - discount)));
+}
 function renderShop() {
   shopCredits.textContent = formatNum(credits);
   shopItems.innerHTML = '';
   for (const up of upgrades) {
+    if (up.requires === 'aboveEternity') {
+      const rar = getCurrentRarities();
+      const etIdx = rar.findIndex(r => r.name === 'Eternity');
+      const aboveNames = etIdx >= 0 ? rar.slice(etIdx + 1).map(r => r.name) : [];
+      const hasAbove = Object.keys(ownedRarities).some(n => aboveNames.indexOf(n) >= 0);
+      if (!hasAbove) continue;
+    }
     const isUnlock = up.type === 'unlock';
     const isExp = up.type === 'exp';
     const owned = isUnlock && unlocked[up.id];
     const count = shopCounts[up.id] || 0;
     const maxed = (isUnlock && owned) ? false : (!isUnlock && count >= up.max);
-    const cost = isExp ? Math.round(up.baseCost * Math.pow(up.costMult, count)) : up.cost;
+    const cost = shopCost(up, count);
     const canBuy = credits >= cost && !owned && !maxed;
     const item = document.createElement('div');
     item.className = 'shop-item' + ((owned || maxed) ? ' owned' : '');
@@ -3685,6 +4281,21 @@ function renderShop() {
         }
         buyUpgrade(up.id);
       });
+    }
+    // refund button for owned/maxed items
+    const canRefund = (isUnlock && owned) || (!isUnlock && count > 0);
+    if (canRefund) {
+      const refBtn = document.createElement('button');
+      refBtn.textContent = 'REFUND';
+      refBtn.style.fontSize = '9px';
+      refBtn.style.padding = '2px 6px';
+      refBtn.style.marginLeft = '6px';
+      refBtn.style.borderColor = 'rgba(255,60,120,0.45)';
+      refBtn.style.color = '#ff9ecd';
+      refBtn.addEventListener('click', () => {
+        refundUpgrade(up.id);
+      });
+      item.querySelector('button').parentElement.appendChild(refBtn);
     }
     shopItems.appendChild(item);
   }
@@ -3787,12 +4398,25 @@ function applySceneResize() {
 window.addEventListener('resize', applySceneResize);
 
 document.getElementById('rollBtn').addEventListener('click', () => manualRoll());
+
+// keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.code === 'Space') { e.preventDefault(); manualRoll(); }
+  else if (e.key === 's' || e.key === 'S') { openShop(); updatePrestigeUI(); }
+  else if (e.key === 'a' || e.key === 'A') { toggleAuto(); }
+  else if (e.key === 'Escape') {
+    // close any open modal
+    document.querySelectorAll('.modal.open').forEach(m => closeModal(m));
+  }
+});
 document.getElementById('autoBtn').addEventListener('click', toggleAuto);
 document.querySelectorAll('#controls button[data-mult]').forEach(b => {
   b.addEventListener('click', () => setMultiplier(parseInt(b.dataset.mult)));
 });
 shopBtn.addEventListener('click', () => { openShop(); updatePrestigeUI(); });
 document.getElementById('prestigeBtn').addEventListener('click', prestige);
+document.getElementById('transcendBtn').addEventListener('click', transcend);
 shopClose.addEventListener('click', () => closeModal(shopModal));
 shopModal.addEventListener('click', e => { if (e.target === shopModal) closeModal(shopModal); });
 
@@ -3836,9 +4460,9 @@ document.getElementById('adminAuthBtn').addEventListener('click', () => {
 });
 
 document.getElementById('adminGiveCredits').addEventListener('click', () => {
-  credits += 1000000;
+  credits = Infinity;
   updateUI();
-  adminLogMsg('gave 1M credits');
+  adminLogMsg('gave infinite credits');
   saveGame();
 });
 
@@ -3917,28 +4541,712 @@ leaderboardClose.addEventListener('click', () => closeModal(leaderboardModal));
 leaderboardModal.addEventListener('click', e => { if (e.target === leaderboardModal) closeModal(leaderboardModal); });
 dailyBtn.addEventListener('click', () => { openModal(dailyModal); renderDaily(); });
 dailyClose.addEventListener('click', () => closeModal(dailyModal));
+
+function autoFuseAll() {
+  if (!autoFuse) return;
+  const inv = getCurrentInventory();
+  const rar = getCurrentRarities();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const key of Object.keys(inv)) {
+      if (inv[key] >= 2 && !key.includes(' (M)') && !key.includes(' (BT)') && !key.includes(' (E)')) {
+        const r = rar.find(x => x.name === key);
+        const idx = r ? rar.indexOf(r) : -1;
+        if (idx < 0 || idx >= rar.length - 1) continue;
+        let next = null;
+        if (key === 'Tabula') next = 'Core';
+        else if (key === 'Core') next = 'Nexus';
+        else {
+          const craftR = rar.find(x => x.craftOnly && rar.indexOf(x) > 0 && rar[rar.indexOf(x)-1].name === key);
+          if (craftR) next = craftR.name;
+          else next = rar[idx + 1].name;
+        }
+        if (next) {
+          inv[key] -= 2;
+          inv[next] = (inv[next] || 0) + 1;
+          fusionCount++;
+          changed = true;
+        }
+      }
+    }
+  }
+  setCurrentInventory(inv);
+}
+
+function renderFuse() {
+  if (!fuseList) return;
+  fuseList.innerHTML = '';
+  const inv = getCurrentInventory();
+  const rar = getCurrentRarities();
+  const palette = document.getElementById('fusePalette');
+  const slots = document.getElementById('forgeSlots');
+  const result = document.getElementById('forgeResult');
+  const combineBtn = document.getElementById('forgeCombine');
+  if (palette) palette.innerHTML = '';
+  if (slots) slots.innerHTML = '';
+  if (result) result.textContent = '';
+  forgeItems = [];
+
+  // populate palette with available rarities
+  const keys = Object.keys(inv).filter(k => inv[k] > 0 && !k.includes(' (M)') && !k.includes(' (BT)'));
+  for (const key of keys) {
+    const chip = document.createElement('div');
+    chip.textContent = key + ' x' + inv[key];
+    chip.draggable = true;
+    chip.dataset.name = key;
+    chip.style.cssText = 'padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.05);cursor:grab;font-size:10px;color:var(--cyan-bright)';
+    chip.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', key); });
+    chip.addEventListener('click', () => {
+      if (forgeItems.length >= 2) return;
+      if ((inv[key] || 0) <= forgeItems.filter(x=>x===key).length) { showToast('no more ' + key); return; }
+      forgeItems.push(key);
+      renderForgeSlots();
+    });
+    if (palette) palette.appendChild(chip);
+  }
+
+  const forge = document.getElementById('fuseForge');
+  if (forge) {
+    forge.ondragover = (e) => { e.preventDefault(); forge.style.borderColor = 'var(--cyan-bright)'; };
+    forge.ondragleave = () => { forge.style.borderColor = 'var(--border)'; };
+    forge.ondrop = (e) => {
+      e.preventDefault();
+      forge.style.borderColor = 'var(--border)';
+      const name = e.dataTransfer.getData('text/plain');
+      if (forgeItems.length >= 2) return;
+      if ((inv[name] || 0) <= forgeItems.filter(x=>x===name).length) { showToast('no more ' + name); return; }
+      forgeItems.push(name);
+      renderForgeSlots();
+    };
+  }
+
+  function renderForgeSlots() {
+    if (!slots) return;
+    slots.innerHTML = '';
+    for (const name of forgeItems) {
+      const slot = document.createElement('div');
+      slot.textContent = name;
+      slot.style.cssText = 'padding:2px 6px;border:1px solid var(--cyan);border-radius:3px;font-size:9px;color:var(--cyan-bright);background:rgba(43,208,208,0.1);cursor:pointer';
+      slot.addEventListener('click', () => {
+        const idx = forgeItems.indexOf(name);
+        if (idx >= 0) forgeItems.splice(idx, 1);
+        renderForgeSlots();
+      });
+      slots.appendChild(slot);
+    }
+    if (result) {
+      if (forgeItems.length === 2) {
+        const r = getFuseResult(forgeItems[0], forgeItems[1], inv, rar);
+        result.textContent = r ? '-> ' + r : 'no recipe';
+      } else {
+        result.textContent = '';
+      }
+    }
+  }
+
+  if (combineBtn) {
+    combineBtn.onclick = () => {
+      if (forgeItems.length !== 2) { showToast('need 2 items in forge'); return; }
+      const r = getFuseResult(forgeItems[0], forgeItems[1], inv, rar);
+      if (!r) { showToast('no recipe for this combo'); return; }
+      const a = forgeItems[0], b = forgeItems[1];
+      // consume: if same item, need 2 copies; if different, 1 each
+      if (a === b) {
+        if ((inv[a] || 0) < 2) { showToast('need 2 ' + a); return; }
+        inv[a] -= 2;
+      } else {
+        if ((inv[a] || 0) < 1 || (inv[b] || 0) < 1) { showToast('missing items'); return; }
+        inv[a] -= 1; inv[b] -= 1;
+      }
+      // also handle 3-of-same via normal fuse (not 2-item)
+      inv[r] = (inv[r] || 0) + 1;
+      fusionCount++;
+      setCurrentInventory(inv);
+      playFusionSound();
+      showToast('fused ' + a + (a===b?' x2': ' + ' + b) + ' -> ' + r);
+      forgeItems = [];
+      renderForgeSlots();
+      updateUI();
+      saveGame();
+      renderFuse();
+    };
+  }
+  renderForgeSlots();
+
+  // special: 2 End -> unlock RNG
+  if ((inv['End']||0) >= 2 && !rngUnlocked) {
+    const row = document.createElement('div');
+    row.className = 'shop-item';
+    row.innerHTML = '<div class="info"><div class="name">RNG Unlock</div><div class="desc">fuse 2 End to unlock RNG rarity</div></div>';
+    const btn = document.createElement('button');
+    btn.textContent = 'UNLOCK RNG';
+    btn.addEventListener('click', () => {
+      if ((inv['End']||0) < 2) { showToast('need 2 End'); return; }
+      inv['End'] -= 2;
+      rngUnlocked = true;
+      setCurrentInventory(inv);
+      playFusionSound();
+      showToast('RNG rarity unlocked! 0.003% chance at max luck');
+      updateUI();
+      saveGame();
+      renderFuse();
+    });
+    row.appendChild(btn);
+    fuseList.appendChild(row);
+  }
+  // special: End recipe (2 Eternia + 2 Omnipotence + 2 Dust (R))
+  if ((inv['Eternia']||0) >= 2 && (inv['Omnipotence']||0) >= 2 && (inv['Dust (R)']||0) >= 2) {
+    const erow = document.createElement('div');
+    erow.className = 'shop-item';
+    erow.innerHTML = '<div class="info"><div class="name">End Recipe</div><div class="desc">2 Eternia + 2 Omnipotence + 2 Dust (R)</div></div>';
+    const ebtn = document.createElement('button');
+    ebtn.textContent = 'CRAFT END';
+    ebtn.addEventListener('click', () => {
+      if ((inv['Eternia']||0) < 2 || (inv['Omnipotence']||0) < 2 || (inv['Dust (R)']||0) < 2) { showToast('missing materials'); return; }
+      inv['Eternia'] -= 2;
+      inv['Omnipotence'] -= 2;
+      inv['Dust (R)'] -= 2;
+      inv['End'] = (inv['End'] || 0) + 1;
+      fusionCount++;
+      setCurrentInventory(inv);
+      playFusionSound();
+      showToast('crafted End');
+      updateUI();
+      saveGame();
+      renderFuse();
+    });
+    erow.appendChild(ebtn);
+    if (palette) palette.parentElement.insertBefore(erow, palette.parentElement.firstChild);
+  }
+  if (fuseList) {
+    const hints = ['2x same rarity -> next tier (or special)', '3x same -> next tier (use 3 copies via click)'];
+    for (let i = 0; i < rar.length; i++) {
+      if (rar[i].craftOnly && i > 0) hints.push('2x ' + rar[i-1].name + ' -> ' + rar[i].name);
+    }
+    hints.push('2 Eternia + 2 Omnipotence + 2 Dust (R) -> End');
+    const hintDiv = document.createElement('div');
+    hintDiv.style.cssText = 'color:var(--muted);font-size:10px;padding:4px';
+    hintDiv.textContent = 'recipes: ' + hints.join(' | ');
+    fuseList.appendChild(hintDiv);
+  }
+}
+
+// cross-rarity recipe table
+const crossRecipes = [
+  // {a, b, result}
+];
+
+function getFuseResult(a, b, inv, rar) {
+  if (a === b) {
+    const r = rar.find(x => x.name === a);
+    const idx = r ? rar.indexOf(r) : -1;
+    if (idx >= 0 && idx < rar.length - 1) {
+      // special recipes
+      if (a === 'Tabula') return 'Core';
+      if (a === 'Core') return 'Nexus';
+      const craftR = rar.find(x => x.craftOnly && rar.indexOf(x) > 0 && rar[rar.indexOf(x)-1].name === a);
+      if (craftR) return craftR.name;
+      // default: 2 of same -> next tier (for all rarities)
+      return rar[idx + 1].name;
+    }
+    return null;
+  }
+  // cross-rarity recipes
+  for (const rec of crossRecipes) {
+    if ((rec.a === a && rec.b === b) || (rec.a === b && rec.b === a)) return rec.result;
+  }
+  return null;
+}
+
+document.getElementById('fuseClose').addEventListener('click', () => closeModal(fuseModal));
+
+function renderEvents() {
+  if (!eventsList) return;
+  eventsList.innerHTML = '';
+  const ev = getCurrentEvent();
+  for (const e of gameEvents) {
+    const row = document.createElement('div');
+    row.className = 'shop-item' + (e.id === ev.id ? '' : ' owned');
+    row.innerHTML = '<div class="info"><div class="name">' + e.name + (e.id === ev.id ? ' (ACTIVE)' : '') + '</div><div class="desc">' + e.desc + '</div></div>';
+    eventsList.appendChild(row);
+  }
+  const note = document.createElement('div');
+  note.style.cssText = 'color:var(--muted);font-size:10px;margin-top:8px';
+  note.textContent = 'events rotate daily. active: ' + ev.name;
+  eventsList.appendChild(note);
+}
+
+document.getElementById('eventsClose').addEventListener('click', () => closeModal(eventsModal));
+
+function renderStats() {
+  if (!statsList) return;
+  statsList.innerHTML = '';
+  const rar = getCurrentRarities();
+  const best = rar[Math.min(bestRarityIndex, rar.length - 1)] || rar[0];
+  const lines = [
+    ['rolls', formatNum(rolls)],
+    ['lifetime rolls', formatNum(lifetimeRolls + rolls)],
+    ['credits', formatNum(credits)],
+    ['lifetime credits', formatNum(lifetimeCredits + credits)],
+    ['base luck', formatNum(baseLuck)],
+    ['total luck', formatNum(getTotals())],
+    ['best rarity', best ? best.name : '-'],
+    ['prestige points', formatNum(prestigePoints)],
+    ['prestige count', prestigeCount],
+    ['transcendence', transcendenceCount],
+    ['fusion count', fusionCount],
+    ['owned rarities', Object.keys(ownedRarities).length + '/' + rarities.length],
+    ['collection complete', collectionRewardClaimed ? 'yes' : 'no'],
+    ['pity counter', pityCounter],
+    ['roll streak', rollStreak],
+    ['auto-sell', autoSellThreshold >= 0 ? 'below ' + (rar[autoSellThreshold] ? rar[autoSellThreshold].name : autoSellThreshold) : 'OFF'],
+  ];
+  for (const [k, v] of lines) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;padding:4px 6px;border-bottom:1px solid rgba(43,208,208,0.1)';
+    row.innerHTML = '<span style="color:var(--muted)">' + k + '</span><strong style="color:var(--cyan-bright)">' + v + '</strong>';
+    statsList.appendChild(row);
+  }
+}
+
+document.getElementById('settingsStatsBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(statsModal); renderStats(); });
+
+function updateAutoFuseBtn() {
+  const b = document.getElementById('settingsAutoFuseBtn');
+  if (b) b.textContent = 'AUTO-FUSE: ' + (autoFuse ? 'ON' : 'OFF');
+}
+document.getElementById('settingsAutoFuseBtn').addEventListener('click', () => {
+  autoFuse = !autoFuse;
+  updateAutoFuseBtn();
+  saveGame();
+  showToast(autoFuse ? 'auto-fuse on' : 'auto-fuse off');
+});
+
+function updateAutoEquipBtn() {
+  const b = document.getElementById('settingsAutoEquipBtn');
+  if (b) b.textContent = 'AUTO-EQUIP BEST: ' + (autoEquipBest ? 'ON' : 'OFF');
+}
+
+function updateSlotBtns() {
+  for (let i = 1; i <= 3; i++) {
+    const b = document.getElementById('slot' + i + 'Btn');
+    if (b) b.classList.toggle('active', currentSlot === i);
+  }
+}
+for (let i = 1; i <= 3; i++) {
+  document.getElementById('slot' + i + 'Btn').addEventListener('click', () => {
+    if (currentSlot === i) return;
+    saveGame();
+    currentSlot = i;
+    localStorage.setItem('luxRngSlot', String(i));
+    location.reload();
+  });
+}
+updateSlotBtns();
+document.getElementById('settingsAutoEquipBtn').addEventListener('click', () => {
+  autoEquipBest = !autoEquipBest;
+  updateAutoEquipBtn();
+  saveGame();
+  showToast(autoEquipBest ? 'auto-equip on' : 'auto-equip off');
+});
+document.getElementById('statsClose').addEventListener('click', () => closeModal(statsModal));
+
+function triggerCorruption(seed) {
+  if (corrupted) return;
+  seed = seed || '';
+  // seeded PRNG based on clipboard content
+  let h = 5381;
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) + h + seed.charCodeAt(i)) >>> 0;
+  let rngState = h || 1;
+  function seededRandom() {
+    rngState = (rngState * 1664525 + 1013904223) >>> 0;
+    return rngState / 4294967296;
+  }
+  window.__corruptRng = seededRandom;
+  corrupted = true;
+  autoRoll = false;
+  const co = document.getElementById('corruptOverlay');
+  if (co) co.style.display = 'block';
+  // block all interaction
+  document.body.style.pointerEvents = 'none';
+  co.style.pointerEvents = 'all';
+  // stop original bgm
+  try { bgmAudio.pause(); musicPlaying = false; if (musicBtn) musicBtn.textContent = '♪ OFF'; } catch (e) {}
+  updateSettingsBtns();
+  // play fearful harmony audio on loop (only sound in corruption)
+  try {
+    const fh = new Audio('fearfulharmony.mp3');
+    fh.loop = true;
+    fh.volume = 0.6;
+    fh.play().catch(() => {});
+    window.__fhAudio = fh;
+  } catch (e) {}
+  // capture snapshots
+  const canvases = [document.getElementById('cubeCanvasGL'), document.getElementById('cubeCanvas'), document.getElementById('bgCanvas')];
+  const snapshots = [];
+  for (const c of canvases) {
+    try { snapshots.push(c.toDataURL('image/png')); } catch (e) {}
+  }
+  const inlineSvgs = Array.from(document.querySelectorAll('svg')).map(s => s.outerHTML);
+  const smear = document.getElementById('corruptSmear');
+  const src = snapshots.length ? snapshots[0] : null;
+  // PROGRESSIVE corruption: start black, add more distortion over time
+  let wave = 0;
+  function addWave() {
+    if (!corrupted) return;
+    wave++;
+    const intensity = Math.min(1, wave / 8);
+    // hall of mirrors (grows with waves)
+    const mirrorCount = Math.min(12, 2 + wave * 2);
+    for (let i = 0; i < mirrorCount; i++) {
+      const el = document.createElement('img');
+      if (src) el.src = src;
+      el.style.position = 'absolute';
+      el.style.left = '50%';
+      el.style.top = '50%';
+      const scale = 1 - i * 0.06;
+      el.style.width = (100 * scale) + '%';
+      el.style.height = (100 * scale) + '%';
+      el.style.transform = 'translate(-50%, -50%) scale(' + scale + ') rotate(' + (i * 7 + wave * 3) + 'deg)';
+      el.style.opacity = (0.5 - i * 0.03) * intensity;
+      el.style.filter = 'blur(' + (i * 0.6) + 'px) hue-rotate(' + (i * 30 + wave * 15) + 'deg) contrast(' + (1.1 + i * 0.1) + ')';
+      el.style.mixBlendMode = 'screen';
+      smear.appendChild(el);
+    }
+    // distorted copies
+    const distCount = Math.min(20, 3 + wave * 3);
+    for (let i = 0; i < distCount; i++) {
+      const el = document.createElement('img');
+      const s = snapshots.length ? snapshots[Math.floor(seededRandom() * snapshots.length)] : null;
+      if (s) el.src = s;
+      el.style.position = 'absolute';
+      el.style.left = (seededRandom() * 90) + '%';
+      el.style.top = (seededRandom() * 90) + '%';
+      el.style.width = (20 + seededRandom() * 50) + '%';
+      const sx = (seededRandom() < 0.5 ? -1 : 1) * (0.6 + seededRandom() * 1.8);
+      const sy = (seededRandom() < 0.5 ? -1 : 1) * (0.6 + seededRandom() * 1.8);
+      const skewX = (seededRandom() * 40 - 20) * intensity;
+      const skewY = (seededRandom() * 40 - 20) * intensity;
+      el.style.transform = 'scale(' + sx + ', ' + sy + ') skew(' + skewX + 'deg, ' + skewY + 'deg) rotate(' + (seededRandom() * 60 - 30) + 'deg)';
+      el.style.opacity = (0.3 + seededRandom() * 0.5) * intensity;
+      el.style.filter = 'blur(' + (seededRandom() * 8) + 'px) hue-rotate(' + (seededRandom() * 360) + 'deg) contrast(' + (0.5 + seededRandom() * 2) + ') brightness(' + (0.5 + seededRandom()) + ')';
+      el.style.mixBlendMode = seededRandom() < 0.5 ? 'difference' : 'exclusion';
+      smear.appendChild(el);
+    }
+    // distorted svgs
+    const svgCount = Math.min(12, 2 + wave * 2);
+    for (let i = 0; i < svgCount; i++) {
+      const el = document.createElement('div');
+      el.style.position = 'absolute';
+      el.style.left = (seededRandom() * 85) + '%';
+      el.style.top = (seededRandom() * 85) + '%';
+      const sx = (seededRandom() < 0.5 ? -1 : 1) * (1 + seededRandom() * 3);
+      const sy = (seededRandom() < 0.5 ? -1 : 1) * (1 + seededRandom() * 3);
+      const skewX = seededRandom() * 80 - 40;
+      const skewY = seededRandom() * 80 - 40;
+      const rot = seededRandom() * 360;
+      const persp = 200 + seededRandom() * 400;
+      el.style.transform = 'perspective(' + persp + 'px) rotateX(' + (seededRandom()*60-30) + 'deg) rotateY(' + (seededRandom()*60-30) + 'deg) scale(' + sx + ', ' + sy + ') skew(' + skewX + 'deg, ' + skewY + 'deg) rotate(' + rot + 'deg)';
+      el.style.opacity = (0.5 + seededRandom() * 0.5) * intensity;
+      el.style.filter = 'blur(' + (seededRandom() * 6) + 'px) hue-rotate(' + (seededRandom() * 360) + 'deg) contrast(' + (1.5 + seededRandom() * 2) + ') saturate(' + (seededRandom() * 4) + ')';
+      el.style.mixBlendMode = 'screen';
+      el.style.transformOrigin = 'center center';
+      if (inlineSvgs.length) {
+        el.innerHTML = inlineSvgs[Math.floor(seededRandom() * inlineSvgs.length)];
+        const svg = el.querySelector('svg');
+        if (svg) {
+          svg.style.width = (60 + seededRandom() * 120) + 'px';
+          svg.style.height = 'auto';
+          svg.setAttribute('preserveAspectRatio', 'none');
+        }
+      }
+      smear.appendChild(el);
+    }
+    // schedule next wave
+    if (wave < 8) setTimeout(addWave, 1500);
+  }
+  // start first wave after a delay (starts mostly black)
+  setTimeout(addWave, 800);
+  showToast('\u26a0 CORRUPTED DATA DETECTED');
+
+  // max out distortion
+  shake = 40;
+  chroma = 1;
+  flash.style.opacity = 1;
+  setTimeout(() => { flash.style.opacity = 0; }, 200);
+  spawnParticles(500, '#ff0040', '#ff80a0');
+  // scramble the roll text
+  const rt = document.getElementById('rollText');
+  if (rt) {
+    const nameEl = rt.querySelector('.rarity-name');
+    if (nameEl) {
+      const scramble = () => {
+        if (!corrupted) return;
+        const chars = '!@#$%^&*()_+-=[]{}|;:,.<>?/~`';
+        let out = '';
+        for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
+        nameEl.textContent = out;
+        nameEl.style.color = '#ff0040';
+        setTimeout(scramble, 120);
+      };
+      scramble();
+    }
+  }
+}
+
+const driveAnim = document.getElementById('driveAnim');
+const driveIcon = document.getElementById('driveIcon');
+const driveText = document.getElementById('driveText');
+
+function showDriveAnim(text, icon, duration) {
+  driveText.textContent = text;
+  driveIcon.textContent = icon;
+  driveAnim.style.display = 'flex';
+  return new Promise(res => setTimeout(res, duration));
+}
+
+document.getElementById('settingsExportBtn').addEventListener('click', async () => {
+  closeModal(settingsModal);
+  await showDriveAnim('CLONING DRIVE...', '💾', 1200);
+  const data = localStorage.getItem(saveKey());
+  driveAnim.style.display = 'none';
+  if (!data) { showToast('no save to export'); return; }
+  // copy to clipboard
+  try {
+    await navigator.clipboard.writeText(data);
+    showToast('save copied to clipboard');
+  } catch (e) {
+    // fallback: show in prompt
+    prompt('copy your save:', data);
+  }
+});
+
+document.getElementById('settingsImportBtn').addEventListener('click', async () => {
+  closeModal(settingsModal);
+  let text = '';
+  try { text = await navigator.clipboard.readText(); } catch (e) { text = ''; }
+  if (!text) { text = prompt('paste your save JSON:') || ''; }
+  if (!text) return;
+  await showDriveAnim('PULLING DRIVE...', '💿', 800);
+  await showDriveAnim('INSERTING...', '💿', 800);
+  driveAnim.style.display = 'none';
+  try {
+    const data = JSON.parse(text, (key, value) => {
+      if (value === '__INF__') return Infinity;
+      if (value === '__NINF__') return -Infinity;
+      if (value === '__NAN__') return NaN;
+      return value;
+    });
+    // validate: must look like a lux's rng save
+    if (!data || typeof data !== 'object' || typeof data.saveVersion === 'undefined') throw new Error('bad');
+    // checksum verification
+    if (data.checksum) {
+      const checkObj = { ...data };
+      delete checkObj.checksum;
+      const recomputed = _hashStr(JSON.stringify(checkObj, _saveReplacer));
+      if (recomputed !== data.checksum) throw new Error('bad checksum');
+    }
+    localStorage.setItem(saveKey(), text);
+    location.reload();
+  } catch (e) {
+    triggerCorruption(text);
+  }
+});
+
+function updateSettingsBtns() {
+  const sf = document.getElementById('settingsFlashBtn');
+  const sm = document.getElementById('settingsMusicBtn');
+  if (sf) sf.textContent = 'FLASH: ' + (flashesEnabled ? 'ON' : 'OFF');
+  if (sm) sm.textContent = 'MUSIC: ' + (musicPlaying ? 'ON' : 'OFF');
+}
+
+let currentTrack = localStorage.getItem('luxRngTrack') || 'bgm.mp3';
+function populateMusicDropdown() {
+  const dd = document.getElementById('musicDropdown');
+  if (!dd) return;
+  dd.innerHTML = '';
+  for (const t of musicTracks) {
+    const item = document.createElement('div');
+    item.textContent = t.name;
+    item.style.cssText = 'padding:6px 10px;font-size:11px;cursor:pointer;color:var(--text);border-bottom:1px solid rgba(43,208,208,0.1)';
+    item.addEventListener('click', () => {
+      currentTrack = t.src;
+      localStorage.setItem('luxRngTrack', t.src);
+      bgmAudio.pause();
+      bgmAudio.src = t.src;
+      bgmAudio.load();
+      if (musicPlaying) bgmAudio.play().catch(() => {});
+      showToast('track: ' + t.name);
+      const dd2 = document.getElementById('musicDropdown');
+      if (dd2) dd2.style.display = 'none';
+    });
+    dd.appendChild(item);
+  }
+}
+populateMusicDropdown();
+
+const musicWrap = document.getElementById('musicWrap');
+if (musicWrap) {
+  musicWrap.addEventListener('mouseenter', () => {
+    const dd = document.getElementById('musicDropdown');
+    if (dd) dd.style.display = 'block';
+  });
+  musicWrap.addEventListener('mouseleave', () => {
+    const dd = document.getElementById('musicDropdown');
+    if (dd) dd.style.display = 'none';
+  });
+}
+
+// apply saved track on load
+(function applySavedTrack() {
+  if (currentTrack && currentTrack !== 'bgm.mp3') {
+    bgmAudio.src = currentTrack;
+    bgmAudio.load();
+  }
+})();
+settingsBtn.addEventListener('click', () => { updateSettingsBtns(); openModal(settingsModal); });
+document.getElementById('settingsFlashBtn').addEventListener('click', () => {
+  flashesEnabled = !flashesEnabled;
+  updateFlashBtn();
+  updateSettingsBtns();
+  saveGame();
+  showToast(flashesEnabled ? 'flashes on' : 'flashes off');
+});
+document.getElementById('settingsMusicBtn').addEventListener('click', () => {
+  if (musicPlaying) stopMusic(); else startMusic();
+  updateSettingsBtns();
+});
+document.getElementById('settingsEventsBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(eventsModal); renderEvents(); });
+document.getElementById('settingsClose').addEventListener('click', () => closeModal(settingsModal));
+
+function renderEvolve() {
+  if (!evolveList) return;
+  evolveList.innerHTML = '';
+  const inv = getCurrentInventory();
+  const rar = getCurrentRarities();
+  const keys = Object.keys(inv).filter(k => inv[k] >= 5 && !k.includes(' (M)') && !k.includes(' (BT)') && !k.includes(' (E)'));
+  if (keys.length === 0) {
+    evolveList.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">need 5 of the same aura to evolve.</div>';
+    return;
+  }
+  for (const key of keys) {
+    const r = rar.find(x => x.name === key);
+    const row = document.createElement('div');
+    row.className = 'shop-item';
+    row.innerHTML = '<div class="info"><div class="name">' + key + ' x' + inv[key] + '</div><div class="desc">evolve 5 -> ' + key + ' (E) (+10% luck)</div></div>';
+    const btn = document.createElement('button');
+    btn.textContent = 'EVOLVE';
+    btn.addEventListener('click', () => {
+      if ((inv[key] || 0) < 5) { showToast('need 5 ' + key); return; }
+      inv[key] -= 5;
+      const evoKey = key + ' (E)';
+      inv[evoKey] = (inv[evoKey] || 0) + 1;
+      fusionCount++;
+      setCurrentInventory(inv);
+      playFusionSound();
+      showToast('evolved 5 ' + key + ' -> ' + evoKey);
+      updateUI();
+      saveGame();
+      renderEvolve();
+    });
+    row.appendChild(btn);
+    evolveList.appendChild(row);
+  }
+}
+
+document.getElementById('settingsEvolveBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(evolveModal); renderEvolve(); });
+document.getElementById('evolveClose').addEventListener('click', () => closeModal(evolveModal));
+
+function renderShowcase() {
+  if (!showcaseContent) return;
+  showcaseContent.innerHTML = '';
+  const rar = getCurrentRarities();
+  const best = rar[Math.min(bestRarityIndex, rar.length - 1)] || rar[0];
+  const col = best.color === 'rainbow' ? '#fff' : best.color === 'prism' ? '#fff' : best.color;
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:20px';
+  div.innerHTML = '<div style="width:80px;height:80px;margin:0 auto 12px;border-radius:8px;background:' + (best.color2 ? 'linear-gradient(135deg,' + best.color + ',' + best.color2 + ')' : best.color) + ';box-shadow:0 0 30px ' + best.glow + '"></div>' +
+    '<div style="font-size:20px;font-family:Georgia,serif;letter-spacing:4px;color:' + col + ';text-shadow:0 0 20px ' + best.glow + '">' + best.name + '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:8px">luck: ' + formatNum(best.luck) + ' | odds: 1/' + formatNum(best.odds) + '</div>' +
+    '<div style="font-size:11px;color:var(--muted)">rolls: ' + formatNum(rolls) + ' | credits: ' + formatNum(credits) + '</div>';
+  const btn = document.createElement('button');
+  btn.textContent = 'CAPTURE';
+  btn.style.marginTop = '12px';
+  btn.addEventListener('click', () => {
+    showToast('screenshot captured (right-click to save)');
+  });
+  div.appendChild(btn);
+  showcaseContent.appendChild(div);
+}
+
+document.getElementById('settingsShowcaseBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(showcaseModal); renderShowcase(); });
+document.getElementById('showcaseClose').addEventListener('click', () => closeModal(showcaseModal));
+
+function renderRecipeBook() {
+  if (!recipeList) return;
+  recipeList.innerHTML = '';
+  const rar = getCurrentRarities();
+  const recipes = [];
+  // 2-of-same -> next tier
+  for (let i = 0; i < rar.length - 1; i++) {
+    recipes.push({ a: rar[i].name, b: rar[i].name, result: rar[i+1].name });
+  }
+  // special
+  recipes.push({ a: 'Tabula', b: 'Tabula', result: 'Core' });
+  recipes.push({ a: 'Core', b: 'Core', result: 'Nexus' });
+  for (let i = 0; i < rar.length; i++) {
+    if (rar[i].craftOnly && i > 0) recipes.push({ a: rar[i-1].name, b: rar[i-1].name, result: rar[i].name });
+  }
+  // dedupe
+  const seen = new Set();
+  const unique = recipes.filter(r => {
+    const k = r.a + '+' + r.b + '=' + r.result;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  for (const rec of unique) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;padding:3px 6px;border-bottom:1px solid rgba(43,208,208,0.1);font-size:10px';
+    row.innerHTML = '<span style="color:var(--muted)">' + rec.a + ' + ' + rec.b + '</span><span style="color:var(--cyan-bright)">-> ' + rec.result + '</span>';
+    recipeList.appendChild(row);
+  }
+}
+
+document.getElementById('settingsRecipeBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(recipeModal); renderRecipeBook(); });
+document.getElementById('recipeClose').addEventListener('click', () => closeModal(recipeModal));
 dailyModal.addEventListener('click', e => { if (e.target === dailyModal) closeModal(dailyModal); });
 lbSubmit.addEventListener('click', submitScore);
 
 const SAVE_VERSION = 3;
 
+const _saveReplacer = (key, value) => {
+  // Infinity/NaN are not JSON-serializable; encode them as tagged strings.
+  if (value === Infinity) return '__INF__';
+  if (value === -Infinity) return '__NINF__';
+  if (typeof value === 'number' && isNaN(value)) return '__NAN__';
+  return value;
+};
+function _hashStr(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(16);
+}
 function saveGame() {
   try {
-    localStorage.setItem('luxRngSave', JSON.stringify({
-      saveVersion: SAVE_VERSION, inventory, pastInventory, futureInventory, mutatedInventory, baseLuck, rolls, credits, unlocked, shopCounts, autoRoll, achievementsUnlocked, bestRarityIndex, startTime, currentBiome, prestigePoints, prestigeCount, lifetimeRolls, lifetimeCredits, dailyChallengeDate, dailyChallengeProgress, ownedRarities, collectionRewardClaimed, pityCounter, rollStreak, autoSellThreshold, questClaimed, taskProgress, flashesEnabled
-    }, (key, value) => {
-      // Infinity/NaN are not JSON-serializable; encode them as tagged strings.
-      if (value === Infinity) return '__INF__';
-      if (value === -Infinity) return '__NINF__';
-      if (typeof value === 'number' && isNaN(value)) return '__NAN__';
-      return value;
-    }));
+    const obj = {
+      saveVersion: SAVE_VERSION, inventory, pastInventory, futureInventory, mutatedInventory, baseLuck, rolls, credits, unlocked, shopCounts, autoRoll, achievementsUnlocked, bestRarityIndex, startTime, currentBiome, prestigePoints, prestigeCount, transcendencePoints, transcendenceCount, lifetimeRolls, lifetimeCredits, dailyChallengeDate, dailyChallengeProgress, ownedRarities, collectionRewardClaimed, pityCounter, rollStreak, autoSellThreshold, questClaimed, taskProgress, flashesEnabled, qMarkOdds, qMarkRollCounter, qMarkChangeInterval, qMarkShowChance, equippedRarity, fusionCount, autoFuse, autoEquipBest, setsClaimed, rngUnlocked
+    };
+    const raw = JSON.stringify(obj, _saveReplacer);
+    obj.checksum = _hashStr(raw);
+    localStorage.setItem(saveKey(), JSON.stringify(obj, _saveReplacer));
   } catch (e) {}
 }
 
 function loadGame() {
   try {
-    const raw = localStorage.getItem('luxRngSave');
+    const raw = localStorage.getItem(saveKey());
     if (!raw) return;
     const data = JSON.parse(raw, (key, value) => {
       if (value === '__INF__') return Infinity;
@@ -3946,6 +5254,16 @@ function loadGame() {
       if (value === '__NAN__') return NaN;
       return value;
     });
+    // checksum verification: reject tampered saves
+    if (data && data.checksum) {
+      const checkObj = { ...data };
+      delete checkObj.checksum;
+      const recomputed = _hashStr(JSON.stringify(checkObj, _saveReplacer));
+      if (recomputed !== data.checksum) {
+        triggerCorruption('tampered save');
+        return;
+      }
+    }
     if (data.inventory) inventory = data.inventory;
     if (data.pastInventory) pastInventory = data.pastInventory;
     if (data.futureInventory) futureInventory = data.futureInventory;
@@ -3967,10 +5285,22 @@ function loadGame() {
     if (typeof data.rollStreak === 'number') rollStreak = data.rollStreak;
     if (typeof data.autoSellThreshold === 'number') autoSellThreshold = data.autoSellThreshold;
     if (typeof data.flashesEnabled === 'boolean') { flashesEnabled = data.flashesEnabled; updateFlashBtn(); }
+    if (typeof data.qMarkOdds === 'number') qMarkOdds = data.qMarkOdds;
+    if (typeof data.qMarkRollCounter === 'number') qMarkRollCounter = data.qMarkRollCounter;
+    if (typeof data.qMarkChangeInterval === 'number') qMarkChangeInterval = data.qMarkChangeInterval;
+    if (typeof data.qMarkShowChance === 'boolean') qMarkShowChance = data.qMarkShowChance;
+    if (typeof data.equippedRarity === 'string' || data.equippedRarity === null) equippedRarity = data.equippedRarity;
+    if (typeof data.fusionCount === 'number') fusionCount = data.fusionCount;
+    if (typeof data.autoFuse === 'boolean') { autoFuse = data.autoFuse; updateAutoFuseBtn(); }
+    if (typeof data.autoEquipBest === 'boolean') { autoEquipBest = data.autoEquipBest; updateAutoEquipBtn(); }
+    if (data.setsClaimed) setsClaimed = data.setsClaimed;
+    if (typeof data.rngUnlocked === 'boolean') rngUnlocked = data.rngUnlocked;
     if (data.questClaimed) questClaimed = { ...questClaimed, ...data.questClaimed };
     if (data.taskProgress) taskProgress = { ...taskProgress, ...data.taskProgress };
     if (typeof data.prestigePoints === 'number') prestigePoints = data.prestigePoints;
     if (typeof data.prestigeCount === 'number') prestigeCount = data.prestigeCount;
+    if (typeof data.transcendencePoints === 'number') transcendencePoints = data.transcendencePoints;
+    if (typeof data.transcendenceCount === 'number') transcendenceCount = data.transcendenceCount;
     if (typeof data.lifetimeRolls === 'number') lifetimeRolls = data.lifetimeRolls;
     if (typeof data.lifetimeCredits === 'number') lifetimeCredits = data.lifetimeCredits;
     if (data.dailyChallengeDate) dailyChallengeDate = data.dailyChallengeDate;
@@ -4015,6 +5345,8 @@ function resetSave() {
   achievementsUnlocked = {};
   prestigePoints = 0;
   prestigeCount = 0;
+  transcendencePoints = 0;
+  transcendenceCount = 0;
   lifetimeRolls = 0;
   lifetimeCredits = 0;
   dailyChallenges = [];
@@ -4030,14 +5362,39 @@ function resetSave() {
   autoSellThreshold = -1;
   flashesEnabled = true;
   updateFlashBtn();
+  qMarkOdds = 1.6e17;
+  qMarkRollCounter = 0;
+  qMarkChangeInterval = 20;
+  qMarkShowChance = false;
+  equippedRarity = null;
+  fusionCount = 0;
+  autoFuse = false;
+  updateAutoFuseBtn();
+  autoEquipBest = false;
+  updateAutoEquipBtn();
+  setsClaimed = {};
+  rngUnlocked = false;
   questClaimed = {};
   taskProgress = {};
   startTime = Date.now();
   currentRarity = rarities[0];
   timePeriod = 'present';
-  localStorage.removeItem('luxRngSave');
+  localStorage.removeItem(saveKey());
   updateUI();
   showToast('save reset');
+}
+
+function checkSets() {
+  const inv = getCurrentInventory();
+  for (const s of raritySets) {
+    if (setsClaimed[s.id]) continue;
+    if (s.check(inv)) {
+      setsClaimed[s.id] = true;
+      if (s.reward.luck) baseLuck += s.reward.luck;
+      showToast('set complete: ' + s.name + ' (+' + (s.reward.luck||0) + ' luck)');
+      saveGame();
+    }
+  }
 }
 
 function checkAchievements() {
@@ -4084,8 +5441,25 @@ function loop(ts) {
 }
 
 loadGame();
+// daily login bonus
+const today = new Date().toDateString();
+if (lastLoginDate !== today) {
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  if (lastLoginDate === yesterday) loginStreak++;
+  else if (lastLoginDate !== '') loginStreak = 1;
+  else loginStreak = 1;
+  lastLoginDate = today;
+  localStorage.setItem('luxRngLastLogin', today);
+  localStorage.setItem('luxRngLoginStreak', String(loginStreak));
+  const reward = Math.min(10000, 100 * loginStreak);
+  credits += reward;
+  baseLuck += Math.min(5, loginStreak * 0.5);
+  showToast('daily login: day ' + loginStreak + ' — +' + reward + ' credits, +' + Math.min(5, loginStreak * 0.5) + ' luck');
+  updateUI();
+  saveGame();
+}
 applyBiomeColors();
-if (localStorage.getItem('luxRngSave')) objSay('idle');
+if (localStorage.getItem(saveKey())) objSay('idle');
 if (unlocked.timeMachine) {
   const tmUI = document.getElementById('timeMachineUI');
   if (tmUI) tmUI.style.display = 'block';

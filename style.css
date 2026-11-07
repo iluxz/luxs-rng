@@ -136,6 +136,7 @@ main {
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
 }
 
 .rarity-row .dot {
@@ -659,4 +660,40 @@ button.locked::after {
   content: '🔒';
   margin-left: 6px;
   font-size: 10px;
+}
+@media (max-width: 720px) {
+  main { grid-template-columns: 1fr; }
+  #stats { gap: 12px; font-size: 11px; }
+  header { padding: 8px 12px; flex-wrap: wrap; }
+  #controls button { padding: 8px 12px; font-size: 10px; }
+  .modal-window { width: 95vw; }
+}
+@keyframes distortText {
+  0% { transform: skewX(0deg) skewY(0deg); filter: blur(0px) hue-rotate(0deg); }
+  25% { transform: skewX(8deg) skewY(-4deg); filter: blur(1px) hue-rotate(90deg); }
+  50% { transform: skewX(-6deg) skewY(3deg); filter: blur(2px) hue-rotate(180deg); }
+  75% { transform: skewX(4deg) skewY(-2deg); filter: blur(1px) hue-rotate(270deg); }
+  100% { transform: skewX(0deg) skewY(0deg); filter: blur(0px) hue-rotate(360deg); }
+}
+.distort-name {
+  display: inline-block;
+  animation: distortText 1.5s infinite;
+  color: #fff;
+  text-shadow: 0 0 10px #fff, 0 0 20px #ff0040;
+}
+@keyframes diceRoll {
+  0% { transform: rotate(0deg) scale(1); }
+  20% { transform: rotate(15deg) scale(1.05); }
+  40% { transform: rotate(-10deg) scale(1); }
+  60% { transform: rotate(20deg) scale(1.05); }
+  80% { transform: rotate(-5deg) scale(1); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+.dice-name {
+  display: inline-block;
+  animation: diceRoll 2s ease-in-out infinite;
+  animation-delay: 1s;
+  transform-origin: center center;
+  color: #fff;
+  text-shadow: 0 0 10px #ff0, 0 0 20px #f80;
 }
