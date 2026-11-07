@@ -3150,10 +3150,6 @@ function checkAchievements() {
 }
 
 function loop(ts) {
-  if (document.hidden) {
-    requestAnimationFrame(loop);
-    return;
-  }
   // biome rotation
   if (biomeTimer === 0) biomeTimer = ts;
   if (ts - biomeTimer > BIOME_DURATION) {
