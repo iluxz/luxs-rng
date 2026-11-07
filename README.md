@@ -6,6 +6,7 @@ a browser-based RNG game. roll cubes, earn credits, buy upgrades, unlock achieve
 
 - **github pages:** https://iluxz.github.io/luxs-rng/
 - **githack (school fallback):** https://raw.githack.com/iluxz/luxs-rng/main/index.html
+- **cloudflare (workers):** https://lux-rng.cnnecare.workers.dev
 
 ## features
 
