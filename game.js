@@ -1492,6 +1492,10 @@ function triggerRoll(count = 1) {
     const bumpIdx = Math.min(bestRarityIndex + 1, rar0.length - 1);
     if (bumpIdx > bestRarityIndex) {
       best = rar0[bumpIdx];
+      // pity grants the rarity for real: add it to inventory too
+      const invNow = getCurrentInventory();
+      invNow[best.name] = (invNow[best.name] || 0) + 1;
+      setCurrentInventory(invNow);
       showToast('pity: guaranteed upgrade');
     }
     pityCounter = 0;
@@ -2275,7 +2279,7 @@ function renderInventory() {
   };
   for (const key of keys) {
     const r = findR(key);
-    const count = inv[key];
+    const count = (key.indexOf(' (M)') >= 0) ? (mutatedInventory[key] || 0) : inv[key];
     const item = document.createElement('div');
     item.className = 'inv-item';
     item.style.flexDirection = 'column';
@@ -2317,8 +2321,10 @@ function renderInventory() {
     sellBtn.style.marginTop = '4px';
     sellBtn.style.alignSelf = 'flex-start';
     sellBtn.addEventListener('click', () => {
-      if ((inv[key] || 0) <= 0) return;
-      inv[key] = (inv[key] || 0) - 1;
+      const isMut = key.indexOf(' (M)') >= 0;
+      const store = isMut ? mutatedInventory : inv;
+      if ((store[key] || 0) <= 0) return;
+      store[key] = (store[key] || 0) - 1;
       credits += r ? sellPrice(r) : 1;
       updateUI();
       saveGame();
