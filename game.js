@@ -2290,7 +2290,7 @@ function renderInventory() {
     sellBtn.style.marginTop = '4px';
     sellBtn.style.alignSelf = 'flex-start';
     sellBtn.addEventListener('click', () => {
-      if (count <= 0) return;
+      if ((inv[key] || 0) <= 0) return;
       inv[key] = (inv[key] || 0) - 1;
       credits += r ? sellPrice(r) : 1;
       updateUI();
