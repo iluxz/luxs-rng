@@ -1608,22 +1608,26 @@ function renderLeaderboardRows(data) {
 }
 
 async function fetchLeaderboard() {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(LB_API + '/leaderboard', { signal: controller.signal, mode: 'cors' });
-    clearTimeout(timeout);
-    if (!res.ok) throw new Error('server error');
-    const data = await res.json();
-    renderLeaderboardRows(data);
-  } catch (e) {
-    // offline fallback
-    renderLeaderboardRows(lbOfflineScores);
-    const note = document.createElement('div');
-    note.style.cssText = 'color:var(--muted);text-align:center;padding:8px;font-size:10px;letter-spacing:1px';
-    note.textContent = 'offline mode — scores saved locally';
-    leaderboardList.appendChild(note);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(LB_API + '/leaderboard', { signal: controller.signal, mode: 'cors' });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error('server error');
+      const data = await res.json();
+      renderLeaderboardRows(data);
+      return;
+    } catch (e) {
+      if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+    }
   }
+  // offline fallback
+  renderLeaderboardRows(lbOfflineScores);
+  const note = document.createElement('div');
+  note.style.cssText = 'color:var(--muted);text-align:center;padding:8px;font-size:10px;letter-spacing:1px';
+  note.textContent = 'offline mode — scores saved locally';
+  leaderboardList.appendChild(note);
 }
 
 async function submitScore() {
@@ -1631,26 +1635,32 @@ async function submitScore() {
   if (!name) { showToast('enter a name first'); return; }
   const best = getCurrentRarities()[bestRarityIndex] || getCurrentRarities()[0];
   const entry = { username: name, score: credits, rolls: rolls, best_rarity: best.name, time_period: timePeriod, date: Date.now() };
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    await fetch(LB_API + '/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(entry),
-      signal: controller.signal,
-      mode: 'cors'
-    });
-    clearTimeout(timeout);
-    showToast('score submitted!');
-    fetchLeaderboard();
-  } catch (e) {
-    lbOfflineScores.push(entry);
-    lbOfflineScores.sort((a, b) => b.score - a.score);
-    saveOfflineScores();
-    renderLeaderboardRows(lbOfflineScores);
-    showToast('offline score saved');
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      await fetch(LB_API + '/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+        signal: controller.signal,
+        mode: 'cors'
+      });
+      clearTimeout(timeout);
+      showToast('score submitted!');
+      fetchLeaderboard();
+      return;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+    }
   }
+  lbOfflineScores.push(entry);
+  lbOfflineScores.sort((a, b) => b.score - a.score);
+  saveOfflineScores();
+  renderLeaderboardRows(lbOfflineScores);
+  showToast('offline score saved');
 }
 
 function escapeHtml(s) {
@@ -1921,6 +1931,7 @@ const achievements = [
 ];
 
 const changelog = [
+  { version: 'v0.85', note: 'leaderboard worker fix: retry fetch/submit with backoff, offline fallback' },
   { version: 'v0.8', note: 'massive update: aura fusion (combine 3 of same aura into next tier, plus 2-tabula->core and craft-only chain core->nexus->alpha->genesis->creation->eternia->omnipotence); transcendence system (permanent +50% luck per transcendence, requires 3+ rebirths); events system (daily-rotating events with bonuses: void week, fusion fest, streak surge, dust blessing, cosmic storm, prestige rush); settings menu (decluttered topbar, flash/music/auto-fuse/auto-equip toggles, save slots, stats, import/export); mobile responsive layout; flash toggle; ??? dynamic rarity (odds change every 20 rolls between 1/160qd and 1/646qd, censored name, ?!? upgrade reveals odds and +10 roll interval); equip rarity system; corruption mode (cubeful harmony: black screen, smeared game graphics, fearful harmony audio, progressive distortion, seeded by clipboard content); checksum guard (anti-tamper: modified saves trigger corruption); dust economy rework (under-epic sells for 1.5, dust sells for 1, dust (R) after 1T luck sells for higher, dust reactor consumes dust for luck, refund system); rarity sets (rainbow/prism/top tier) with luck rewards; auto-fuse; roll history panel; keyboard shortcuts (space=roll, S=shop, A=auto, esc=close); tooltips on rarity rows; 3 new biomes (lucky, greedy, frenzy); 12 new daily challenges; sound effects (fusion chime, transcendence fanfare); save slots (3); rarity evolution (5 of same -> evolved (E) +10% luck); daily login bonus; prestige milestones (5/10/25 rebirths); rarity showcase modal; sell price rebalanced (power-scaled); more rarities above core (nexus, singularity, apex, zenith, omega, alpha, xenogenesis, creation, eternia, omnipotence); luck cap extended to 10Sx; luck upgrades extended (max 50/25/15/40); admin infinite credits; cosmic moved to 1/150qd; extra aura for top rarities; prestige credits boost + shop discount; ??? glaze' },
   { version: 'v0.7', note: 'removed quick roll, added shopkeeper dialogue, prestige/rebirth, daily challenges, more shop upgrades (x10, x100, auto speed, mutation charm), enhanced cube visuals, offline leaderboard, bug fixes; shop menu now scrolls, luck cap extended to 1T with Infinity via admin, removed common Null, gradients for top rarities, new rarities (Google, Perplexity, The Box, Jbo, Sigma, Tophat, Tabula), draggable cube background, obj nod inside the cube, obj now speaks, achievement luck economy rebalanced; biome change timer + biome-based ui colors; luck cap raised to 1Qn, rarity odds made monotonic so Tabula is rarest and reachable; freeze fixed, perf fixes (merged rAF, particle cap, hex cache); luck amplifier + credits amplifier exp upgrades; credits bracelet amplified with rarity scaling; pity system, streak counter with temp luck boosts, jackpot celebration on Tabula, auto-sell + manual sell, collection tracker with completion reward; time machine reworked into quest zones: past = desert with card battles, future = city with card battles, NPCs, themed backgrounds, no cube/rarities/inventory in those periods' },
   { version: 'v0.6', note: 'time travel (past/future/present), bg music, webgl 3d cube, 50 rarities per period, biomes, mutations, breakthroughs, bonus rolls, quick roll, aura filter, auto-equip, admin panel (konami code), cloudflare leaderboard, sound effects, credits bracelet' },
