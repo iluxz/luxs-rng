@@ -170,6 +170,40 @@ main {
   align-items: center;
   justify-content: center;
   position: relative;
+  z-index: 1;
+}
+
+#bgCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#center::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(43, 208, 208, 0.06), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(120, 200, 220, 0.025) 0 1px, transparent 1px 3px);
+  pointer-events: none;
+  z-index: 3;
+}
+
+#center::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.75), inset 0 0 14px rgba(43, 208, 208, 0.12);
+  border: 1px solid rgba(43, 208, 208, 0.2);
+  pointer-events: none;
+  z-index: 4;
 }
 
 #cubeCanvasGL {
@@ -178,7 +212,6 @@ main {
   width: 100%;
   height: 100%;
   border-radius: 12px;
-  border: 1px solid rgba(43, 208, 208, 0.2);
   z-index: 1;
 }
 
@@ -192,6 +225,7 @@ main {
   cursor: pointer;
   z-index: 2;
   pointer-events: auto;
+  touch-action: none;
 }
 
 #center {
@@ -289,6 +323,14 @@ button.active {
   text-align: right;
 }
 
+/* quest mode: hide center overlays so the scene shows through */
+body.quest-mode #center::before, body.quest-mode #center::after { display: none; }
+body.quest-mode main { grid-template-columns: 1fr; }
+body.quest-mode #center { width: 100%; }
+
+/* quest mode: keep UI above the fullscreen scene canvas */
+header, #rightPanel { position: relative; z-index: 10; }
+
 #rollText {
   position: absolute;
   top: 14%;
@@ -313,6 +355,24 @@ button.active {
   letter-spacing: 3px;
   color: var(--muted);
   margin-top: 4px;
+}
+
+#objLine {
+  position: absolute;
+  bottom: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 70%;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--cyan-bright);
+  font-style: italic;
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+  z-index: 24;
+  text-shadow: 0 0 10px currentColor;
 }
 
 #lastRoll {
@@ -400,6 +460,33 @@ button.active {
   font-size: 11px;
 }
 
+#shopWindow {
+  min-height: 0;
+}
+
+#shopItems {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 42vh;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(43, 208, 208, 0.45) rgba(255, 255, 255, 0.04);
+}
+
+#shopItems::-webkit-scrollbar {
+  width: 8px;
+}
+
+#shopItems::-webkit-scrollbar-thumb {
+  background: rgba(43, 208, 208, 0.35);
+  border-radius: 4px;
+}
+
+#shopItems::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .shop-item {
   display: flex;
   align-items: center;
@@ -431,11 +518,26 @@ button.active {
   font-size: 11px;
 }
 
-.shop-item button:disabled {
+.shop-item button:disabled,
+.shop-item button.locked {
   opacity: 0.45;
   cursor: not-allowed;
   border-color: rgba(43, 208, 208, 0.25);
   color: var(--muted);
+}
+
+@keyframes shopTalk {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-3px) rotate(-2deg); }
+  70% { transform: translateY(-1px) rotate(2deg); }
+}
+
+#shopkeeperSvg.talk {
+  animation: shopTalk 0.45s ease;
+}
+
+#shopkeeperText {
+  transition: opacity 0.12s ease;
 }
 
 .shop-item.owned {
@@ -580,11 +682,15 @@ button.locked::after {
         <div class="stat"><span>rolls</span><strong id="rolls">0</strong></div>
         <div class="stat"><span>credits</span><strong id="credits">0</strong></div>
         <div class="stat"><span>biome</span><strong id="biome">NORMAL</strong></div>
+        <div class="stat"><span>next biome</span><strong id="biomeTimer">--</strong></div>
+        <div class="stat"><span>streak</span><strong id="streakStat">0</strong></div>
+        <div class="stat"><span>collection</span><strong id="collectionStat">0/53</strong></div>
       </div>
       <div id="headerButtons">
         <button id="achievementsBtn">ACHIEVEMENTS</button>
         <button id="changelogBtn">UPDATE LOG</button>
         <button id="leaderboardBtn">LEADERBOARD</button>
+        <button id="dailyBtn">DAILY</button>
         <button id="shopBtn">SHOP</button>
         <button id="musicBtn">♪ ON</button>
       </div>
@@ -598,21 +704,27 @@ button.locked::after {
     </aside>
 
     <section id="center">
+      <canvas id="bgCanvas"></canvas>
       <canvas id="cubeCanvasGL"></canvas>
       <canvas id="cubeCanvas"></canvas>
       <div id="rollText">
         <div class="rarity-name">Dust</div>
         <div class="rarity-tag">CUBE ROLLED</div>
       </div>
+      <div id="objLine"></div>
       <div id="controls">
         <button id="rollBtn">ROLL</button>
         <button id="autoBtn">AUTO</button>
-        <button id="quickRollBtn">QUICK</button>
+        <!-- quick roll removed -->
       </div>
       <div id="filterBar" style="position:absolute;bottom:60px;display:flex;gap:8px;align-items:center;z-index:20">
         <span style="font-size:10px;color:var(--muted)">filter:</span>
         <select id="auraFilter" style="background:rgba(10,16,24,0.9);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:4px 6px;border-radius:4px">
           <option value="0">ALL</option>
+        </select>
+        <span style="font-size:10px;color:var(--muted)">auto-sell below:</span>
+        <select id="autoSellSelect" style="background:rgba(10,16,24,0.9);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:4px 6px;border-radius:4px">
+          <option value="-1">OFF</option>
         </select>
       </div>
     </section>
@@ -629,15 +741,45 @@ button.locked::after {
           <button id="presentBtn" style="flex:1;font-size:10px;padding:6px 4px" class="active">PRESENT</button>
           <button id="futureBtn" style="flex:1;font-size:10px;padding:6px 4px">FUTURE</button>
         </div>
+        <div id="questBoard" style="margin-top:10px"></div>
       </div>
     </aside>
   </main>
 
   <div id="shopModal" class="modal">
     <div id="shopWindow" class="modal-window">
+      <div id="shopkeeperWrap" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(43,208,208,0.18);border-radius:8px">
+        <svg id="shopkeeperSvg" width="64" height="80" viewBox="0 0 64 80" style="flex-shrink:0">
+          <!-- top hat -->
+          <rect x="16" y="4" width="32" height="6" fill="#d4a040" stroke="#8a6020" stroke-width="2"/>
+          <rect x="20" y="10" width="24" height="14" fill="#d4a040" stroke="#8a6020" stroke-width="2"/>
+          <!-- head -->
+          <rect x="18" y="24" width="28" height="20" fill="#f0d0a0" stroke="#8a6020" stroke-width="2"/>
+          <!-- eye -->
+          <circle cx="26" cy="32" r="2" fill="#2a1808"/>
+          <!-- wavy mouth -->
+          <path d="M22 38 Q26 42 30 38 Q34 42 38 38" fill="none" stroke="#2a1808" stroke-width="2"/>
+          <!-- body -->
+          <rect x="16" y="44" width="32" height="18" fill="#4a7a9a" stroke="#2a5a7a" stroke-width="2"/>
+          <!-- legs -->
+          <rect x="18" y="62" width="10" height="12" fill="#3a5a7a" stroke="#2a5a7a" stroke-width="2"/>
+          <rect x="36" y="62" width="10" height="12" fill="#3a5a7a" stroke="#2a5a7a" stroke-width="2"/>
+          <!-- curly shoes -->
+          <path d="M14 74 Q22 80 30 74" fill="none" stroke="#8a6020" stroke-width="3"/>
+          <path d="M34 74 Q42 80 50 74" fill="none" stroke="#8a6020" stroke-width="3"/>
+        </svg>
+        <div id="shopkeeperText" style="font-size:11px;color:var(--text)">welcome. credits are good here.</div>
+      </div>
       <h2>UPGRADE SHOP</h2>
       <div class="credit-line">credits: <strong id="shopCredits">0</strong></div>
       <div id="shopItems"></div>
+      <div id="prestigeSection" style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(43,208,208,0.18)">
+        <div style="font-size:12px;color:var(--cyan);letter-spacing:2px;margin-bottom:8px">PRESTIGE</div>
+        <div class="credit-line">prestige points: <strong id="prestigePoints">0</strong></div>
+        <div class="credit-line">rebirths: <strong id="prestigeCount">0</strong></div>
+        <div class="credit-line">next gain: <strong id="prestigeGain">0</strong></div>
+        <button id="prestigeBtn" style="width:100%;margin-top:8px">REBIRTH</button>
+      </div>
       <button id="shopClose" class="modal-close">CLOSE</button>
     </div>
   </div>
@@ -677,6 +819,13 @@ button.locked::after {
     </div>
   </div>
 
+  <div id="dailyModal" class="modal">
+    <div id="dailyWindow" class="modal-window">
+      <h2>DAILY CHALLENGES</h2>
+      <div id="dailyList" style="overflow-y:auto;max-height:300px;font-size:11px"></div>
+      <button id="dailyClose" class="modal-close" style="margin-top:10px">CLOSE</button>
+    </div>
+  </div>
   <div id="adminModal" class="modal">
     <div id="adminWindow" class="modal-window">
       <h2>ADMIN PANEL</h2>
@@ -706,6 +855,8 @@ button.locked::after {
   <script>
 const canvas = document.getElementById('cubeCanvas');
 const ctx = canvas.getContext('2d');
+const bgCanvas = document.getElementById('bgCanvas');
+const bgctx = bgCanvas.getContext('2d');
 const glCanvas = document.getElementById('cubeCanvasGL');
 const gl = glCanvas.getContext('webgl') || glCanvas.getContext('experimental-webgl');
 
@@ -738,22 +889,31 @@ function initGL() {
     uniform vec3 uGlow;
     uniform float uTime;
     uniform float uExtraGlow;
+    uniform float uAlpha;
     varying vec3 vNormal;
     varying vec3 vPosition;
     void main() {
+      vec3 n = normalize(vNormal);
       vec3 lightDir = normalize(vec3(0.5, 1.0, 0.8));
-      float diff = max(dot(normalize(vNormal), lightDir), 0.0);
+      float diff = max(dot(n, lightDir), 0.0);
       float ambient = 0.3;
       vec3 color = uColor * (ambient + diff * 0.7);
       // fresnel rim
       vec3 viewDir = normalize(-vPosition);
-      float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDir), 0.0), 3.0);
+      float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 3.0);
       color += uGlow * fresnel * (0.5 + uExtraGlow * 1.5);
+      // sharp specular highlight for a glassy surface
+      vec3 halfDir = normalize(lightDir + viewDir);
+      float spec = pow(max(dot(n, halfDir), 0.0), 48.0);
+      color += uGlow * spec * 0.55;
       // emissive pulse
       color += uColor * (0.1 + 0.05 * sin(uTime * 4.0));
+      // slow light sweep across the faces
+      float sweep = sin(vPosition.y * 2.2 - uTime * 1.4) * 0.5 + 0.5;
+      color += uGlow * sweep * (0.035 + uExtraGlow * 0.12);
       // extra glow during deceleration
       color += uGlow * uExtraGlow * 0.8;
-      gl_FragColor = vec4(color, 1.0);
+      gl_FragColor = vec4(color, uAlpha);
     }
   `;
 
@@ -835,7 +995,17 @@ function initGL() {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuffer);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
 
-  glBuffers = { posBuffer, idxBuffer, vertexCount: indices.length };
+  // wireframe edges of the same cube (12 lines) for a hi-tech overlay
+  const edges = [
+    0, 1, 1, 2, 2, 3, 3, 0,       // front square
+    4, 5, 5, 6, 6, 7, 7, 4,       // back square
+    0, 4, 1, 5, 2, 6, 3, 7,       // connectors
+  ];
+  const edgeBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(edges), gl.STATIC_DRAW);
+
+  glBuffers = { posBuffer, idxBuffer, edgeBuffer, vertexCount: indices.length, edgeCount: edges.length };
 
   // attribute locations
   const aPos = gl.getAttribLocation(glProgram, 'aPosition');
@@ -852,8 +1022,11 @@ function initGL() {
   glUniforms.uGlow = gl.getUniformLocation(glProgram, 'uGlow');
   glUniforms.uTime = gl.getUniformLocation(glProgram, 'uTime');
   glUniforms.uExtraGlow = gl.getUniformLocation(glProgram, 'uExtraGlow');
+  glUniforms.uAlpha = gl.getUniformLocation(glProgram, 'uAlpha');
 
   gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.clearColor(0, 0, 0, 0);
 }
 
@@ -911,12 +1084,65 @@ function mat4Translate(x, y, z) {
   ]);
 }
 
+function mat4Scale(x, y, z) {
+  return new Float32Array([
+    x, 0, 0, 0,
+    0, y, 0, 0,
+    0, 0, z, 0,
+    0, 0, 0, 1
+  ]);
+}
+
+function hslToRGB(h, s, l) {
+  h = ((h % 360) + 360) % 360 / 360;
+  s /= 100;
+  l /= 100;
+  if (s === 0) return [l, l, l];
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const hue2rgb = (p, q, t) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  return [hue2rgb(p, q, h + 1 / 3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1 / 3)];
+}
+
+function hslHex(h, s, l) {
+  const c = hslToRGB(h, s, l);
+  const to = v => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0');
+  return '#' + to(c[0]) + to(c[1]) + to(c[2]);
+}
+
+function blendHex(a, b, k) {
+  const ca = hexToRGB(a);
+  const cb = hexToRGB(b);
+  const to = v => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0');
+  return '#' + to(ca[0] + (cb[0] - ca[0]) * k) + to(ca[1] + (cb[1] - ca[1]) * k) + to(ca[2] + (cb[2] - ca[2]) * k);
+}
+
+const _hexRGB_cache = new Map();
 function hexToRGB(hex) {
-  if (hex === 'rainbow' || hex === 'prism') return [1, 1, 1];
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  return [r, g, b];
+  if (_hexRGB_cache.has(hex)) return _hexRGB_cache.get(hex);
+  let res;
+  if (!hex) res = [1, 1, 1];
+  else if (hex === 'rainbow' || hex === 'prism') res = [1, 1, 1];
+  else if (hex.indexOf('hsl') === 0) {
+    const m = hex.match(/hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/);
+    if (m) res = hslToRGB(parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3]));
+    else res = [1, 1, 1];
+  } else if (hex.indexOf('#') === 0) {
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    res = [parseInt(full.slice(0,2), 16) / 255, parseInt(full.slice(2,4), 16) / 255, parseInt(full.slice(4,6), 16) / 255];
+  } else {
+    res = [1, 1, 1];
+  }
+  _hexRGB_cache.set(hex, res);
+  return res;
 }
 
 function drawGLCube(color, glow, t, extraGlow) {
@@ -932,31 +1158,231 @@ function drawGLCube(color, glow, t, extraGlow) {
   const aspect = w / h;
   const proj = mat4Perspective(Math.PI / 4, aspect, 0.1, 100);
   const view = mat4Translate(0, 0, -8);
-  const rotX = mat4RotationX(-0.35); // fixed tilt like cube.html
+  const rotX = mat4RotationX(-0.35 + cubeRotX); // fixed tilt + tumble
   const rotY = mat4RotationY(cubeRot);
-  const modelView = mat4Multiply(view, mat4Multiply(rotY, rotX));
+  const tilt = mat4Multiply(rotY, rotX);
 
-  gl.uniformMatrix4fv(glUniforms.uModelView, false, modelView);
-  gl.uniformMatrix4fv(glUniforms.uProjection, false, proj);
-  gl.uniform3fv(glUniforms.uColor, hexToRGB(color));
-  gl.uniform3fv(glUniforms.uGlow, hexToRGB(glow));
-  gl.uniform1f(glUniforms.uTime, t);
-  gl.uniform1f(glUniforms.uExtraGlow, extraGlow || 0);
+  const colorRGB = hexToRGB(color);
+  const glowRGB = hexToRGB(glow);
+  const eg = extraGlow || 0;
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, glBuffers.posBuffer);
   const aPos = gl.getAttribLocation(glProgram, 'aPosition');
   const aNorm = gl.getAttribLocation(glProgram, 'aNormal');
+  gl.bindBuffer(gl.ARRAY_BUFFER, glBuffers.posBuffer);
   gl.enableVertexAttribArray(aPos);
   gl.enableVertexAttribArray(aNorm);
   gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 24, 0);
   gl.vertexAttribPointer(aNorm, 3, gl.FLOAT, false, 24, 12);
 
+  gl.uniformMatrix4fv(glUniforms.uProjection, false, proj);
+  gl.uniform3fv(glUniforms.uGlow, glowRGB);
+  gl.uniform1f(glUniforms.uTime, t);
+  gl.uniform1f(glUniforms.uExtraGlow, eg);
+
+  // main cube
+  gl.uniformMatrix4fv(glUniforms.uModelView, false, mat4Multiply(view, tilt));
+  gl.uniform3fv(glUniforms.uColor, colorRGB);
+  gl.uniform1f(glUniforms.uAlpha, 1);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glBuffers.idxBuffer);
   gl.drawElements(gl.TRIANGLES, glBuffers.vertexCount, gl.UNSIGNED_SHORT, 0);
+
+  // inner core: smaller, counter-rotating, glows with the rarity colour
+  const coreTilt = mat4Multiply(mat4RotationY(-cubeRot * 1.8), mat4RotationX(0.55 + Math.sin(t * 0.7) * 0.12));
+  const coreMV = mat4Multiply(view, mat4Multiply(coreTilt, mat4Scale(0.52, 0.52, 0.52)));
+  gl.uniformMatrix4fv(glUniforms.uModelView, false, coreMV);
+  gl.uniform3fv(glUniforms.uColor, glowRGB);
+  gl.uniform3fv(glUniforms.uGlow, colorRGB);
+  gl.uniform1f(glUniforms.uAlpha, 0.62 + eg * 0.3);
+  gl.uniform1f(glUniforms.uExtraGlow, eg + 0.35);
+  gl.drawElements(gl.TRIANGLES, glBuffers.vertexCount, gl.UNSIGNED_SHORT, 0);
+
+  // subtle obj nod: the eight little coloured cubes from objbox, living
+  // inside the big cube. depth test off so they read as a ghost inside it.
+  const objPalette = [
+    [1, 0.2, 0.3], [0.2, 1, 0.3], [0.2, 0.3, 1], [1, 1, 0.2],
+    [1, 0.2, 1], [0.2, 1, 1], [1, 0.6, 0.1], [0.6, 0.2, 1]
+  ];
+  const objPhase = [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4, Math.PI, 5 * Math.PI / 4, 3 * Math.PI / 2, 7 * Math.PI / 4];
+  gl.disable(gl.DEPTH_TEST);
+  gl.depthMask(false);
+  for (let i = 0; i < objPalette.length; i++) {
+    const ang = objPhase[i] + t * (i % 2 ? -0.45 : 0.6);
+    const rad = 0.5;
+    const tx = Math.cos(ang) * rad;
+    const tz = Math.sin(ang) * rad;
+    const ty = Math.sin(t * 0.9 + i * 1.7) * 0.16;
+    const s = 0.12 + (i % 3) * 0.018;
+    const local = mat4Multiply(
+      mat4Translate(tx, ty, tz),
+      mat4Multiply(mat4RotationY(ang * 2.4), mat4Multiply(mat4RotationX(ang * 1.7 + i), mat4Scale(s, s, s)))
+    );
+    gl.uniformMatrix4fv(glUniforms.uModelView, false, mat4Multiply(view, mat4Multiply(tilt, local)));
+    gl.uniform3fv(glUniforms.uColor, objPalette[i]);
+    gl.uniform3fv(glUniforms.uGlow, objPalette[i]);
+    gl.uniform1f(glUniforms.uAlpha, 0.30 + eg * 0.15);
+    gl.uniform1f(glUniforms.uExtraGlow, 0.6);
+    gl.drawElements(gl.TRIANGLES, glBuffers.vertexCount, gl.UNSIGNED_SHORT, 0);
+  }
+  gl.depthMask(true);
+  gl.enable(gl.DEPTH_TEST);
+
+  // wireframe halo on top of the main cube (additive)
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+  gl.depthMask(false);
+  const haloMV = mat4Multiply(view, mat4Multiply(tilt, mat4Scale(1.03, 1.03, 1.03)));
+  gl.uniformMatrix4fv(glUniforms.uModelView, false, haloMV);
+  gl.uniform3fv(glUniforms.uColor, glowRGB);
+  gl.uniform3fv(glUniforms.uGlow, glowRGB);
+  gl.uniform1f(glUniforms.uAlpha, 0.42 + eg * 0.45);
+  gl.uniform1f(glUniforms.uExtraGlow, eg + 0.5);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glBuffers.edgeBuffer);
+  gl.drawElements(gl.LINES, glBuffers.edgeCount, gl.UNSIGNED_SHORT, 0);
+  gl.depthMask(true);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 }
 
 // init GL
 initGL();
+
+/* ── ambient background layer ─────────────────────────────────────────── */
+const bgStars = [];
+for (let i = 0; i < 110; i++) {
+  bgStars.push({
+    x: Math.random(),
+    y: Math.random(),
+    z: 0.25 + Math.random() * 0.75,
+    size: 0.6 + Math.random() * 1.9,
+    tw: Math.random() * Math.PI * 2
+  });
+}
+
+// draggable backdrop state
+let bgPanX = 0, bgPanY = 0, bgPanVX = 0, bgPanVY = 0;
+let bgDragging = false, bgDragMoved = false;
+let bgDragLastX = 0, bgDragLastY = 0;
+let suppressRollClick = false;
+
+function rgbaOf(hex, a) {
+  const c = hexToRGB(hex);
+  return 'rgba(' + Math.round(c[0] * 255) + ',' + Math.round(c[1] * 255) + ',' + Math.round(c[2] * 255) + ',' + a + ')';
+}
+
+function drawBackground(w, h, t, color, glow) {
+  if (!bgctx) return;
+
+  // base wash, tinted by the current time period
+  let tint;
+  if (timePeriod === 'past') tint = [70, 44, 12];
+  else if (timePeriod === 'future') tint = [48, 14, 76];
+  else tint = [16, 42, 60];
+  const base = bgctx.createLinearGradient(0, 0, 0, h);
+  base.addColorStop(0, 'rgba(4, 8, 13, 1)');
+  base.addColorStop(0.55, 'rgba(' + tint[0] * 0.16 + ',' + tint[1] * 0.16 + ',' + tint[2] * 0.16 + ', 1)');
+  base.addColorStop(1, 'rgba(2, 3, 4, 1)');
+  bgctx.fillStyle = base;
+  bgctx.fillRect(0, 0, w, h);
+
+  // slow drifting nebula blobs
+  const blobs = [
+    { cx: 0.28, cy: 0.32, r: 0.55, sp: 0.10, a: 0.16 },
+    { cx: 0.74, cy: 0.44, r: 0.5, sp: -0.13, a: 0.13 },
+    { cx: 0.52, cy: 0.78, r: 0.42, sp: 0.08, a: 0.10 }
+  ];
+  for (const b of blobs) {
+    const cx = w * (b.cx + Math.sin(t * b.sp) * 0.05 + bgPanX * 0.45);
+    const cy = h * (b.cy + Math.cos(t * b.sp * 1.3) * 0.04 + bgPanY * 0.45);
+    const r = Math.max(w, h) * b.r;
+    const g = bgctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',' + b.a + ')');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    bgctx.fillStyle = g;
+    bgctx.fillRect(0, 0, w, h);
+  }
+
+  // rarity halo behind the cube
+  const haloR = Math.max(w, h) * (0.34 + rollGlow * 0.10);
+  const hx = w / 2 + bgPanX * w * 0.08;
+  const hy = h / 2 + bgPanY * h * 0.08;
+  const halo = bgctx.createRadialGradient(hx, hy, 0, hx, hy, haloR);
+  halo.addColorStop(0, rgbaOf(glow, 0.16 + rollGlow * 0.20));
+  halo.addColorStop(0.4, rgbaOf(color, 0.07 + rollGlow * 0.10));
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  bgctx.fillStyle = halo;
+  bgctx.fillRect(0, 0, w, h);
+
+  // starfield
+  for (const s of bgStars) {
+    s.y -= 0.00022 * s.z * 60 / 60;
+    if (s.y < -0.02) { s.y = 1.02; s.x = Math.random(); }
+    const tw = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 2 + s.tw));
+    bgctx.globalAlpha = tw * (0.3 + s.z * 0.6);
+    bgctx.fillStyle = s.z > 0.75 ? rgbaOf(glow, 1) : 'rgba(190,225,240,1)';
+    const sx = ((s.x + bgPanX * 0.5) % 1 + 1) % 1;
+    const sy = ((s.y + bgPanY * 0.5) % 1 + 1) % 1;
+    bgctx.fillRect(sx * w, sy * h, s.size * s.z, s.size * s.z);
+  }
+  bgctx.globalAlpha = 1;
+
+  // perspective floor grid
+  const horizon = h * (0.60 + bgPanY * 0.35);
+  const gridCx = w / 2 + bgPanX * w * 0.30;
+  const scroll = (t * 0.06) % 1;
+  bgctx.lineWidth = 1;
+  for (let i = 0; i < 14; i++) {
+    const p = (i + scroll) / 14;
+    const y = horizon + Math.pow(p, 2.2) * (h - horizon);
+    bgctx.strokeStyle = 'rgba(43, 208, 208,' + (0.02 + p * 0.07) + ')';
+    bgctx.beginPath();
+    bgctx.moveTo(0, y);
+    bgctx.lineTo(w, y);
+    bgctx.stroke();
+  }
+  for (let i = -9; i <= 9; i++) {
+    bgctx.strokeStyle = 'rgba(43, 208, 208, 0.035)';
+    bgctx.beginPath();
+    bgctx.moveTo(gridCx + i * w * 0.028, horizon);
+    bgctx.lineTo(gridCx + i * w * 0.20, h);
+    bgctx.stroke();
+  }
+
+  // top scanline sheen
+  const sheen = bgctx.createLinearGradient(0, 0, 0, h * 0.35);
+  sheen.addColorStop(0, 'rgba(120, 220, 230, 0.05)');
+  sheen.addColorStop(1, 'rgba(120, 220, 230, 0)');
+  bgctx.fillStyle = sheen;
+  bgctx.fillRect(0, 0, w, h * 0.35);
+}
+
+function drawOrbit(w, h, t, color, glow, extra) {
+  const cx = w / 2;
+  const cy = h / 2;
+  const rx = Math.min(w, h) * 0.34;
+  const ry = rx * 0.30;
+  const col = color === 'rainbow' || color === 'prism' ? glow : color;
+
+  for (let ring = 0; ring < 2; ring++) {
+    const tilt = ring === 0 ? 0.0 : 0.55;
+    const speed = (ring === 0 ? 0.55 : -0.38);
+    const count = ring === 0 ? 16 : 12;
+    for (let i = 0; i < count; i++) {
+      const ang = t * speed + (i / count) * Math.PI * 2;
+      const px = cx + Math.cos(ang) * rx;
+      const py = cy + Math.sin(ang) * ry + Math.sin(ang * 2 + tilt) * ry * 0.35;
+      const depth = 0.5 + 0.5 * Math.sin(ang);
+      const a = (0.12 + depth * 0.45) * (0.8 + extra * 0.6);
+      const size = 0.9 + depth * 2.2;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = col;
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 10;
+      ctx.fillRect(px - size / 2, py - size / 2, size, size);
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
+
+
 const flash = document.getElementById('flash');
 const chromatic = document.getElementById('chromatic');
 const rollText = document.getElementById('rollText');
@@ -967,11 +1393,18 @@ const luckEl = document.getElementById('luck');
 const rollsEl = document.getElementById('rolls');
 const creditsEl = document.getElementById('credits');
 const biomeEl = document.getElementById('biome');
+const biomeTimerEl = document.getElementById('biomeTimer');
+const streakStatEl = document.getElementById('streakStat');
+const collectionStatEl = document.getElementById('collectionStat');
+const objLineEl = document.getElementById('objLine');
+const sceneCanvasEl = document.getElementById('sceneCanvas');
 const shopBtn = document.getElementById('shopBtn');
 const shopModal = document.getElementById('shopModal');
 const shopItems = document.getElementById('shopItems');
 const shopCredits = document.getElementById('shopCredits');
 const shopClose = document.getElementById('shopClose');
+const shopkeeperText = document.getElementById('shopkeeperText');
+const shopkeeperSvg = document.getElementById('shopkeeperSvg');
 const achievementsBtn = document.getElementById('achievementsBtn');
 const achievementsModal = document.getElementById('achievementsModal');
 const achievementsList = document.getElementById('achievementsList');
@@ -983,55 +1416,89 @@ const changelogClose = document.getElementById('changelogClose');
 const toast = document.getElementById('toast');
 const leaderboardBtn = document.getElementById('leaderboardBtn');
 const leaderboardModal = document.getElementById('leaderboardModal');
+const dailyBtn = document.getElementById('dailyBtn');
+const dailyModal = document.getElementById('dailyModal');
+const dailyList = document.getElementById('dailyList');
+const dailyClose = document.getElementById('dailyClose');
 const leaderboardList = document.getElementById('leaderboardList');
 const leaderboardClose = document.getElementById('leaderboardClose');
 const lbUsername = document.getElementById('lbUsername');
 const lbSubmit = document.getElementById('lbSubmit');
 
 const LB_API = 'https://lux-rng-leaderboard.dandelion-newsstand.workers.dev';
+let lbOfflineScores = [];
+
+try {
+  const raw = localStorage.getItem('luxRngLeaderboard');
+  if (raw) lbOfflineScores = JSON.parse(raw);
+} catch (e) {}
+
+function saveOfflineScores() {
+  try { localStorage.setItem('luxRngLeaderboard', JSON.stringify(lbOfflineScores.slice(0, 20))); } catch (e) {}
+}
+
+function renderLeaderboardRows(data) {
+  leaderboardList.innerHTML = '';
+  if (data.length === 0) {
+    leaderboardList.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">no scores yet</div>';
+    return;
+  }
+  data.forEach((entry, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;padding:6px 8px;margin-bottom:4px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05)';
+    row.innerHTML = '<span style="color:var(--muted)">' + (i + 1) + '.</span> <span style="color:var(--text)">' + escapeHtml(entry.username) + '</span> <span style="color:var(--cyan-bright)">' + formatNum(entry.score) + '</span>';
+    leaderboardList.appendChild(row);
+  });
+}
 
 async function fetchLeaderboard() {
   try {
-    const res = await fetch(LB_API + '/leaderboard');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(LB_API + '/leaderboard', { signal: controller.signal, mode: 'cors' });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error('server error');
     const data = await res.json();
-    leaderboardList.innerHTML = '';
-    if (data.length === 0) {
-      leaderboardList.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">no scores yet</div>';
-      return;
-    }
-    data.forEach((entry, i) => {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;justify-content:space-between;padding:6px 8px;margin-bottom:4px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05)';
-      row.innerHTML = '<span style="color:var(--muted)">' + (i + 1) + '.</span> <span style="color:var(--text)">' + entry.username + '</span> <span style="color:var(--cyan-bright)">' + formatNum(entry.score) + '</span>';
-      leaderboardList.appendChild(row);
-    });
+    renderLeaderboardRows(data);
   } catch (e) {
-    leaderboardList.innerHTML = '<div style="color:#ff9ecd;text-align:center;padding:20px">failed to load</div>';
+    // offline fallback
+    renderLeaderboardRows(lbOfflineScores);
+    const note = document.createElement('div');
+    note.style.cssText = 'color:var(--muted);text-align:center;padding:8px;font-size:10px;letter-spacing:1px';
+    note.textContent = 'offline mode — scores saved locally';
+    leaderboardList.appendChild(note);
   }
 }
 
 async function submitScore() {
   const name = lbUsername.value.trim();
   if (!name) { showToast('enter a name first'); return; }
-  const luck = getTotals();
   const best = getCurrentRarities()[bestRarityIndex] || getCurrentRarities()[0];
+  const entry = { username: name, score: credits, rolls: rolls, best_rarity: best.name, time_period: timePeriod, date: Date.now() };
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
     await fetch(LB_API + '/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: name,
-        score: credits,
-        rolls: rolls,
-        best_rarity: best.name,
-        time_period: timePeriod,
-      }),
+      body: JSON.stringify(entry),
+      signal: controller.signal,
+      mode: 'cors'
     });
+    clearTimeout(timeout);
     showToast('score submitted!');
     fetchLeaderboard();
   } catch (e) {
-    showToast('submit failed');
+    lbOfflineScores.push(entry);
+    lbOfflineScores.sort((a, b) => b.score - a.score);
+    saveOfflineScores();
+    renderLeaderboardRows(lbOfflineScores);
+    showToast('offline score saved');
   }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 const bestRollStat = document.getElementById('bestRollStat');
 const playtimeStat = document.getElementById('playtimeStat');
@@ -1093,9 +1560,41 @@ const upgrades = [
   { id: 'luckBracelet', name: 'Luck Bracelet', desc: '+0.5 permanent luck', cost: 1000, type: 'stack', effect: { luck: 0.5 }, max: 10 },
   { id: 'luckyGloves', name: 'Lucky Gloves', desc: '+2 permanent luck', cost: 5000, type: 'stack', effect: { luck: 2 }, max: 5 },
   { id: 'fortuneTalisman', name: 'Fortune Talisman', desc: '+10 permanent luck', cost: 25000, type: 'stack', effect: { luck: 10 }, max: 3 },
-  { id: 'creditsBracelet', name: 'Credits Bracelet', desc: '+5 credits per roll', cost: 3000, type: 'stack', effect: { credits: 5 }, max: 10 },
+  { id: 'creditsBracelet', name: 'Credits Bracelet', desc: '+50 credits per roll, scales with rarity', cost: 3000, type: 'stack', effect: { credits: 50 }, max: 10 },
+  { id: 'autoSpeed', name: 'Auto Speed', desc: 'auto roll 10% faster (stacks multiplicatively)', cost: 8000, type: 'stack', effect: { autoSpeed: 0.10 }, max: 10 },
+  { id: 'mutationCharm', name: 'Mutation Charm', desc: '+15% mutation chance', cost: 15000, type: 'stack', effect: { mutationChance: 0.015 }, max: 5 },
+  { id: 'luckAmplifier', name: 'Luck Amplifier', desc: 'exponentially more luck each level (cost and gain both grow)', type: 'exp', baseCost: 5000, costMult: 3, baseLuck: 1, luckMult: 10, max: 20 },
+  { id: 'creditsAmplifier', name: 'Credits Amplifier', desc: 'exponentially more credits each level (cost and gain both grow)', type: 'exp', baseCost: 5000, costMult: 3, baseCredits: 1, creditsMult: 10, max: 20 },
   { id: 'timeMachine', name: 'Time Machine', desc: 'travel to past and future', cost: 100000, type: 'unlock' },
 ];
+
+const quests = [
+  // past (desert) card battles
+  { id: 'past_win1', period: 'past', name: 'Desert Duel', desc: 'win 1 card battle vs the Past Keeper', target: 1, reward: { credits: 1000, luck: 5 } },
+  { id: 'past_win3', period: 'past', name: 'Sandstorm Champion', desc: 'win 3 card battles', target: 3, reward: { credits: 3000, luck: 15 } },
+  // future (city) card battles
+  { id: 'future_win1', period: 'future', name: 'Neon Duel', desc: 'win 1 card battle vs the Future Oracle', target: 1, reward: { credits: 2000, luck: 10 } },
+  { id: 'future_win3', period: 'future', name: 'City Conqueror', desc: 'win 3 card battles', target: 3, reward: { credits: 5000, luck: 25 } },
+];
+
+const pastDeck = [
+  { name: 'Sandstorm', atk: 5, def: 2 },
+  { name: 'Relic', atk: 3, def: 5 },
+  { name: 'Oasis', atk: 2, def: 6 },
+  { name: 'Mummy', atk: 6, def: 1 },
+  { name: 'Pyramid', atk: 4, def: 4 },
+  { name: 'Dune', atk: 3, def: 3 },
+];
+const futureDeck = [
+  { name: 'Neon', atk: 5, def: 2 },
+  { name: 'Circuit', atk: 3, def: 5 },
+  { name: 'Hologram', atk: 2, def: 6 },
+  { name: 'Virus', atk: 6, def: 1 },
+  { name: 'Mainframe', atk: 4, def: 4 },
+  { name: 'Glitch', atk: 3, def: 3 },
+];
+
+let cardBattle = { active: false, playerHand: [], npcHand: [], pScore: 0, nScore: 0, round: 0, chosen: null, npcChosen: null, result: null, gameOver: false };
 
 const achievements = [
   { id: 'roll10', name: 'Just Getting Started', desc: 'roll 10 times', check: () => rolls >= 10, reward: { luck: 0.1 } },
@@ -1137,6 +1636,7 @@ const achievements = [
 ];
 
 const changelog = [
+  { version: 'v0.7', note: 'removed quick roll, added shopkeeper dialogue, prestige/rebirth, daily challenges, more shop upgrades (x10, x100, auto speed, mutation charm), enhanced cube visuals, offline leaderboard, bug fixes; shop menu now scrolls, luck cap extended to 1T with Infinity via admin, removed common Null, gradients for top rarities, new rarities (Google, Perplexity, The Box, Jbo, Sigma, Tophat, Tabula), draggable cube background, obj nod inside the cube, obj now speaks, achievement luck economy rebalanced; biome change timer + biome-based ui colors; luck cap raised to 1Qn, rarity odds made monotonic so Tabula is rarest and reachable; freeze fixed, perf fixes (merged rAF, particle cap, hex cache); luck amplifier + credits amplifier exp upgrades; credits bracelet amplified with rarity scaling; pity system, streak counter with temp luck boosts, jackpot celebration on Tabula, auto-sell + manual sell, collection tracker with completion reward; time machine reworked into quest zones: past = desert with card battles, future = city with card battles, NPCs, themed backgrounds, no cube/rarities/inventory in those periods' },
   { version: 'v0.6', note: 'time travel (past/future/present), bg music, webgl 3d cube, 50 rarities per period, biomes, mutations, breakthroughs, bonus rolls, quick roll, aura filter, auto-equip, admin panel (konami code), cloudflare leaderboard, sound effects, credits bracelet' },
   { version: 'v0.5', note: 'removed speed stat, credits scale with rarity, x100 is 50k, 33 rarities, luck caps at 100M (bracelets bypass)' },
   { version: 'v0.4', note: 'added achievements that give permanent luck/speed boosts + update log' },
@@ -1165,6 +1665,24 @@ function populateAuraFilter() {
   });
 }
 
+function populateAutoSell() {
+  const sel = document.getElementById('autoSellSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="-1">OFF</option>';
+  const rar = getCurrentRarities();
+  for (let i = 0; i < rar.length; i++) {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = 'below ' + rar[i].name;
+    sel.appendChild(opt);
+  }
+  sel.value = autoSellThreshold;
+  sel.addEventListener('change', () => {
+    autoSellThreshold = parseInt(sel.value);
+    saveGame();
+  });
+}
+
 const rarities = [
   { name: 'Dust',        odds: 1.5,        cap: 2,          color: '#8a9199', glow: '#aab4bd', luck: 0.1,     particles: 12,  shake: 2,    flash: 0.02, chroma: 0 },
   { name: 'Scrap',       odds: 3,          cap: 5,          color: '#6b9e5e', glow: '#9eff8a', luck: 0.25,    particles: 16,  shake: 3,    flash: 0.03, chroma: 0 },
@@ -1183,41 +1701,46 @@ const rarities = [
   { name: 'Nebula',      odds: 5000000,    cap: 25000000,   color: '#4050ff', glow: '#8090ff', luck: 80000,   particles: 220, shake: 34,   flash: 0.65, chroma: 0.62 },
   { name: 'Cosmic',      odds: 12000000,   cap: 60000000,   color: 'rainbow',  glow: '#ffffff', luck: 250000,  particles: 260, shake: 40,   flash: 0.75, chroma: 0.72 },
   { name: 'Ascended',    odds: 150000000,  cap: 800000000,  color: '#ff8040', glow: '#ffbc80', luck: 2500000, particles: 320, shake: 50,   flash: 0.82, chroma: 0.78 },
-  { name: 'Null',        odds: 250000000,  cap: 1500000000, color:'#0a0a0a',  glow: '#ffffff', luck: 5000000, particles: 360, shake: 60,   flash: 0.90, chroma: 0.90 },
   { name: 'Radiant',     odds: 3000000000, cap: 20000000000,color: '#fff0c0', glow: '#fffee0', luck: 50000000,particles: 430, shake: 80,   flash: 0.95, chroma: 0.95 },
   { name: 'Ethereal',    odds: 10000000000,cap: 65000000000,color: '#c0c0ff', glow: '#e0e0ff', luck: 150000000,particles: 460, shake: 90,   flash: 0.96, chroma: 0.96 },
   { name: 'Transcendent',odds: 35000000000,cap: 210000000000,color:'#ff60ff', glow: '#ffb0ff', luck: 450000000,particles: 490, shake: 100,  flash: 0.97, chroma: 0.97 },
   { name: 'Quantum',     odds: 130000000000,cap: 715000000000,color:'#00ffff', glow: '#a0ffff', luck: 1400000000,particles: 520, shake: 110,  flash: 0.975,chroma: 0.975},
-  { name: 'Abyss',       odds: 500000000000,cap: 2500000000000,color:'#1a0a30', glow: '#7030ff', luck: 5000000000,particles: 550, shake: 120,  flash: 0.98, chroma: 0.98 },
-  { name: 'Eternal',     odds: 1800000000000,cap: 8100000000000,color:'#ffd700', glow: '#ffff80', luck: 20000000000,particles: 580, shake: 130,  flash: 0.985,chroma: 0.985},
-  { name: 'Sovereign',   odds: 7000000000000,cap: 28000000000000,color:'#ff0040', glow: '#ff80a0', luck: 90000000000,particles: 610, shake: 140,  flash: 0.99, chroma: 0.99 },
-  { name: 'Infinity',    odds: 30000000000000,cap: 105000000000000,color:'#8000ff', glow: '#c080ff', luck: 450000000000,particles: 640, shake: 150,  flash: 0.992,chroma: 0.992},
-  { name: 'Oblivion',    odds: 120000000000000,cap: 360000000000000,color:'#050505', glow: '#ff0000', luck: 2500000000000,particles: 670, shake: 160,  flash: 0.994,chroma: 0.994},
-  { name: 'Genesis',     odds: 500000000000000,cap: 1250000000000000,color:'#ffffff', glow: '#c0ffe0', luck: 15000000000000,particles: 700, shake: 170,  flash: 0.996,chroma: 0.996},
-  { name: 'Apotheosis',  odds: 2000000000000000,cap: 4000000000000000,color:'#ff80c0', glow: '#ffc0e0', luck: 90000000000000,particles: 730, shake: 180,  flash: 0.998,chroma: 0.998},
-  { name: 'Omnipotent',  odds: 8000000000000000,cap: 12800000000000000,color:'#00ff80', glow: '#80ffc0', luck: 600000000000000,particles: 760, shake: 190,  flash: 0.999,chroma: 0.999},
-  { name: 'Absolute',    odds: 35000000000000000,cap: 42000000000000000,color:'#ff0000', glow: '#ffff00', luck: 5000000000000000,particles: 790, shake: 200,  flash: 1.00, chroma: 1.00 },
-  { name: '???',         odds: 150000000000000000,cap:150000000000000000,color:'prism',    glow: '#ffffff', luck: 50000000000000000,particles: 850, shake: 220,  flash: 1.00, chroma: 1.00 },
-  { name: 'Beyond',      odds: 1e15,        cap: 4.7e15,     color: '#0a1a2a', glow: '#1a3a5a', luck: 5.24e14,  particles: 620, shake: 122,  flash: 1.00, chroma: 0.96 },
-  { name: 'Abyss',       odds: 1e20,        cap: 4.7e20,     color: '#081525', glow: '#152a4a', luck: 1.05e15,  particles: 640, shake: 126,  flash: 1.00, chroma: 0.97 },
-  { name: 'Eternity',    odds: 1e25,        cap: 4.7e25,     color: '#061020', glow: '#102040', luck: 2.1e15,   particles: 660, shake: 130,  flash: 1.00, chroma: 0.97 },
-  { name: 'Infinity',    odds: 1e30,        cap: 4.7e30,     color: '#040a1a', glow: '#081530', luck: 4.2e15,   particles: 680, shake: 134,  flash: 1.00, chroma: 0.98 },
-  { name: 'Void',        odds: 1e35,        cap: 4.7e35,     color: '#020510', glow: '#040a20', luck: 8.4e15,   particles: 700, shake: 138,  flash: 1.00, chroma: 0.98 },
-  { name: 'Nothing',     odds: 1e40,        cap: 4.7e40,     color: '#010208', glow: '#020510', luck: 1.68e16,  particles: 720, shake: 142,  flash: 1.00, chroma: 0.99 },
-  { name: 'Null',        odds: 1e45,        cap: 4.7e45,     color: '#000000', glow: '#010208', luck: 3.36e16,  particles: 740, shake: 146,  flash: 1.00, chroma: 0.99 },
-  { name: 'Zero',        odds: 1e50,        cap: 4.7e50,     color: '#000000', glow: '#000000', luck: 6.72e16,  particles: 760, shake: 150,  flash: 1.00, chroma: 1.00 },
-  { name: 'One',         odds: 1e55,        cap: 4.7e55,     color: '#000000', glow: '#000000', luck: 1.34e17,  particles: 780, shake: 154,  flash: 1.00, chroma: 1.00 },
-  { name: 'All',         odds: 1e60,        cap: 4.7e60,     color: '#000000', glow: '#000000', luck: 2.68e17,  particles: 800, shake: 158,  flash: 1.00, chroma: 1.00 },
-  { name: 'Everything',  odds: 1e65,        cap: 4.7e65,     color: '#000000', glow: '#000000', luck: 5.37e17,  particles: 820, shake: 162,  flash: 1.00, chroma: 1.00 },
-  { name: 'Universe',    odds: 1e70,        cap: 4.7e70,     color: '#000000', glow: '#000000', luck: 1.07e18,  particles: 840, shake: 166,  flash: 1.00, chroma: 1.00 },
-  { name: 'Multiverse',  odds: 1e75,        cap: 4.7e75,     color: '#000000', glow: '#000000', luck: 2.15e18,  particles: 860, shake: 170,  flash: 1.00, chroma: 1.00 },
-  { name: 'Cosmos',      odds: 1e80,        cap: 4.7e80,     color: '#000000', glow: '#000000', luck: 4.29e18,  particles: 880, shake: 174,  flash: 1.00, chroma: 1.00 },
-  { name: 'Omniverse',   odds: 1e85,        cap: 4.7e85,     color: '#000000', glow: '#000000', luck: 8.59e18,  particles: 900, shake: 178,  flash: 1.00, chroma: 1.00 },
-  { name: 'Googol',      odds: 1e100,       cap: 4.7e100,    color: '#000000', glow: '#000000', luck: 1.72e19,  particles: 920, shake: 182,  flash: 1.00, chroma: 1.00 },
+  { name: 'Abyss',       odds: 2e11,cap: 9.4e11,color:'#1a0a30', glow: '#7030ff', luck: 5000000000,particles: 550, shake: 120,  flash: 0.98, chroma: 0.98 },
+  { name: 'Eternal',     odds: 1.03e12,cap: 4.85e12,color:'#ffd700', glow: '#ffff80', luck: 20000000000,particles: 580, shake: 130,  flash: 0.985,chroma: 0.985},
+  { name: 'Sovereign',   odds: 5.32e12,cap: 2.5e13,color:'#ff0040', glow: '#ff80a0', luck: 90000000000,particles: 610, shake: 140,  flash: 0.99, chroma: 0.99 },
+  { name: 'Infinity',    odds: 2.74e13,cap: 1.29e14,color:'#8000ff', glow: '#c080ff', luck: 450000000000,particles: 640, shake: 150,  flash: 0.992,chroma: 0.992},
+  { name: 'Oblivion',    odds: 1.41e14,cap: 6.65e14,color:'#050505', glow: '#ff0000', luck: 2500000000000,particles: 670, shake: 160,  flash: 0.994,chroma: 0.994},
+  { name: 'Genesis',     odds: 7.29e14,cap: 3.43e15,color:'#ffffff', glow: '#c0ffe0', luck: 15000000000000,particles: 700, shake: 170,  flash: 0.996,chroma: 0.996},
+  { name: 'Apotheosis',  odds: 3.76e15,cap: 1.77e16,color:'#ff80c0', glow: '#ffc0e0', luck: 90000000000000,particles: 730, shake: 180,  flash: 0.998,chroma: 0.998},
+  { name: 'Omnipotent',  odds: 1.94e16,cap: 9.11e16,color:'#00ff80', glow: '#80ffc0', luck: 600000000000000,particles: 760, shake: 190,  flash: 0.999,chroma: 0.999},
+  { name: 'Absolute',    odds: 1e17,cap: 4.7e17,color:'#ff0000', glow: '#ffff00', luck: 5000000000000000,particles: 790, shake: 200,  flash: 1.00, chroma: 1.00 },
+  { name: '???',         odds: 1.5e17,cap:150000000000000000,color:'prism',    glow: '#ffffff', luck: 50000000000000000,particles: 850, shake: 220,  flash: 1.00, chroma: 1.00 },
+  { name: 'Beyond',      odds: 1.6e17,        cap: 7.52e17,     color: '#0a1a2a', glow: '#1a3a5a', luck: 5.24e14,  particles: 620, shake: 122,  flash: 1.00, chroma: 0.96 },
+  { name: 'Abyss',       odds: 1.75e17,        cap: 8.21e17,     color: '#081525', glow: '#152a4a', luck: 1.05e15,  particles: 640, shake: 126,  flash: 1.00, chroma: 0.97 },
+  { name: 'Eternity',    odds: 1.91e17,        cap: 8.95e17,     color: '#061020', glow: '#102040', luck: 2.1e15,   particles: 660, shake: 130,  flash: 1.00, chroma: 0.97 },
+  { name: 'Infinity',    odds: 2.08e17,        cap: 9.77e17,     color: '#040a1a', glow: '#081530', luck: 4.2e15,   particles: 680, shake: 134,  flash: 1.00, chroma: 0.98 },
+  { name: 'Void',        odds: 2.27e17,        cap: 1.07e18,     color: '#020510', glow: '#040a20', luck: 8.4e15,   particles: 700, shake: 138,  flash: 1.00, chroma: 0.98 },
+  { name: 'Nothing',     odds: 2.48e17,        cap: 1.16e18,     color: '#010208', glow: '#020510', luck: 1.68e16,  particles: 720, shake: 142,  flash: 1.00, chroma: 0.99 },
+  { name: 'Null',        odds: 2.7e17,        cap: 1.27e18,     color: '#000000', glow: '#010208', luck: 3.36e16,  particles: 740, shake: 146,  flash: 1.00, chroma: 0.99 },
+  { name: 'Zero',        odds: 2.95e17,        cap: 1.39e18,     color: '#000000', glow: '#000000', luck: 6.72e16,  particles: 760, shake: 150,  flash: 1.00, chroma: 1.00 },
+  { name: 'One',         odds: 3.22e17,        cap: 1.51e18,     color: '#000000', glow: '#000000', luck: 1.34e17,  particles: 780, shake: 154,  flash: 1.00, chroma: 1.00 },
+  { name: 'All',         odds: 3.51e17,        cap: 1.65e18,     color: '#000000', glow: '#000000', luck: 2.68e17,  particles: 800, shake: 158,  flash: 1.00, chroma: 1.00 },
+  { name: 'Everything',  odds: 3.83e17,        cap: 1.8e18,     color: '#000000', glow: '#000000', luck: 5.37e17,  particles: 820, shake: 162,  flash: 1.00, chroma: 1.00 },
+  { name: 'Universe',    odds: 4.18e17,        cap: 1.96e18,     color: '#000000', glow: '#000000', luck: 1.07e18,  particles: 840, shake: 166,  flash: 1.00, chroma: 1.00 },
+  { name: 'Multiverse',  odds: 4.56e17,        cap: 2.14e18,     color: '#000000', glow: '#000000', luck: 2.15e18,  particles: 860, shake: 170,  flash: 1.00, chroma: 1.00 },
+  { name: 'Cosmos',      odds: 4.98e17,        cap: 2.34e18,     color: '#000000', glow: '#000000', luck: 4.29e18,  particles: 880, shake: 174,  flash: 1.00, chroma: 1.00 },
+  { name: 'Omniverse',   odds: 5.43e17,        cap: 2.55e18,     color: '#000000', glow: '#000000', luck: 8.59e18,  particles: 900, shake: 178,  flash: 1.00, chroma: 1.00 },
+  { name: 'Google',      odds: 5.92e17,       cap: 2.78e18,    color: '#000000', glow: '#000000', luck: 1.72e19,  particles: 920, shake: 182,  flash: 1.00, chroma: 1.00 },
+  { name: 'Perplexity',  odds: 6.46e17,       cap: 3.04e18,    color: '#5af0ff', color2: '#a060ff', glow: '#bffaff', glow2: '#d0b0ff', luck: 3.44e19,  particles: 940,  shake: 186,  flash: 1.00, chroma: 1.00 },
+  { name: 'The Box',     odds: 7.05e17,       cap: 3.32e18,    color: '#ffd24a', color2: '#ff8a2a', glow: '#fff0a0', glow2: '#ffc080', luck: 6.88e19,  particles: 960,  shake: 190,  flash: 1.00, chroma: 1.00 },
+  { name: 'Jbo',         odds: 7.7e17,       cap: 3.62e18,    color: '#ff8a2a', color2: '#ffd24a', glow: '#ffc080', glow2: '#fff0a0', luck: 1.38e20,  particles: 980,  shake: 194,  flash: 1.00, chroma: 1.00 },
+  { name: 'Sigma',       odds: 8.4e17,       cap: 3.95e18,    color: '#7dff7a', color2: '#2bd0d0', glow: '#bfffc0', glow2: '#a0ffff', luck: 2.75e20,  particles: 1000, shake: 198,  flash: 1.00, chroma: 1.00 },
+  { name: 'Tophat',      odds: 9.16e17,       cap: 4.31e18,    color: '#b060ff', color2: '#ff5ad0', glow: '#d0a0ff', glow2: '#ffb0ea', luck: 5.5e20,   particles: 1020, shake: 202,  flash: 1.00, chroma: 1.00 },
+  { name: 'Tabula',      odds: 1e18,       cap: 4.7e18,    color: '#2bd0d0', color2: '#8a5cff', glow: '#a0ffff', glow2: '#c0a0ff', luck: 1.1e21,   particles: 1040, shake: 206,  flash: 1.00, chroma: 1.00 },
 ];
 
 // past rarities (amber/brown theme) — scaled to match present rarity odds (rarest = 1 in 150 quadrillion)
-const pastRarities = [
+let pastRarities = [
   { name: 'Pebble',      odds: 1.5,        cap: 2,          color: '#a08060', glow: '#c0a080', luck: 0.05,    particles: 10,  shake: 1,    flash: 0.01, chroma: 0 },
   { name: 'Fossil',      odds: 8,          cap: 16,         color: '#8a7050', glow: '#aa9070', luck: 0.15,    particles: 14,  shake: 2,    flash: 0.02, chroma: 0 },
   { name: 'Ancient',     odds: 40,         cap: 100,        color: '#7a6040', glow: '#9a8060', luck: 0.5,     particles: 18,  shake: 3,    flash: 0.03, chroma: 0 },
@@ -1271,7 +1794,7 @@ const pastRarities = [
 ];
 
 // future rarities (purple/neon theme) — scaled to match present rarity odds (rarest = 1 in 1 billion)
-const futureRarities = [
+let futureRarities = [
   { name: 'Neon',        odds: 1.5,        cap: 2,          color: '#ff00ff', glow: '#ff80ff', luck: 0.05,    particles: 10,  shake: 1,    flash: 0.01, chroma: 0.1 },
   { name: 'Cyber',       odds: 8,          cap: 16,         color: '#00ffff', glow: '#80ffff', luck: 0.15,    particles: 14,  shake: 2,    flash: 0.02, chroma: 0.15 },
   { name: 'Hologram',    odds: 40,         cap: 100,        color: '#8080ff', glow: '#c0c0ff', luck: 0.5,     particles: 18,  shake: 3,    flash: 0.03, chroma: 0.2 },
@@ -1323,22 +1846,60 @@ const futureRarities = [
   { name: 'Omniverse',   odds: 1e85,        cap: 4.7e85,     color: '#000000', glow: '#010004', luck: 8.59e18,  particles: 900, shake: 178,  flash: 1.00, chroma: 1.0 },
   { name: 'Googol',      odds: 1e100,       cap: 4.7e100,    color: '#000000', glow: '#010004', luck: 1.72e19,  particles: 920, shake: 182,  flash: 1.00, chroma: 1.0 },
 ];
+
+// past and future are pure quest zones: no rarities, no rolling, no inventory, no cube
+pastRarities = [];
+futureRarities = [];
+
+// the old post-??? tiers were literally black. give every one of them a live
+// two-colour gradient so the top of each period actually looks like an endgame.
+function applyLateGradients(list, theme) {
+  const start = list.findIndex(r => r.name === '???');
+  if (start < 0) return;
+  const end = list.length - 1;
+  for (let i = start; i < list.length; i++) {
+    const r = list[i];
+    if (r.color === 'rainbow' || r.color === 'prism' || r.color2) continue;
+    const p = end === start ? 0 : (i - start) / (end - start);
+    let h;
+    if (theme === 'past') h = 24 + p * 300;
+    else if (theme === 'future') h = 300 - p * 200;
+    else h = 185 + p * 190;
+    r.color = hslHex(h, 88, 56);
+    r.color2 = hslHex(h + 55, 95, 64);
+    r.glow = hslHex(h, 100, 70);
+    r.glow2 = hslHex(h + 55, 100, 78);
+    r.gradPhase = i * 0.6;
+  }
+}
+
+applyLateGradients(rarities, 'present');
+applyLateGradients(pastRarities, 'past');
+applyLateGradients(futureRarities, 'future');
+
 let inventory = {};
 let pastInventory = {};
 let futureInventory = {};
+const LUCK_CAP = 1e18; // normal max: 1 quintillion (1Qn)
 let baseLuck = 1;
 let rolls = 0;
 let credits = 0;
 let autoRoll = false;
-let unlocked = { auto: false };
+let unlocked = { auto: false, x10: true, x100: true };
 let isAdmin = false;
-let shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0 };
+let shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0, autoSpeed: 0, mutationCharm: 0, luckAmplifier: 0, creditsAmplifier: 0 };
+let prestigePoints = 0;
+let prestigeCount = 0;
+let lifetimeRolls = 0;
+let lifetimeCredits = 0;
+let dailyChallenges = [];
+let dailyChallengeDate = '';
+let dailyChallengeProgress = {};
 let manualCooldown = 0;
 let MANUAL_COOLDOWN_MS = 500;
 let bonusRollCounter = 0;
 let bonusRollReady = false;
 let bonusMultiplier = 1;
-let quickRoll = false;
 let auraFilterMin = 0; // minimum rarity index to keep (0 = keep all)
 let autoEquipBest = false;
 const biomes = [
@@ -1354,14 +1915,129 @@ let currentBiome = 'normal';
 let biomeTimer = 0;
 let BIOME_DURATION = 120000; // 2 minutes
 let mutatedInventory = {}; // tracks mutated rarity counts
+
+function applyBiomeColors() {
+  const b = biomes.find(x => x.name === currentBiome) || biomes[0];
+  const root = document.documentElement;
+  const hex = b.color;
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const bl = parseInt(hex.slice(5,7), 16);
+  const bright = '#' + [r,g,bl].map(v => Math.min(255, Math.round(v + (255-v)*0.45)).toString(16).padStart(2,'0')).join('');
+  root.style.setProperty('--cyan', hex);
+  root.style.setProperty('--cyan-bright', bright);
+  root.style.setProperty('--border', 'rgba(' + r + ',' + g + ',' + bl + ', 0.35)');
+  if (biomeEl) biomeEl.style.color = hex;
+}
+
+const objLines = {
+  idle: [
+    "obj: the cube remembers your last roll. it was boring.",
+    "obj: i am still here. you are still here. neither of us asked for this.",
+    "obj: nothing to do. so i reorganized the nothing. again.",
+    "obj: day 4000 of no intruders. bliss. mostly.",
+    "obj: the geometry is holding. barely. like everything else.",
+    "obj: i am here under protest. lux had a gun. this is not consent."
+  ],
+  roll: [
+    "obj: you rolled. the void noticed. it was not impressed.",
+    "obj: another spin. the shell creaked. i pretended not to hear it.",
+    "obj: the inner cubes saw that. they are judging you.",
+    "obj: load-bearing luck. do not ask what it holds up.",
+    "obj: ...fine. the cube turns. i turn with it."
+  ],
+  high: [
+    "obj: that one was loud. the void flinched.",
+    "obj: you pulled something out of me. i want it back.",
+    "obj: the inner cubes stopped orbiting for a second. they were scared.",
+    "obj: ...i will allow it. do not make it a habit.",
+    "obj: the shell held. this time."
+  ],
+  biome: [
+    "obj: the biome shifted. the void does not say hello. it acknowledges.",
+    "obj: new air. same cube. i am still obj.",
+    "obj: the colors changed. i did not. i am the constant.",
+    "obj: whatever this biome is, it is not mine. i am just living in it."
+  ],
+  newbest: [
+    "obj: new best. the void updated its records. reluctantly.",
+    "obj: you broke your own record. i broke nothing. i am load-bearing.",
+    "obj: ...not bad. do not let it go to your head. i am watching."
+  ],
+  achievement: [
+    "obj: achievement unlocked. the void added a line to your file.",
+    "obj: you earned something. i did not. i am the cube.",
+    "obj: obj says you are valid. i meant it. do not make me repeat it."
+  ],
+  streak: [
+    "obj: a streak. the void is counting. it is impressed. do not let it go to your head.",
+    "obj: consecutive rolls. the geometry is warming up.",
+    "obj: ...keep going. i am watching. i am always watching."
+  ],
+  jackpot: [
+    "obj: TABULA. the void cracked. i felt that.",
+    "obj: ...you actually did it. i did not think you would. neither did the void.",
+    "obj: the cube is ringing. i am ringing. everything is ringing."
+  ],
+  collection: [
+    "obj: every rarity. the void is complete. i am... unsettled.",
+    "obj: you collected everything. including me. i did not consent to this.",
+    "obj: collection complete. the void has nothing left to hide. ...help."
+  ],
+  quest: [
+    "obj: a quest. in my time machine. i did not authorize this.",
+    "obj: the past and future are not playgrounds. but here we are.",
+    "obj: quest complete. the void acknowledges your effort. reluctantly."
+  ]
+};
+
+let objLineTimer = null;
+function objSay(cat, override) {
+  if (!objLineEl) return;
+  const pool = objLines[cat] || objLines.idle;
+  const text = override || pool[Math.floor(Math.random() * pool.length)];
+  objLineEl.textContent = text;
+  objLineEl.style.opacity = 1;
+  if (objLineTimer) clearTimeout(objLineTimer);
+  objLineTimer = setTimeout(() => { objLineEl.style.opacity = 0; }, 4200);
+}
 let MUTATION_CHANCE = 0.02; // 1 in 50
+
+// pity: guaranteed +1 rarity tier after N rolls without a new best
+let pityCounter = 0;
+const PITY_THRESHOLD = 40;
+
+// streak: consecutive rolls, milestones grant temp luck
+let rollStreak = 0;
+let streakBonusMult = 1;
+let streakBonusUntil = 0;
+
+// collection: distinct rarities ever rolled
+let ownedRarities = {};
+let collectionRewardClaimed = false;
+
+// auto-sell: rarities below threshold index are sold for credits (-1 = off)
+let autoSellThreshold = -1;
+let sceneCanvas = null, sceneCtx = null;
+let sceneMode = 'none'; // 'desert' or 'city'
+// mini-game state
+let digGrid = []; // 4x4, each: {dug:false, hasRelic:false, rare:false}
+let digRelicsFound = 0;
+let cityTerminals = []; // 3 terminals: {hacked:false, rare:false}
+let cityHacked = 0;
+let npcDialogue = '';
+let npcDialogueUntil = 0;
+let questClaimed = {};
+let taskProgress = {};
 let currentRarity = rarities[0];
 let timePeriod = 'present'; // 'past', 'present', 'future'
 let lastAuto = 0;
 let particles = [];
+const MAX_PARTICLES = 1500;
 let shake = 0;
 let chroma = 0;
 let cubeRot = 0;
+let cubeRotX = 0;
 let lastRollTime = 0;
 let isRolling = false;
 let rollAnimStart = 0;
@@ -1377,6 +2053,51 @@ let timeTravelTarget = 'present';
 let bestRarityIndex = 0;
 let startTime = Date.now();
 let autoInterval = 1000;
+
+// ── achievement luck economy ──────────────────────────────────────────────
+// rarity achievements now pay 5% of that rarity's own luck value, so the
+// reward always feels proportional to the thing you actually rolled.
+const rarityAchievementTargets = {
+  rare: 'Rare', celestial: 'Celestial', epic: 'Epic', frosted: 'Frosted',
+  legendary: 'Legendary', auric: 'Auric', mythic: 'Mythic', mystic: 'Mystic',
+  divine: 'Divine', nebula: 'Nebula', cosmic: 'Cosmic', ascended: 'Ascended',
+  null: 'Null', radiant: 'Radiant', ethereal: 'Ethereal', transcendent: 'Transcendent',
+  quantum: 'Quantum', abyss: 'Abyss', eternal: 'Eternal', sovereign: 'Sovereign',
+  infinity: 'Infinity', oblivion: 'Oblivion', genesis: 'Genesis', apotheosis: 'Apotheosis',
+  omnipotent: 'Omnipotent', absolute: 'Absolute', secret: '???'
+};
+
+for (const a of achievements) {
+  const rname = rarityAchievementTargets[a.id];
+  if (!rname) continue;
+  const r = rarities.find(x => x.name === rname);
+  if (r) a.reward.luck = Math.min(Math.max(r.luck * 0.05, 0.1), 3e11);
+}
+
+// grinding achievements get a real curve instead of pocket lint
+const milestoneRewards = {
+  roll10: 0.5, roll100: 5, roll1000: 100, roll10000: 25000, roll100000: 2000000,
+  credits100: 0.5, credits1000: 5, credits10000: 1000, unlockAuto: 1
+};
+for (const a of achievements) {
+  if (milestoneRewards[a.id] != null) a.reward.luck = milestoneRewards[a.id];
+}
+
+// post-??? progression achievements, keyed off bestRarityIndex so duplicate
+// rarity names can't break them. rewards ramp geometrically to 300B.
+const lateStart = rarities.findIndex(r => r.name === '???') + 1;
+const lateSpan = Math.max(1, rarities.length - 1 - lateStart);
+for (let i = lateStart; i < rarities.length; i++) {
+  const r = rarities[i];
+  const p = (i - lateStart) / lateSpan;
+  achievements.push({
+    id: 'reach_' + i,
+    name: r.name,
+    desc: 'roll a ' + r.name + ' cube',
+    check: () => bestRarityIndex >= i,
+    reward: { luck: 1e9 * Math.pow(300, p) }
+  });
+}
 
 function formatNum(n) {
   if (!isFinite(n) || isNaN(n)) return '∞';
@@ -1401,13 +2122,30 @@ function getAchievementBonus() {
 function getShopBonus() {
   let luck = 0;
   let credits = 0;
+  let autoSpeed = 0;
+  let mutationChance = 0;
   for (const up of upgrades) {
     if (up.type === 'stack') {
-      credits += (shopCounts[up.id] || 0) * (up.effect.credits || 0);
-      luck += (shopCounts[up.id] || 0) * (up.effect.luck || 0);
+      const count = shopCounts[up.id] || 0;
+      credits += count * (up.effect.credits || 0);
+      luck += count * (up.effect.luck || 0);
+      autoSpeed += count * (up.effect.autoSpeed || 0);
+      mutationChance += count * (up.effect.mutationChance || 0);
+    } else if (up.type === 'exp') {
+      const count = shopCounts[up.id] || 0;
+      if (count > 0 && up.baseLuck) {
+        luck += up.baseLuck * (Math.pow(up.luckMult, count) - 1) / (up.luckMult - 1);
+      }
+      if (count > 0 && up.baseCredits) {
+        credits += up.baseCredits * (Math.pow(up.creditsMult, count) - 1) / (up.creditsMult - 1);
+      }
     }
   }
-  return { luck, credits };
+  return { luck, credits, autoSpeed, mutationChance };
+}
+
+function sellPrice(r) {
+  return Math.max(1, Math.floor((r.luck || 1) * 10));
 }
 
 function getCurrentRarities() {
@@ -1436,13 +2174,19 @@ function getTotals() {
     const mutCount = mutatedInventory[r.name + ' (M)'] || 0;
     luck += mutCount * r.luck * 2;
   }
-  luck = Math.min(luck, 100000000);
-  return luck;
+  // prestige bonus: +1% luck per prestige point
+  luck *= (1 + prestigePoints * 0.01);
+  // streak bonus
+  if (Date.now() < streakBonusUntil) luck *= streakBonusMult;
+  // normal play caps at 1T; the admin panel can push the absolute max to Infinity
+  if (!Number.isFinite(luck)) return Infinity;
+  return Math.min(luck, LUCK_CAP);
 }
 
 function getProbabilities() {
   const luck = getTotals() * bonusMultiplier;
   const rar = getCurrentRarities();
+  if (!rar || rar.length === 0) return [];
   const biome = biomes.find(b => b.name === currentBiome) || biomes[0];
   const weights = rar.map((r, i) => {
     let eff = Math.min(r.odds <= 1 ? 1 : (1 / r.odds) * luck, (1 / r.odds) * r.cap);
@@ -1517,17 +2261,22 @@ function triggerRoll(count = 1) {
       // mark as breakthrough
       r = { ...r, breakthrough: true };
     } else if (Math.random() < breakthroughChance && timePeriod === 'present') {
-      // breakthrough: roll from a random time period's rarities
-      const otherRarities = Math.random() < 0.5 ? pastRarities : futureRarities;
-      const otherProbs = getProbabilitiesForRarities(otherRarities);
-      const x = Math.random();
-      let cum = 0;
-      for (let j = 0; j < otherProbs.length; j++) {
-        cum += otherProbs[j];
-        if (x <= cum) { r = otherRarities[j]; break; }
+      // breakthrough: roll from a random time period's rarities (only if non-empty)
+      const candidates = [pastRarities, futureRarities].filter(a => a && a.length > 0);
+      if (candidates.length === 0) {
+        r = rollOne();
+      } else {
+        const otherRarities = candidates[Math.floor(Math.random() * candidates.length)];
+        const otherProbs = getProbabilitiesForRarities(otherRarities);
+        const x = Math.random();
+        let cum = 0;
+        for (let j = 0; j < otherProbs.length; j++) {
+          cum += otherProbs[j];
+          if (x <= cum) { r = otherRarities[j]; break; }
+        }
+        if (!r) r = otherRarities[otherRarities.length - 1];
+        r = { ...r, breakthrough: true };
       }
-      if (!r) r = otherRarities[otherRarities.length - 1];
-      r = { ...r, breakthrough: true };
     } else {
       r = rollOne();
     }
@@ -1537,10 +2286,13 @@ function triggerRoll(count = 1) {
   bonusMultiplier = 1;
 
   // apply inventory/luck/credits + mutations + breakthroughs
+  const effMutationChance = Math.min(0.5, MUTATION_CHANCE + getShopBonus().mutationChance);
   for (const r of results) {
-    const isMutated = Math.random() < MUTATION_CHANCE;
+    const isMutated = Math.random() < effMutationChance;
     const bt = r.breakthrough;
-    if (isMutated) {
+    if (autoSellThreshold >= 0 && rar.indexOf(r) < autoSellThreshold) {
+      credits += sellPrice(r);
+    } else if (isMutated) {
       const mutName = r.name + ' (M)';
       mutatedInventory[mutName] = (mutatedInventory[mutName] || 0) + 1;
     } else if (bt) {
@@ -1550,7 +2302,7 @@ function triggerRoll(count = 1) {
       inv[r.name] = (inv[r.name] || 0) + 1;
     }
     rolls++;
-    credits += 1 + getShopBonus().credits;
+    credits += 1 + getShopBonus().credits + Math.floor(Math.log10(r.luck + 10) * 0.5) + (shopCounts.creditsBracelet || 0) * Math.floor(Math.log10(r.luck + 10) * 2);
   }
   setCurrentInventory(inv);
 
@@ -1561,23 +2313,77 @@ function triggerRoll(count = 1) {
     rollGlow = 1.0;
   }, rollAnimDuration);
 
-  const revealDelay = quickRoll ? 0 : rollAnimDuration + rollDecelDuration;
+  const revealDelay = rollAnimDuration + rollDecelDuration;
+
+  // pity: guaranteed +1 tier if no new best for a while
+  if (pityCounter >= PITY_THRESHOLD) {
+    const rar0 = getCurrentRarities();
+    const bumpIdx = Math.min(bestRarityIndex + 1, rar0.length - 1);
+    if (bumpIdx > bestRarityIndex) {
+      best = rar0[bumpIdx];
+      showToast('pity: guaranteed upgrade');
+    }
+    pityCounter = 0;
+  }
 
   // reveal after deceleration
   setTimeout(() => {
     currentRarity = best;
     const idx = getCurrentRarities().indexOf(best);
-    if (idx > bestRarityIndex) {
+    const isNewBest = idx > bestRarityIndex;
+    if (isNewBest) {
       bestRarityIndex = idx;
       if (autoEquipBest) {
         showToast('new best: ' + best.name);
       }
+      objSay('newbest');
+      pityCounter = 0;
+    } else {
+      pityCounter++;
     }
 
-    if (auraFilterMin === 0 || idx >= auraFilterMin) {
+    // streak
+    rollStreak++;
+    if (rollStreak === 10 || rollStreak === 50 || rollStreak === 100 || rollStreak === 500) {
+      const mult = rollStreak >= 500 ? 3 : rollStreak >= 100 ? 2.5 : rollStreak >= 50 ? 2 : 1.5;
+      streakBonusMult = mult;
+      streakBonusUntil = Date.now() + 30000;
+      showToast('streak ' + rollStreak + '! luck x' + mult + ' for 30s');
+      objSay('streak');
+    }
+
+    // collection
+    ownedRarities[best.name] = true;
+    const ownedCount = Object.keys(ownedRarities).length;
+    const totalRarities = rarities.length;
+    if (ownedCount >= totalRarities && !collectionRewardClaimed) {
+      collectionRewardClaimed = true;
+      baseLuck += 100;
+      showToast('collection complete! +100 luck');
+      objSay('collection');
+    }
+
+    // jackpot on Tabula
+    if (best.name === 'Tabula') {
+      triggerEffects(best);
+      spawnParticles(400, best.color, best.glow);
+      credits += 100000;
+      showToast('JACKPOT! tabula! +100k credits');
+      objSay('jackpot');
+    } else if (auraFilterMin === 0 || idx >= auraFilterMin) {
       triggerEffects(best);
       playTone(idx);
       showRollText(best);
+    }
+
+    const rar = getCurrentRarities();
+    const lateStart = rar.findIndex(r => r.name === '???') + 1;
+    if (best.name !== 'Tabula') {
+      if (idx >= lateStart && idx >= 0) {
+        objSay('high');
+      } else if (Math.random() < 0.18) {
+        objSay('roll');
+      }
     }
 
     updateUI();
@@ -1591,8 +2397,9 @@ function triggerRoll(count = 1) {
 }
 
 function manualRoll() {
+  if (timePeriod !== 'present') { showToast('rolling only works in the present'); return; }
   if (autoRoll) return;
-  if (!quickRoll && Date.now() - manualCooldown < MANUAL_COOLDOWN_MS) return;
+  if (Date.now() - manualCooldown < MANUAL_COOLDOWN_MS) return;
   manualCooldown = Date.now();
   triggerRoll(1);
 }
@@ -1655,6 +2462,90 @@ function updatePeriodUI() {
   if (pastBtn) pastBtn.classList.toggle('active', timePeriod === 'past');
   if (presentBtn) presentBtn.classList.toggle('active', timePeriod === 'present');
   if (futureBtn) futureBtn.classList.toggle('active', timePeriod === 'future');
+
+  // hide header buttons in quest mode except maybe shop? hide all game buttons
+  const isQuest = timePeriod !== 'present';
+  const headerBtns = document.getElementById('headerButtons');
+  if (headerBtns) headerBtns.style.display = isQuest ? 'none' : '';
+  document.body.classList.toggle('quest-mode', isQuest);
+  if (isQuest) {
+    document.body.style.background = timePeriod === 'past'
+      ? 'radial-gradient(ellipse at 50% 100%, #3a2a10 0%, #1a1208 40%, #0a0604 100%)'
+      : 'radial-gradient(ellipse at 50% 0%, #1a0a3a 0%, #0a0618 40%, #040208 100%)';
+  } else {
+    document.body.style.background = '';
+  }
+  const center = document.getElementById('center');
+  if (center) {
+    center.style.display = '';
+    center.style.pointerEvents = isQuest ? 'none' : '';
+    const rollText = document.getElementById('rollText');
+    if (rollText) rollText.style.display = isQuest ? 'none' : '';
+    const objLine = document.getElementById('objLine');
+    if (objLine) objLine.style.display = isQuest ? 'none' : '';
+    const controls = document.getElementById('controls');
+    if (controls) controls.style.display = isQuest ? 'none' : '';
+    const filterBar = document.getElementById('filterBar');
+    if (filterBar) filterBar.style.display = isQuest ? 'none' : '';
+  }
+  const leftAside = document.querySelector('main > aside.panel');
+  if (leftAside) leftAside.style.display = isQuest ? 'none' : '';
+  const inv = document.getElementById('inventory');
+  if (inv) inv.style.display = isQuest ? 'none' : '';
+  const lastRoll = document.getElementById('lastRoll');
+  if (lastRoll) lastRoll.style.display = isQuest ? 'none' : '';
+  const rb = document.getElementById('rightPanel');
+  if (rb) {
+    if (isQuest) {
+      rb.style.position = 'fixed';
+      rb.style.top = '16px';
+      rb.style.right = '16px';
+      rb.style.left = 'auto';
+      rb.style.transform = 'none';
+      rb.style.width = '320px';
+      rb.style.maxHeight = '90vh';
+      rb.style.overflowY = 'auto';
+      rb.style.zIndex = '20';
+      rb.style.background = 'rgba(10, 16, 24, 0.98)';
+      rb.style.boxShadow = '0 0 60px rgba(0,0,0,0.8)';
+    } else {
+      rb.style.position = '';
+      rb.style.top = '';
+      rb.style.right = '';
+      rb.style.left = '';
+      rb.style.transform = '';
+      rb.style.width = '';
+      rb.style.maxHeight = '';
+      rb.style.overflowY = '';
+      rb.style.zIndex = '10';
+      rb.style.background = '';
+      rb.style.boxShadow = '';
+    }
+  }
+  const sceneCanvas = document.getElementById('sceneCanvas');
+  if (sceneCanvas) {
+    sceneCanvas.style.display = isQuest ? '' : 'none';
+    sceneCanvas.style.opacity = isQuest ? '0.35' : '1';
+    if (isQuest) {
+      sceneCanvas.width = window.innerWidth;
+      sceneCanvas.height = window.innerHeight;
+    }
+  }
+  if (isQuest) {
+    if (timePeriod === 'past' && digGrid.length === 0) initDigGrid();
+    if (timePeriod === 'future' && cityTerminals.length === 0) initCityTerminals();
+  }
+  // hide stats except credits
+  const stats = document.getElementById('stats');
+  if (stats) {
+    for (const st of stats.querySelectorAll('.stat')) {
+      const label = st.querySelector('span');
+      const txt = label ? label.textContent : '';
+      if (txt === 'credits') st.style.display = '';
+      else st.style.display = isQuest ? 'none' : '';
+    }
+  }
+  renderQuests();
 }
 
 function triggerEffects(r) {
@@ -1666,6 +2557,8 @@ function triggerEffects(r) {
 }
 
 function spawnParticles(n, color, glow) {
+  n = Math.min(n, Math.max(0, MAX_PARTICLES - particles.length));
+  if (n <= 0) return;
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
   for (let i = 0; i < n; i++) {
@@ -1797,11 +2690,209 @@ function getRarityColor(r, t) {
     const hue = (t * 240) % 360;
     return `hsl(${hue}, 100%, 70%)`;
   }
+  if (r.color2) {
+    const k = 0.5 + 0.5 * Math.sin(t * 0.9 + (r.gradPhase || 0));
+    return blendHex(r.color, r.color2, k);
+  }
   return r.color;
+}
+
+function getRarityGlow(r, t) {
+  if (r.glow2) {
+    const k = 0.5 + 0.5 * Math.sin(t * 0.9 + 1.7 + (r.gradPhase || 0));
+    return blendHex(r.glow, r.glow2, k);
+  }
+  return r.glow;
+}
+
+function initDigGrid() {
+  digGrid = [];
+  digRelicsFound = 0;
+  for (let i = 0; i < 16; i++) {
+    digGrid.push({ dug: false, hasRelic: Math.random() < 0.25, rare: Math.random() < 0.08 });
+  }
+  // ensure at least 3 relics
+  let rc = digGrid.filter(c => c.hasRelic).length;
+  while (rc < 3) { const i = Math.floor(Math.random()*16); if (!digGrid[i].hasRelic) { digGrid[i].hasRelic = true; rc++; } }
+}
+
+function initCityTerminals() {
+  cityTerminals = [];
+  cityHacked = 0;
+  for (let i = 0; i < 3; i++) cityTerminals.push({ hacked: false, rare: Math.random() < 0.3 });
+}
+
+function drawDesertScene(ctx, w, h) {
+  // sky
+  const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
+  sky.addColorStop(0, '#1a0e05');
+  sky.addColorStop(1, '#3a2a10');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+  // sun
+  ctx.fillStyle = '#ffcc66';
+  ctx.beginPath(); ctx.arc(w * 0.75, h * 0.25, 18, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,200,100,0.15)';
+  ctx.beginPath(); ctx.arc(w * 0.75, h * 0.25, 40, 0, Math.PI * 2); ctx.fill();
+  // dunes
+  ctx.fillStyle = '#5a3a18';
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.55);
+  for (let x = 0; x <= w; x += 10) {
+    ctx.lineTo(x, h * 0.55 + Math.sin(x * 0.02) * 12 + Math.sin(x * 0.007) * 8);
+  }
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#7a5a28';
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.62);
+  for (let x = 0; x <= w; x += 10) {
+    ctx.lineTo(x, h * 0.62 + Math.sin(x * 0.03 + 1) * 10);
+  }
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
+  // sand foreground
+  ctx.fillStyle = '#8a6a30';
+  ctx.fillRect(0, h * 0.7, w, h * 0.3);
+  // NPC (Past Keeper) - name only
+  // (name label removed per request)
+  // dig grid
+  const cell = Math.round(Math.min(w, h) * 0.07);
+  const gx = Math.round(w * 0.35), gy = Math.round(h * 0.4);
+  const gw = cell * 4, gh = cell * 4;
+  for (let i = 0; i < 16; i++) {
+    const cx = gx + (i % 4) * cell;
+    const cy = gy + Math.floor(i / 4) * cell;
+    const c = digGrid[i] || { dug: false, hasRelic: false, rare: false };
+    ctx.fillStyle = c.dug ? (c.hasRelic ? (c.rare ? '#ff80ff' : '#ffd700') : '#3a2a10') : '#6a4a20';
+    ctx.fillRect(cx, cy, cell - 2, cell - 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.strokeRect(cx, cy, cell - 2, cell - 2);
+    if (c.dug && c.hasRelic) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '14px serif';
+      ctx.fillText(c.rare ? '💎' : '🏺', cx + 6, cy + 20);
+    }
+  }
+  // progress
+  ctx.fillStyle = '#fff';
+  ctx.font = '11px monospace';
+  ctx.fillText('relics: ' + digRelicsFound + '/3', gx, gy - 8);
+  // dialogue
+  if (npcDialogue && Date.now() < npcDialogueUntil) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(10, h - 40, w - 20, 30);
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px monospace';
+    ctx.fillText(npcDialogue, 16, h - 22);
+  }
+}
+
+function drawCityScene(ctx, w, h) {
+  // night sky
+  const sky = ctx.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, '#0a0618');
+  sky.addColorStop(1, '#1a0a3a');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+  // stars
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < 30; i++) {
+    ctx.fillRect((i * 37) % w, (i * 73) % (h * 0.4), 1, 1);
+  }
+  // buildings
+  const buildings = [0.05, 0.2, 0.38, 0.55, 0.72, 0.88];
+  for (const bx of buildings) {
+    const bh = 0.3 + Math.random() * 0.25;
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(bx * w, h * (1 - bh), w * 0.12, h * bh);
+    // windows
+    ctx.fillStyle = 'rgba(0,255,200,0.6)';
+    for (let wy = h * (1 - bh) + 6; wy < h - 6; wy += 12) {
+      for (let wx = bx * w + 4; wx < bx * w + w * 0.12 - 4; wx += 8) {
+        if (Math.random() > 0.4) ctx.fillRect(wx, wy, 3, 4);
+      }
+    }
+  }
+  // neon ground
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, h * 0.85, w, h * 0.15);
+  ctx.strokeStyle = '#ff00ff';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, h * 0.85); ctx.lineTo(w, h * 0.85); ctx.stroke();
+  // NPC (Future Oracle) - name only
+  // (name label removed per request)
+  // terminals
+  const cell = Math.round(Math.min(w, h) * 0.07);
+  const tx = Math.round(w * 0.35), ty = Math.round(h * 0.4);
+  const tw = Math.round(cell * 1.2);
+  for (let i = 0; i < 3; i++) {
+    const t = cityTerminals[i] || { hacked: false, rare: false };
+    ctx.fillStyle = t.hacked ? (t.rare ? '#ff80ff' : '#00ff80') : '#003020';
+    ctx.fillRect(tx + i * (tw + 10), ty, tw, Math.round(cell * 1.6));
+    ctx.strokeStyle = t.hacked ? '#00ff80' : '#00ff80';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(tx + i * (tw + 10), ty, tw, Math.round(cell * 1.6));
+    ctx.fillStyle = '#00ff80';
+    ctx.font = '8px monospace';
+    ctx.fillText(t.hacked ? 'HACKED' : 'TERM ' + (i + 1), tx + i * (tw + 10) + 4, ty + 28);
+  }
+  ctx.fillStyle = '#fff';
+  ctx.font = '11px monospace';
+  ctx.fillText('hacked: ' + cityHacked + '/3', tx, ty - 8);
+  if (npcDialogue && Date.now() < npcDialogueUntil) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(10, h - 40, w - 20, 30);
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px monospace';
+    ctx.fillText(npcDialogue, 16, h - 22);
+  }
 }
 
 function draw() {
   const t = Date.now() / 1000;
+
+  // quest zones (past/future) have no cube, no background, no particles
+  if (timePeriod !== 'present') {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    if (glCanvas.width !== Math.floor(rect.width * dpr) || glCanvas.height !== Math.floor(rect.height * dpr)) {
+      glCanvas.width = Math.floor(rect.width * dpr);
+      glCanvas.height = Math.floor(rect.height * dpr);
+      if (gl) gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+    }
+    if (gl) { gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); }
+    if (canvas.width !== Math.floor(rect.width * dpr) || canvas.height !== Math.floor(rect.height * dpr)) {
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    if (bgCanvas.width !== Math.floor(rect.width * dpr) || bgCanvas.height !== Math.floor(rect.height * dpr)) {
+      bgCanvas.width = Math.floor(rect.width * dpr);
+      bgCanvas.height = Math.floor(rect.height * dpr);
+      bgctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    bgctx.clearRect(0, 0, rect.width, rect.height);
+
+    // themed cube in the background (rotating)
+    cubeRot += 0.02;
+    cubeRotX += 0.008;
+    const qColor = timePeriod === 'past' ? '#d4a040' : '#c040ff';
+    const qGlow = timePeriod === 'past' ? '#ffc060' : '#e080ff';
+    const tq = Date.now() / 1000;
+    drawBackground(rect.width, rect.height, tq, qColor, qGlow);
+    drawGLCube(qColor, qGlow, tq, 0);
+
+    // draw the scene on sceneCanvas
+    if (sceneCanvasEl) {
+      if (!sceneCtx) sceneCtx = sceneCanvasEl.getContext('2d');
+      const sc = sceneCanvasEl;
+      const sctx = sceneCtx;
+      sctx.clearRect(0, 0, sc.width, sc.height);
+      if (timePeriod === 'past') drawDesertScene(sctx, sc.width, sc.height);
+      else if (timePeriod === 'future') drawCityScene(sctx, sc.width, sc.height);
+    }
+    return;
+  }
 
   // resize gl canvas if needed
   const rect = canvas.getBoundingClientRect();
@@ -1821,6 +2912,13 @@ function draw() {
     ctx.scale(dpr, dpr);
   }
 
+  // resize background canvas if needed
+  if (bgCanvas.width !== Math.floor(rect.width * dpr) || bgCanvas.height !== Math.floor(rect.height * dpr)) {
+    bgCanvas.width = Math.floor(rect.width * dpr);
+    bgCanvas.height = Math.floor(rect.height * dpr);
+    bgctx.scale(dpr, dpr);
+  }
+
   const w = rect.width;
   const h = rect.height;
 
@@ -1828,20 +2926,37 @@ function draw() {
   if (isTimeTraveling) {
     const progress = (Date.now() - timeTravelStart) / timeTravelDuration;
     cubeRot += 0.05 + progress * 0.8;
+    cubeRotX += 0.02 + progress * 0.3;
   } else if (isRolling) {
     cubeRot += 0.15;
+    cubeRotX += 0.06;
   } else if (isDecelerating) {
     const progress = (Date.now() - rollDecelStart) / rollDecelDuration;
     const speed = 0.15 * (1 - progress) + 0.02;
     cubeRot += speed;
+    cubeRotX += speed * 0.4;
     rollGlow = 1 - progress;
   } else {
     cubeRot += 0.02;
+    cubeRotX += 0.008;
   }
 
-  // draw 3d cube in webgl
+  // background drag inertia + soft bounds
+  if (!bgDragging) {
+    bgPanX += bgPanVX;
+    bgPanY += bgPanVY;
+    bgPanVX *= 0.93;
+    bgPanVY *= 0.93;
+    if (Math.abs(bgPanVX) < 0.0003) bgPanVX = 0;
+    if (Math.abs(bgPanVY) < 0.0003) bgPanVY = 0;
+  }
+  bgPanX = Math.max(-0.7, Math.min(0.7, bgPanX));
+  bgPanY = Math.max(-0.5, Math.min(0.5, bgPanY));
+
+  // draw 3d cube in webgl + ambient backdrop
   const col = getRarityColor(currentRarity, t);
-  const glow = currentRarity.glow;
+  const glow = getRarityGlow(currentRarity, t);
+  drawBackground(w, h, t, col, glow);
   drawGLCube(col, glow, t, rollGlow);
 
   // spawn rolling particles
@@ -1860,16 +2975,23 @@ function draw() {
     if (shake < 0.3) shake = 0;
   }
 
-  // radial gradient background based on time period
-  let bgR, bgG, bgB;
-  if (timePeriod === 'past') { bgR = 60; bgG = 40; bgB = 10; }
-  else if (timePeriod === 'future') { bgR = 40; bgG = 10; bgB = 60; }
-  else { bgR = 20; bgG = 40; bgB = 58; }
-  const grad = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.max(w, h) * 0.6);
-  grad.addColorStop(0, 'rgba(' + bgR + ',' + bgG + ',' + bgB + ', 0.25)');
-  grad.addColorStop(1, 'rgba(2, 3, 4, 0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, w, h);
+  // orbital dust rings around the cube
+  drawOrbit(w, h, t, col, glow, rollGlow);
+
+  // floating background particles
+  if (Math.random() < 0.4 && particles.length < MAX_PARTICLES) {
+    particles.push({
+      x: Math.random() * w,
+      y: h + 5,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: -1 - Math.random() * 2,
+      life: 1,
+      decay: 0.003 + Math.random() * 0.005,
+      size: 1 + Math.random() * 2,
+      color: currentRarity.color === 'rainbow' ? '#fff' : currentRarity.color === 'prism' ? '#fff' : currentRarity.color,
+      glow: currentRarity.glow
+    });
+  }
 
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
@@ -1906,7 +3028,7 @@ function draw() {
     if (chroma < 0.01) chroma = 0;
   }
 
-  requestAnimationFrame(draw);
+  // rendering driven by loop()
 }
 
 function updateUI() {
@@ -1917,18 +3039,23 @@ function updateUI() {
   const biome = biomes.find(b => b.name === currentBiome) || biomes[0];
   biomeEl.textContent = biome.name.toUpperCase();
   biomeEl.style.color = biome.color;
+  if (streakStatEl) streakStatEl.textContent = rollStreak;
+  if (collectionStatEl) collectionStatEl.textContent = Object.keys(ownedRarities).length + '/' + rarities.length;
 
-  autoInterval = 800;
+  const speedBonus = getShopBonus().autoSpeed;
+  autoInterval = 800 * Math.pow(0.9, speedBonus * 10); // each 0.10 = 10% faster = *0.9
 
   renderControls();
   renderShop();
+  renderQuests();
   renderRarityTable(luck);
   renderInventory();
   lastRollEl.innerHTML = `last roll: <strong style="color:${currentRarity.color === 'rainbow' ? '#fff' : currentRarity.color === 'prism' ? '#fff' : currentRarity.color}">${currentRarity.name}</strong>`;
+  updatePrestigeUI();
 
   const rar = getCurrentRarities();
-  const clampedIdx = Math.min(bestRarityIndex, rar.length - 1);
-  const best = rar[clampedIdx] || rar[0];
+  const clampedIdx = Math.min(bestRarityIndex, Math.max(0, rar.length - 1));
+  const best = rar[clampedIdx] || rar[0] || { name: '-', color: '#888' };
   bestRollStat.innerHTML = `<span style="color:${best.color === 'rainbow' ? '#fff' : best.color === 'prism' ? '#fff' : best.color}">${best.name}</span>`;
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   const pt = elapsed < 60 ? elapsed + 's' : elapsed < 3600 ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's' : Math.floor(elapsed / 3600) + 'h ' + Math.floor((elapsed % 3600) / 60) + 'm';
@@ -1939,6 +3066,7 @@ function renderRarityTable(luck) {
   const probs = getProbabilities();
   const rar = getCurrentRarities();
   rarityTable.innerHTML = '';
+  if (rar.length === 0) { rarityTable.innerHTML = '<div style="color:var(--muted);font-size:11px;text-align:center;padding:20px">no rarities in this period.</div>'; return; }
   for (let i = rar.length - 1; i >= 0; i--) {
     const r = rar[i];
     const p = probs[i];
@@ -1947,7 +3075,7 @@ function renderRarityTable(luck) {
     row.className = 'rarity-row';
     row.innerHTML = `
       <div style="display:flex;align-items:center;flex:1">
-        <div class="dot" style="background:${r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color}; color:${r.color}"></div>
+        <div class="dot" style="background:${r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color2 ? 'linear-gradient(135deg,' + r.color + ',' + r.color2 + ')' : r.color}; color:${r.color}"></div>
         <span class="name">${r.name}</span>
       </div>
       <span class="odds">1/${formatNum(odds)}</span>
@@ -1958,27 +3086,73 @@ function renderRarityTable(luck) {
 
 function renderInventory() {
   inventoryEl.innerHTML = '';
-  const rar = getCurrentRarities();
   const inv = getCurrentInventory();
-  const list = rar.slice().reverse().filter(r => inv[r.name] || mutatedInventory[r.name + ' (M)']);
-  if (list.length === 0) {
+  const keys = Object.keys(inv).filter(k => inv[k] > 0);
+  // also include mutated entries for this period's rarities
+  for (const mk of Object.keys(mutatedInventory)) {
+    if (mutatedInventory[mk] > 0 && !keys.includes(mk)) keys.push(mk);
+  }
+  if (keys.length === 0) {
     inventoryEl.innerHTML = '<div style="color:var(--muted);font-size:11px;text-align:center;padding-top:20px">no auras yet. roll.</div>';
     return;
   }
-  for (const r of list) {
-    const count = inv[r.name] || 0;
-    const mutCount = mutatedInventory[r.name + ' (M)'] || 0;
+  const allRar = [].concat(rarities, pastRarities, futureRarities);
+  const findR = (name) => {
+    const base = name.replace(' (BT)', '').replace(' (M)', '');
+    return allRar.find(x => x.name === base);
+  };
+  for (const key of keys) {
+    const r = findR(key);
+    const count = inv[key];
     const item = document.createElement('div');
     item.className = 'inv-item';
-    const mutText = mutCount > 0 ? ' <span style="color:#ff80ff">(M)x' + formatNum(mutCount) + '</span>' : '';
-    item.innerHTML = `
-      <div class="icon" style="background:${r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color}; color:${r.color}"></div>
-      <div class="info">
-        <div class="name" style="color:${r.color === 'rainbow' || r.color === 'prism' ? '#fff' : r.color}">${r.name}${mutText}</div>
-        <div class="count">x${formatNum(count)}</div>
-      </div>
-      <div class="bonus">x${formatNum(count)}</div>
-    `;
+    item.style.flexDirection = 'column';
+    item.style.alignItems = 'flex-start';
+    const topRow = document.createElement('div');
+    topRow.style.display = 'flex';
+    topRow.style.alignItems = 'center';
+    topRow.style.gap = '10px';
+    topRow.style.width = '100%';
+    const iconEl = document.createElement('div');
+    iconEl.className = 'icon';
+    const col = r ? (r.color === 'rainbow' ? '#fff' : r.color === 'prism' ? '#fff' : r.color) : '#888';
+    iconEl.style.background = r ? (r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color2 ? 'linear-gradient(135deg,' + r.color + ',' + r.color2 + ')' : r.color) : '#444';
+    iconEl.style.color = col;
+    topRow.appendChild(iconEl);
+    const infoEl = document.createElement('div');
+    infoEl.className = 'info';
+    infoEl.style.flex = '1';
+    infoEl.style.minWidth = '0';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'name';
+    nameEl.style.color = col;
+    nameEl.textContent = key;
+    const countEl = document.createElement('div');
+    countEl.className = 'count';
+    countEl.textContent = 'x' + formatNum(count);
+    infoEl.appendChild(nameEl);
+    infoEl.appendChild(countEl);
+    topRow.appendChild(infoEl);
+    const bonusEl = document.createElement('div');
+    bonusEl.className = 'bonus';
+    bonusEl.textContent = 'x' + formatNum(count);
+    topRow.appendChild(bonusEl);
+    item.appendChild(topRow);
+    const sellBtn = document.createElement('button');
+    sellBtn.textContent = 'SELL 1 (' + formatNum(r ? sellPrice(r) : 1) + ' CR)';
+    sellBtn.style.fontSize = '9px';
+    sellBtn.style.padding = '2px 6px';
+    sellBtn.style.marginTop = '4px';
+    sellBtn.style.alignSelf = 'flex-start';
+    sellBtn.addEventListener('click', () => {
+      if (count <= 0) return;
+      inv[key] = (inv[key] || 0) - 1;
+      credits += r ? sellPrice(r) : 1;
+      updateUI();
+      saveGame();
+      showToast('sold 1 ' + key);
+    });
+    item.appendChild(sellBtn);
     inventoryEl.appendChild(item);
   }
 }
@@ -2032,9 +3206,78 @@ function renderControls() {
   });
 }
 
+/* ── shopkeeper dialogue ─────────────────────────────────────────────── */
+let shopkeeperTimer = null;
+let shopkeeperMet = false;
+
+const shopkeeperBuyLines = {
+  auto: 'auto roll. now you can watch the cube suffer hands-free.',
+  x10: 'ten at a time. pace yourself, champ.',
+  x100: 'a hundred rolls. i hope you brought a bucket.',
+  luckBracelet: 'luck bracelet. it jingles when the odds bend.',
+  luckyGloves: "lucky gloves. don't touch the cube with them, it gets ideas.",
+  fortuneTalisman: 'fortune talisman. no refunds if fate disagrees.',
+  creditsBracelet: 'credits bracelet. money that follows you around.',
+  autoSpeed: 'faster. the cube is getting dizzy.',
+  mutationCharm: 'mutation charm. the weird cubes love you now.',
+  timeMachine: "the time machine. don't ask where i got it. seriously."
+};
+
+const shopkeeperSmallTalk = [
+  'credits are good here. so is repeat business.',
+  'the cube is not for sale. stop asking.',
+  'everything on the shelf is real. probably.',
+  'i price by vibes, but the vibes are final.',
+  'you look like someone who rolls too much. respect.'
+];
+
+const shopkeeperDeclines = [
+  "short on credits. that's a you problem, not a me problem.",
+  "the shelf doesn't do charity.",
+  "come back when your wallet's heavier.",
+  "nice try. credits first, dreams second."
+];
+
+function shopkeeperSay(msg) {
+  if (!shopkeeperText) return;
+  clearTimeout(shopkeeperTimer);
+  shopkeeperText.style.transition = 'opacity 0.12s ease';
+  shopkeeperText.style.opacity = '0';
+  if (shopkeeperSvg) {
+    shopkeeperSvg.classList.remove('talk');
+    void shopkeeperSvg.offsetWidth;
+    shopkeeperSvg.classList.add('talk');
+  }
+  shopkeeperTimer = setTimeout(() => {
+    shopkeeperText.textContent = msg;
+    shopkeeperText.style.opacity = '1';
+  }, 120);
+}
+
+function shopkeeperGreeting() {
+  if (!shopkeeperMet) {
+    shopkeeperMet = true;
+    return 'welcome in. credits are good here. so is repeat business.';
+  }
+  if (prestigePoints > 0 && Math.random() < 0.5) {
+    return 'back again. the prestige smell never washes out.';
+  }
+  const affordable = upgrades.filter(u => {
+    const own = u.type === 'unlock' && unlocked[u.id];
+    const cnt = shopCounts[u.id] || 0;
+    const maxed = u.type !== 'unlock' && cnt >= u.max;
+    return !own && !maxed && credits >= u.cost;
+  }).length;
+  if (credits < 100) return "that's a light purse. roll more, the shelf isn't free.";
+  if (affordable >= 3) return 'big spender energy today. i like it.';
+  if (affordable === 0) return "you can't afford anything. still nice to see you.";
+  return shopkeeperSmallTalk[Math.floor(Math.random() * shopkeeperSmallTalk.length)];
+}
+
 function openShop() {
   shopModal.classList.add('open');
   renderShop();
+  shopkeeperSay(shopkeeperGreeting());
 }
 
 function closeShop() {
@@ -2044,7 +3287,7 @@ function closeShop() {
 function buyUpgrade(id) {
   const up = upgrades.find(u => u.id === id);
   if (up.type === 'unlock') {
-    if (unlocked[id] || credits < up.cost) return;
+    if (unlocked[id] || credits < up.cost) return false;
     credits -= up.cost;
     unlocked[id] = true;
     if (id === 'auto') autoRoll = true;
@@ -2052,9 +3295,15 @@ function buyUpgrade(id) {
       document.getElementById('timeMachineUI').style.display = 'block';
       updatePeriodUI();
     }
+  } else if (up.type === 'exp') {
+    const count = shopCounts[id] || 0;
+    const cost = Math.round(up.baseCost * Math.pow(up.costMult, count));
+    if (count >= up.max || credits < cost) return false;
+    credits -= cost;
+    shopCounts[id] = count + 1;
   } else {
     const count = shopCounts[id] || 0;
-    if (count >= up.max || credits < up.cost) return;
+    if (count >= up.max || credits < up.cost) return false;
     credits -= up.cost;
     shopCounts[id] = count + 1;
   }
@@ -2063,29 +3312,330 @@ function buyUpgrade(id) {
   updateUI();
   saveGame();
   playPurchaseSound();
+  const line = shopkeeperBuyLines[id] || 'good buy. no refunds.';
+  shopkeeperSay(Math.random() < 0.25 ? line + ' pleasure doing business.' : line);
+  return true;
 }
+
+function getPrestigeGain() {
+  const rar = getCurrentRarities();
+  const idx = bestRarityIndex;
+  let gain = Math.max(0, Math.floor(Math.log10(credits + 1)) - 2);
+  if (idx >= 10) gain += Math.floor((idx - 10) / 5);
+  return gain;
+}
+
+function prestige() {
+  const gain = getPrestigeGain();
+  if (gain <= 0) { showToast('not ready to rebirth yet — earn more credits'); return; }
+  if (!confirm('rebirth? you will lose credits, rolls, inventory, and shop upgrades, but gain ' + gain + ' prestige points')) return;
+  prestigePoints += gain;
+  prestigeCount++;
+  lifetimeRolls += rolls;
+  lifetimeCredits += credits;
+  // reset
+  credits = 0;
+  rolls = 0;
+  baseLuck = 1;
+  inventory = {};
+  pastInventory = {};
+  futureInventory = {};
+  mutatedInventory = {};
+  shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0, autoSpeed: 0, mutationCharm: 0, luckAmplifier: 0, creditsAmplifier: 0 };
+  unlocked = { auto: false, x10: true, x100: true };
+  autoRoll = false;
+  bestRarityIndex = 0;
+  ownedRarities = {};
+  collectionRewardClaimed = false;
+  pityCounter = 0;
+  rollStreak = 0;
+  streakBonusMult = 1;
+  streakBonusUntil = 0;
+  autoSellThreshold = -1;
+  questClaimed = {};
+  taskProgress = {};
+  currentRarity = rarities[0];
+  timePeriod = 'present';
+  // reset time period visuals
+  document.documentElement.style.setProperty('--cyan', '#2bd0d0');
+  document.documentElement.style.setProperty('--cyan-bright', '#5ad0ff');
+  document.documentElement.style.setProperty('--border', 'rgba(43, 208, 208, 0.35)');
+  const tmUI = document.getElementById('timeMachineUI');
+  if (tmUI) tmUI.style.display = 'none';
+  saveGame();
+  updateUI();
+  updatePrestigeUI();
+  showToast('rebirth #' + prestigeCount + ' complete! +' + gain + ' prestige');
+}
+
+function updatePrestigeUI() {
+  const pp = document.getElementById('prestigePoints');
+  const pc = document.getElementById('prestigeCount');
+  const pg = document.getElementById('prestigeGain');
+  if (pp) pp.textContent = formatNum(prestigePoints);
+  if (pc) pc.textContent = prestigeCount;
+  if (pg) pg.textContent = formatNum(getPrestigeGain());
+}
+
+const dailyChallengeTemplates = [
+  { id: 'roll50', name: 'Roll 50 times', check: (p) => rolls >= 50, reward: 500 },
+  { id: 'roll200', name: 'Roll 200 times', check: (p) => rolls >= 200, reward: 2000 },
+  { id: 'earn1000', name: 'Earn 1000 credits', check: (p) => credits >= 1000, reward: 800 },
+  { id: 'earn10000', name: 'Earn 10000 credits', check: (p) => credits >= 10000, reward: 5000 },
+  { id: 'rare', name: 'Roll a Rare cube', check: (p) => (getCurrentInventory()['Rare'] || 0) > 0, reward: 300 },
+  { id: 'legendary', name: 'Roll a Legendary cube', check: (p) => (getCurrentInventory()['Legendary'] || 0) > 0, reward: 2000 },
+  { id: 'mythic', name: 'Roll a Mythic cube', check: (p) => (getCurrentInventory()['Mythic'] || 0) > 0, reward: 10000 },
+  { id: 'mutated', name: 'Roll a mutated cube', check: (p) => Object.keys(mutatedInventory).length > 0, reward: 1500 },
+  { id: 'breakthrough', name: 'Trigger a breakthrough', check: (p) => p.bt, reward: 1000 },
+  { id: 'bonus', name: 'Trigger a bonus roll', check: (p) => p.bonus, reward: 500 },
+];
+
+function getDailySeed() {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+function seededRandom(seed) {
+  let x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function generateDailyChallenges() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (dailyChallengeDate === today && dailyChallenges.length > 0) return;
+  dailyChallengeDate = today;
+  dailyChallengeProgress = {};
+  let seed = getDailySeed();
+  const shuffled = [...dailyChallengeTemplates].sort(() => seededRandom(seed++) - 0.5);
+  dailyChallenges = shuffled.slice(0, 3);
+  for (const c of dailyChallenges) {
+    dailyChallengeProgress[c.id] = { completed: false, claimed: false };
+  }
+}
+
+function renderDaily() {
+  generateDailyChallenges();
+  dailyList.innerHTML = '';
+  for (const c of dailyChallenges) {
+    const prog = dailyChallengeProgress[c.id] || { completed: false, claimed: false };
+    const done = prog.completed || c.check({});
+    if (done && !prog.completed) {
+      prog.completed = true;
+      dailyChallengeProgress[c.id] = prog;
+    }
+    const el = document.createElement('div');
+    el.style.cssText = 'display:flex;justify-content:space-between;padding:8px;margin-bottom:6px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05)';
+    const btn = done && !prog.claimed
+      ? '<button style="font-size:10px;padding:4px 8px" onclick="claimDaily(\'' + c.id + '\')">CLAIM</button>'
+      : (prog.claimed ? '<span style="color:var(--muted);font-size:10px">CLAIMED</span>' : '');
+    el.innerHTML = '<span style="color:var(--text)">' + c.name + '</span> <span style="color:var(--cyan-bright)">' + c.reward + ' CR</span> ' + btn;
+    dailyList.appendChild(el);
+  }
+}
+
+function claimDaily(id) {
+  const c = dailyChallenges.find(x => x.id === id);
+  if (!c) return;
+  const prog = dailyChallengeProgress[id];
+  if (!prog || !prog.completed || prog.claimed) return;
+  credits += c.reward;
+  prog.claimed = true;
+  dailyChallengeProgress[id] = prog;
+  saveGame();
+  updateUI();
+  showToast('claimed ' + c.reward + ' credits');
+  renderDaily();
+}
+
+function doTaskAttempt(q) {
+  // returns {success, rare} for this attempt
+  let success = false, rare = false;
+  if (q.task === 'dig' || q.task === 'digAny' || q.task === 'digRare') {
+    success = Math.random() < 0.4;
+    rare = Math.random() < 0.2;
+  } else if (q.task === 'hack' || q.task === 'hackAny' || q.task === 'hackRare') {
+    success = Math.random() < 0.4;
+    rare = Math.random() < 0.2;
+  }
+  return { success, rare };
+}
+
+function startCardBattle() {
+  const deck = timePeriod === 'past' ? pastDeck : futureDeck;
+  // deal 3 random cards each
+  const shuffled = deck.slice().sort(() => Math.random() - 0.5);
+  cardBattle.playerHand = shuffled.slice(0, 3);
+  cardBattle.npcHand = shuffled.slice(3, 6);
+  cardBattle.pScore = 0;
+  cardBattle.nScore = 0;
+  cardBattle.round = 0;
+  cardBattle.chosen = null;
+  cardBattle.npcChosen = null;
+  cardBattle.result = null;
+  cardBattle.gameOver = false;
+  cardBattle.active = true;
+  renderQuests();
+}
+
+function playCard(idx) {
+  if (!cardBattle.active || cardBattle.gameOver || cardBattle.chosen !== null) return;
+  cardBattle.chosen = cardBattle.playerHand[idx];
+  // npc picks random remaining
+  const npcIdx = Math.floor(Math.random() * cardBattle.npcHand.length);
+  cardBattle.npcChosen = cardBattle.npcHand[npcIdx];
+  // remove chosen from hands
+  cardBattle.playerHand.splice(idx, 1);
+  cardBattle.npcHand.splice(npcIdx, 1);
+  // compare
+  const p = cardBattle.chosen, n = cardBattle.npcChosen;
+  if (p.atk > n.atk) { cardBattle.pScore++; cardBattle.result = 'win'; }
+  else if (p.atk < n.atk) { cardBattle.nScore++; cardBattle.result = 'lose'; }
+  else { cardBattle.result = 'tie'; }
+  cardBattle.round++;
+  // check game over
+  if (cardBattle.pScore >= 2 || cardBattle.nScore >= 2 || cardBattle.round >= 3) {
+    cardBattle.gameOver = true;
+    if (cardBattle.pScore > cardBattle.nScore) {
+      // victory
+      cardBattle.active = false;
+      // update quest progress
+      const qs = quests.filter(q => q.period === timePeriod);
+      for (const q of qs) {
+        if (!questClaimed[q.id]) {
+          taskProgress[q.id] = (taskProgress[q.id] || 0) + 1;
+        }
+      }
+      showToast('you won the duel!');
+      objSay('quest');
+    } else {
+      showToast('you lost the duel.');
+    }
+  }
+  renderQuests();
+}
+
+function renderQuests() {
+  const board = document.getElementById('questBoard');
+  if (!board) return;
+  board.innerHTML = '';
+  if (timePeriod === 'present') {
+    board.innerHTML = '<div style="font-size:10px;color:var(--muted);text-align:center;padding:8px">travel to the past or future to play.</div>';
+    return;
+  }
+  const npcName = timePeriod === 'past' ? 'Past Keeper' : 'Future Oracle';
+  const npcLine = timePeriod === 'past'
+    ? 'the desert remembers. duel me, and the past will reward you.'
+    : 'the city hums. duel me, and the future will pay you.';
+  const npcDiv = document.createElement('div');
+  npcDiv.style.cssText = 'margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:6px;background:rgba(255,255,255,0.03);font-size:11px;';
+  npcDiv.innerHTML = '<strong style="color:var(--cyan)">' + npcName + ':</strong> <span style="color:var(--text)">' + npcLine + '</span>';
+  board.appendChild(npcDiv);
+
+  // quest progress + claim
+  const qs = quests.filter(q => q.period === timePeriod);
+  for (const q of qs) {
+    const claimed = questClaimed[q.id];
+    const prog = taskProgress[q.id] || 0;
+    const done = prog >= q.target;
+    const el = document.createElement('div');
+    el.className = 'shop-item' + (claimed ? ' owned' : '');
+    const rewardText = [];
+    if (q.reward.credits) rewardText.push('+' + formatNum(q.reward.credits) + ' CR');
+    if (q.reward.luck) rewardText.push('+' + formatNum(q.reward.luck) + ' luck');
+    el.innerHTML = `
+      <div class="info">
+        <div class="name">${q.name}${claimed ? ' (DONE)' : ''}</div>
+        <div class="desc">${q.desc}</div>
+        <div class="desc" style="color:var(--muted);margin-top:2px">wins: ${Math.min(prog, q.target)}/${q.target}</div>
+        <div class="desc" style="color:var(--cyan-bright);margin-top:2px">${rewardText.join(', ')}</div>
+      </div>
+      <button${claimed || !done ? ' class="locked"' : ''}>${claimed ? 'CLAIMED' : done ? 'CLAIM' : 'LOCKED'}</button>
+    `;
+    if (!claimed && done) {
+      el.querySelector('button').addEventListener('click', () => {
+        questClaimed[q.id] = true;
+        credits += q.reward.credits || 0;
+        baseLuck += q.reward.luck || 0;
+        showToast('quest complete: ' + q.name);
+        objSay('quest');
+        updateUI();
+        renderQuests();
+        saveGame();
+      });
+    }
+    board.appendChild(el);
+  }
+
+  // card battle UI
+  const battleDiv = document.createElement('div');
+  battleDiv.style.cssText = 'margin-top:12px;padding:10px;border:1px solid var(--border);border-radius:6px;background:rgba(255,255,255,0.03);';
+  if (!cardBattle.active && !cardBattle.gameOver) {
+    battleDiv.innerHTML = '<div style="text-align:center"><button id="startBattleBtn">START DUEL</button></div>';
+    board.appendChild(battleDiv);
+    const btn = battleDiv.querySelector('#startBattleBtn');
+    if (btn) btn.addEventListener('click', () => { startCardBattle(); });
+  } else {
+    // show scores
+    let html = '<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px"><span>you: ' + cardBattle.pScore + '</span><span>' + npcName + ': ' + cardBattle.nScore + '</span></div>';
+    if (cardBattle.gameOver) {
+      html += '<div style="text-align:center;margin-bottom:8px;color:var(--cyan-bright)">' + (cardBattle.pScore > cardBattle.nScore ? 'VICTORY!' : 'DEFEAT') + '</div>';
+      html += '<div style="text-align:center"><button id="startBattleBtn">PLAY AGAIN</button></div>';
+    } else {
+      // show chosen cards result if round just played
+      if (cardBattle.result) {
+        html += '<div style="text-align:center;margin-bottom:8px;font-size:11px">you played ' + cardBattle.chosen.name + ' (' + cardBattle.chosen.atk + ') vs ' + cardBattle.npcChosen.name + ' (' + cardBattle.npcChosen.atk + ') - ' + cardBattle.result + '</div>';
+      }
+      html += '<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">';
+      for (let i = 0; i < cardBattle.playerHand.length; i++) {
+        const c = cardBattle.playerHand[i];
+        html += '<button class="cardBtn" data-idx="' + i + '" style="padding:6px 10px;font-size:10px">' + c.name + '<br>ATK ' + c.atk + ' DEF ' + c.def + '</button>';
+      }
+      html += '</div>';
+    }
+    battleDiv.innerHTML = html;
+    board.appendChild(battleDiv);
+    const startBtn = battleDiv.querySelector('#startBattleBtn');
+    if (startBtn) startBtn.addEventListener('click', () => { startCardBattle(); });
+    const cardBtns = battleDiv.querySelectorAll('.cardBtn');
+    cardBtns.forEach(b => {
+      b.addEventListener('click', () => { playCard(parseInt(b.dataset.idx)); });
+    });
+  }
+}
+
+function claimQuest(id) { /* handled inline */ }
 
 function renderShop() {
   shopCredits.textContent = formatNum(credits);
   shopItems.innerHTML = '';
   for (const up of upgrades) {
     const isUnlock = up.type === 'unlock';
+    const isExp = up.type === 'exp';
     const owned = isUnlock && unlocked[up.id];
     const count = shopCounts[up.id] || 0;
-    const maxed = !isUnlock && count >= up.max;
-    const canBuy = credits >= up.cost && !owned && !maxed;
+    const maxed = (isUnlock && owned) ? false : (!isUnlock && count >= up.max);
+    const cost = isExp ? Math.round(up.baseCost * Math.pow(up.costMult, count)) : up.cost;
+    const canBuy = credits >= cost && !owned && !maxed;
     const item = document.createElement('div');
     item.className = 'shop-item' + ((owned || maxed) ? ' owned' : '');
-    const countText = isUnlock ? '' : ` (${count}/${up.max})`;
+    const countText = (isUnlock || isExp) ? (isExp ? ' (lv' + count + ')' : '') : ` (${count}/${up.max})`;
+    const btnClass = canBuy ? '' : ' class="locked"';
+    const btnLabel = owned ? 'OWNED' : maxed ? 'MAXED' : cost + ' CR';
     item.innerHTML = `
       <div class="info">
         <div class="name">${up.name}${countText}</div>
         <div class="desc">${up.desc}</div>
       </div>
-      <button ${canBuy ? '' : 'disabled'}>${owned ? 'OWNED' : maxed ? 'MAXED' : up.cost + ' CR'}</button>
+      <button${btnClass}>${btnLabel}</button>
     `;
     if (!owned && !maxed) {
-      item.querySelector('button').addEventListener('click', () => buyUpgrade(up.id));
+      item.querySelector('button').addEventListener('click', () => {
+        if (!canBuy) {
+          shopkeeperSay(shopkeeperDeclines[Math.floor(Math.random() * shopkeeperDeclines.length)]);
+          return;
+        }
+        buyUpgrade(up.id);
+      });
     }
     shopItems.appendChild(item);
   }
@@ -2097,7 +3647,7 @@ function renderAchievements() {
     const own = achievementsUnlocked[a.id];
     const el = document.createElement('div');
     el.className = 'achievement' + (own ? ' unlocked' : '');
-    const rwd = a.reward.luck ? '+' + a.reward.luck + ' luck' : '';
+    const rwd = a.reward.luck ? '+' + formatNum(a.reward.luck) + ' luck' : '';
     el.innerHTML = `
       <div class="icon">${own ? '★' : '☆'}</div>
       <div class="info">
@@ -2123,7 +3673,53 @@ function renderChangelog() {
 function openModal(modal) { modal.classList.add('open'); }
 function closeModal(modal) { modal.classList.remove('open'); }
 
-canvas.addEventListener('click', () => manualRoll());
+canvas.addEventListener('pointerdown', e => {
+  bgDragging = true;
+  bgDragMoved = false;
+  bgDragLastX = e.clientX;
+  bgDragLastY = e.clientY;
+  bgPanVX = 0;
+  bgPanVY = 0;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!bgDragging) return;
+  const rect = canvas.getBoundingClientRect();
+  const dx = e.clientX - bgDragLastX;
+  const dy = e.clientY - bgDragLastY;
+  bgDragLastX = e.clientX;
+  bgDragLastY = e.clientY;
+  if (Math.abs(dx) + Math.abs(dy) > 2) bgDragMoved = true;
+  bgPanX += (dx / Math.max(1, rect.width)) * 1.4;
+  bgPanY += (dy / Math.max(1, rect.height)) * 1.4;
+  bgPanVX = (dx / Math.max(1, rect.width)) * 0.9;
+  bgPanVY = (dy / Math.max(1, rect.height)) * 0.9;
+});
+
+function endBgDrag(e) {
+  if (!bgDragging) return;
+  bgDragging = false;
+  if (bgDragMoved) suppressRollClick = true;
+  try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+}
+
+canvas.addEventListener('pointerup', endBgDrag);
+canvas.addEventListener('pointercancel', endBgDrag);
+canvas.addEventListener('dblclick', () => {
+  bgPanX = 0;
+  bgPanY = 0;
+  bgPanVX = 0;
+  bgPanVY = 0;
+});
+
+canvas.addEventListener('click', () => {
+  if (suppressRollClick) {
+    suppressRollClick = false;
+    return;
+  }
+  manualRoll();
+});
 window.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
@@ -2132,16 +3728,22 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('resize', resize);
 
+function applySceneResize() {
+  const sc = document.getElementById('sceneCanvas');
+  if (sc && sc.style.display !== 'none') {
+    sc.width = window.innerWidth;
+    sc.height = window.innerHeight;
+  }
+}
+window.addEventListener('resize', applySceneResize);
+
 document.getElementById('rollBtn').addEventListener('click', () => manualRoll());
-document.getElementById('quickRollBtn').addEventListener('click', () => {
-  quickRoll = !quickRoll;
-  document.getElementById('quickRollBtn').classList.toggle('active', quickRoll);
-});
 document.getElementById('autoBtn').addEventListener('click', toggleAuto);
 document.querySelectorAll('#controls button[data-mult]').forEach(b => {
   b.addEventListener('click', () => setMultiplier(parseInt(b.dataset.mult)));
 });
-shopBtn.addEventListener('click', () => { openModal(shopModal); renderShop(); });
+shopBtn.addEventListener('click', () => { openShop(); updatePrestigeUI(); });
+document.getElementById('prestigeBtn').addEventListener('click', prestige);
 shopClose.addEventListener('click', () => closeModal(shopModal));
 shopModal.addEventListener('click', e => { if (e.target === shopModal) closeModal(shopModal); });
 
@@ -2192,18 +3794,25 @@ document.getElementById('adminGiveCredits').addEventListener('click', () => {
 });
 
 document.getElementById('adminMaxLuck').addEventListener('click', () => {
-  baseLuck = 100000000;
+  baseLuck = Infinity;
   updateUI();
-  adminLogMsg('luck maxed');
+  adminLogMsg('luck maxed (infinity)');
   saveGame();
 });
 
 document.getElementById('adminUnlockAll').addEventListener('click', () => {
   unlocked.auto = true;
+  unlocked.x10 = true;
+  unlocked.x100 = true;
+  unlocked.timeMachine = true;
   shopCounts.luckBracelet = 10;
   shopCounts.luckyGloves = 5;
   shopCounts.fortuneTalisman = 3;
   shopCounts.creditsBracelet = 10;
+  shopCounts.autoSpeed = 10;
+  shopCounts.mutationCharm = 5;
+  shopCounts.luckAmplifier = 10;
+  shopCounts.creditsAmplifier = 10;
   document.getElementById('timeMachineUI').style.display = 'block';
   updatePeriodUI();
   updateUI();
@@ -2256,14 +3865,23 @@ document.getElementById('futureBtn').addEventListener('click', () => switchTimeP
 leaderboardBtn.addEventListener('click', () => { openModal(leaderboardModal); fetchLeaderboard(); });
 leaderboardClose.addEventListener('click', () => closeModal(leaderboardModal));
 leaderboardModal.addEventListener('click', e => { if (e.target === leaderboardModal) closeModal(leaderboardModal); });
+dailyBtn.addEventListener('click', () => { openModal(dailyModal); renderDaily(); });
+dailyClose.addEventListener('click', () => closeModal(dailyModal));
+dailyModal.addEventListener('click', e => { if (e.target === dailyModal) closeModal(dailyModal); });
 lbSubmit.addEventListener('click', submitScore);
 
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 function saveGame() {
   try {
     localStorage.setItem('luxRngSave', JSON.stringify({
-      saveVersion: SAVE_VERSION, inventory, pastInventory, futureInventory, mutatedInventory, baseLuck, rolls, credits, unlocked, shopCounts, autoRoll, achievementsUnlocked, bestRarityIndex, startTime, currentBiome
+      saveVersion: SAVE_VERSION, inventory, pastInventory, futureInventory, mutatedInventory, baseLuck, rolls, credits, unlocked, shopCounts, autoRoll, achievementsUnlocked, bestRarityIndex, startTime, currentBiome, prestigePoints, prestigeCount, lifetimeRolls, lifetimeCredits, dailyChallengeDate, dailyChallengeProgress, ownedRarities, collectionRewardClaimed, pityCounter, rollStreak, autoSellThreshold, questClaimed, taskProgress
+    }, (key, value) => {
+      // Infinity/NaN are not JSON-serializable; encode them as tagged strings.
+      if (value === Infinity) return '__INF__';
+      if (value === -Infinity) return '__NINF__';
+      if (typeof value === 'number' && isNaN(value)) return '__NAN__';
+      return value;
     }));
   } catch (e) {}
 }
@@ -2272,7 +3890,12 @@ function loadGame() {
   try {
     const raw = localStorage.getItem('luxRngSave');
     if (!raw) return;
-    const data = JSON.parse(raw);
+    const data = JSON.parse(raw, (key, value) => {
+      if (value === '__INF__') return Infinity;
+      if (value === '__NINF__') return -Infinity;
+      if (value === '__NAN__') return NaN;
+      return value;
+    });
     if (data.inventory) inventory = data.inventory;
     if (data.pastInventory) pastInventory = data.pastInventory;
     if (data.futureInventory) futureInventory = data.futureInventory;
@@ -2288,14 +3911,29 @@ function loadGame() {
     if (data.achievementsUnlocked) achievementsUnlocked = { ...achievementsUnlocked, ...data.achievementsUnlocked };
     if (typeof data.startTime === 'number') startTime = data.startTime;
     if (typeof data.bestRarityIndex === 'number' && data.saveVersion === SAVE_VERSION) bestRarityIndex = data.bestRarityIndex;
-    if (data.timePeriod) timePeriod = data.timePeriod;
+    if (data.ownedRarities) ownedRarities = data.ownedRarities;
+    if (typeof data.collectionRewardClaimed === 'boolean') collectionRewardClaimed = data.collectionRewardClaimed;
+    if (typeof data.pityCounter === 'number') pityCounter = data.pityCounter;
+    if (typeof data.rollStreak === 'number') rollStreak = data.rollStreak;
+    if (typeof data.autoSellThreshold === 'number') autoSellThreshold = data.autoSellThreshold;
+    if (data.questClaimed) questClaimed = { ...questClaimed, ...data.questClaimed };
+    if (data.taskProgress) taskProgress = { ...taskProgress, ...data.taskProgress };
+    if (typeof data.prestigePoints === 'number') prestigePoints = data.prestigePoints;
+    if (typeof data.prestigeCount === 'number') prestigeCount = data.prestigeCount;
+    if (typeof data.lifetimeRolls === 'number') lifetimeRolls = data.lifetimeRolls;
+    if (typeof data.lifetimeCredits === 'number') lifetimeCredits = data.lifetimeCredits;
+    if (data.dailyChallengeDate) dailyChallengeDate = data.dailyChallengeDate;
+    if (data.dailyChallengeProgress) dailyChallengeProgress = { ...dailyChallengeProgress, ...data.dailyChallengeProgress };
+    generateDailyChallenges();
+    // timePeriod always starts on present
+    timePeriod = 'present';
     if (unlocked.timeMachine) {
       const tmUI = document.getElementById('timeMachineUI');
       if (tmUI) tmUI.style.display = 'block';
     }
 
     // migrate renamed rarities from pre-original-name saves
-    const renameMap = { Divinus: 'Celestial', Crystallized: 'Frosted', Gilded: 'Auric', Arcane: 'Mystic', Galaxy: 'Nebula', Exalted: 'Ascended', Glorious: 'Radiant' };
+    const renameMap = { Divinus: 'Celestial', Crystallized: 'Frosted', Gilded: 'Auric', Arcane: 'Mystic', Galaxy: 'Nebula', Exalted: 'Ascended', Glorious: 'Radiant', Googol: 'Google', Googolplex: 'Perplexity' };
     for (const [oldName, newName] of Object.entries(renameMap)) {
       if (inventory[oldName]) {
         inventory[newName] = (inventory[newName] || 0) + inventory[oldName];
@@ -2321,10 +3959,26 @@ function resetSave() {
   rolls = 0;
   credits = 0;
   autoRoll = false;
-  unlocked = { auto: false };
-  shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0 };
+  unlocked = { auto: false, x10: true, x100: true };
+  shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0, autoSpeed: 0, mutationCharm: 0, luckAmplifier: 0, creditsAmplifier: 0 };
   achievementsUnlocked = {};
+  prestigePoints = 0;
+  prestigeCount = 0;
+  lifetimeRolls = 0;
+  lifetimeCredits = 0;
+  dailyChallenges = [];
+  dailyChallengeDate = '';
+  dailyChallengeProgress = {};
   bestRarityIndex = 0;
+  ownedRarities = {};
+  collectionRewardClaimed = false;
+  pityCounter = 0;
+  rollStreak = 0;
+  streakBonusMult = 1;
+  streakBonusUntil = 0;
+  autoSellThreshold = -1;
+  questClaimed = {};
+  taskProgress = {};
   startTime = Date.now();
   currentRarity = rarities[0];
   timePeriod = 'present';
@@ -2344,40 +3998,137 @@ function checkAchievements() {
   }
   if (newUnlock) {
     playAchievementSound();
+    objSay('achievement');
     saveGame();
     renderAchievements();
   }
 }
 
 function loop(ts) {
+  if (document.hidden) {
+    requestAnimationFrame(loop);
+    return;
+  }
   // biome rotation
   if (biomeTimer === 0) biomeTimer = ts;
   if (ts - biomeTimer > BIOME_DURATION) {
     const idx = Math.floor(Math.random() * biomes.length);
     currentBiome = biomes[idx].name;
     biomeTimer = ts;
+    applyBiomeColors();
+    objSay('biome');
+    saveGame();
   }
+  // biome countdown display
+  const remaining = Math.max(0, BIOME_DURATION - (ts - biomeTimer));
+  const secs = Math.ceil(remaining / 1000);
+  if (biomeTimerEl && biomeTimerEl.textContent !== secs + 's') biomeTimerEl.textContent = secs + 's';
 
-  if (autoRoll && !isRolling) {
+  if (autoRoll && !isRolling && timePeriod === 'present') {
     if (ts - lastAuto > autoInterval) {
       triggerRoll(1);
       lastAuto = ts;
     }
   }
+  draw();
   requestAnimationFrame(loop);
 }
 
 loadGame();
+applyBiomeColors();
+if (localStorage.getItem('luxRngSave')) objSay('idle');
 if (unlocked.timeMachine) {
   const tmUI = document.getElementById('timeMachineUI');
   if (tmUI) tmUI.style.display = 'block';
   switchTimePeriod(timePeriod);
 }
 populateAuraFilter();
-resize();
-updateUI();
+populateAutoSell();
+// scene canvas click handling for quest mini-games
+if (sceneCanvasEl) {
+  sceneCanvasEl.addEventListener('click', (e) => {
+    if (timePeriod === 'present') return;
+    const rect = sceneCanvasEl.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const w = sceneCanvasEl.width, h = sceneCanvasEl.height;
+    const sx = x * (w / rect.width), sy = y * (h / rect.height);
+    if (timePeriod === 'past') {
+      // dig grid
+      const cell = Math.round(Math.min(w, h) * 0.07);
+      const gx = Math.round(w * 0.35), gy = Math.round(h * 0.4);
+      const ci = Math.floor((sx - gx) / cell);
+      const ri = Math.floor((sy - gy) / cell);
+      if (ci >= 0 && ci < 4 && ri >= 0 && ri < 4) {
+        const idx = ri * 4 + ci;
+        const c = digGrid[idx];
+        if (c && !c.dug) {
+          c.dug = true;
+          if (c.hasRelic) {
+            digRelicsFound++;
+            npcDialogue = c.rare ? 'a RARE relic! the desert yields its secrets.' : 'you found a relic!';
+            npcDialogueUntil = Date.now() + 2500;
+            showToast(c.rare ? 'rare relic found!' : 'relic found!');
+            objSay('quest');
+          } else {
+            npcDialogue = 'just sand. keep digging.';
+            npcDialogueUntil = Date.now() + 2000;
+          }
+          // update quest progress
+          taskProgress['past_digAny'] = (taskProgress['past_digAny'] || 0) + 1;
+          if (c.hasRelic) taskProgress['past_dig'] = (taskProgress['past_dig'] || 0) + 1;
+          if (c.rare) taskProgress['past_rare'] = (taskProgress['past_rare'] || 0) + 1;
+          saveGame();
+          updateUI();
+          renderQuests();
+        }
+      }
+      // NPC click
+      if (sx > w*0.1 && sx < w*0.3 && sy > h*0.45 && sy < h*0.8) {
+        npcDialogue = 'Past Keeper: the desert hides what time buried. dig, and remember.';
+        npcDialogueUntil = Date.now() + 3000;
+      }
+    } else if (timePeriod === 'future') {
+      const cell = Math.round(Math.min(w, h) * 0.07);
+      const tx = Math.round(w * 0.35), ty = Math.round(h * 0.4);
+      const tw = Math.round(cell * 1.2);
+      for (let i = 0; i < 3; i++) {
+        const bx = tx + i * (tw + 10), by = ty;
+        if (sx >= bx && sx <= bx + tw && sy >= by && sy <= by + Math.round(cell * 1.6)) {
+          const t = cityTerminals[i];
+          if (t && !t.hacked) {
+            t.hacked = Math.random() < 0.4;
+            if (t.hacked) {
+              cityHacked++;
+              npcDialogue = t.rare ? 'rare terminal cracked! the city speaks.' : 'terminal hacked!';
+              npcDialogueUntil = Date.now() + 2500;
+              showToast(t.rare ? 'rare terminal!' : 'hacked!');
+              objSay('quest');
+              taskProgress['future_hackAny'] = (taskProgress['future_hackAny'] || 0) + 1;
+              taskProgress['future_hack'] = (taskProgress['future_hack'] || 0) + 1;
+              if (t.rare) taskProgress['future_rare'] = (taskProgress['future_rare'] || 0) + 1;
+            } else {
+              npcDialogue = 'access denied. try again.';
+              npcDialogueUntil = Date.now() + 2000;
+              taskProgress['future_hackAny'] = (taskProgress['future_hackAny'] || 0) + 1;
+            }
+            saveGame();
+            updateUI();
+            renderQuests();
+          }
+        }
+      }
+      if (sx > w*0.1 && sx < w*0.3 && sy > h*0.6 && sy < h*0.85) {
+        npcDialogue = 'Future Oracle: the city never sleeps. neither do i. hack on.';
+        npcDialogueUntil = Date.now() + 3000;
+      }
+    }
+  });
+}
+resize();updateUI();
 draw();
 requestAnimationFrame(loop);
   </script>
+<canvas id="sceneCanvas" width="800" height="480" style="display:none;position:fixed;inset:0;width:100%;height:100%;z-index:0;border:none;border-radius:0;pointer-events:auto"></canvas>
 </body>
 </html>
