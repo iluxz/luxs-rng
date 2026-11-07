@@ -2802,7 +2802,8 @@ function renderShop() {
     `;
     if (!owned && !maxed) {
       item.querySelector('button').addEventListener('click', () => {
-        if (!canBuy) {
+        const nowCanBuy = credits >= cost && !owned && !maxed;
+        if (!nowCanBuy) {
           shopkeeperSay(shopkeeperDeclines[Math.floor(Math.random() * shopkeeperDeclines.length)]);
           return;
         }
