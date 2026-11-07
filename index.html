@@ -1667,65 +1667,65 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 // bg music state
 let musicPlaying = true;
-const bgmAudio = new Audio('bgm.mp3');
+const bgmAudio = new Audio('https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/bgm.mp3');
 bgmAudio.loop = true;
 bgmAudio.volume = 0.25;
 // music per time period (swap files when provided)
 const periodMusic = { present: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/bgm.mp3', past: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/past_bgm.mp3', future: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/future_bgm.mp3' };
 const musicTracks = [
-  { name: 'Ancient Ruins Courtyard', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient%20Ruins%20Courtyard.mp3' },
-  { name: 'Ancient Ruins Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient%20Ruins%20Late%20Night.mp3' },
-  { name: 'Ancient Ruins Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient%20Ruins%20Night.mp3' },
-  { name: 'Ancient Ruins Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient%20Ruins%20Relaxed.mp3' },
-  { name: 'Ancient Ruins Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient%20Ruins%20Theme.mp3' },
-  { name: 'Desert Firestorm', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Desert%20Firestorm.mp3' },
-  { name: 'Desert Heating Up', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Desert%20Heating%20Up.mp3' },
-  { name: 'Dry Reef Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Dry%20Reef%20Late%20Night.mp3' },
-  { name: 'Dry Reef Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Dry%20Reef%20Night.mp3' },
-  { name: 'Dry Reef Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Dry%20Reef%20Relaxed.mp3' },
-  { name: 'Dry Reef Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Dry%20Reef%20Theme.mp3' },
-  { name: 'Glass Desert Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Glass%20Desert%20Night.mp3' },
-  { name: 'Glass Desert Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Glass%20Desert%20Relaxed.mp3' },
-  { name: 'Glass Desert Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Glass%20Desert%20Theme.mp3' },
-  { name: 'Indigo Quarry Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Indigo%20Quarry%20Late%20Night.mp3' },
-  { name: 'Indigo Quarry Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Indigo%20Quarry%20Night.mp3' },
-  { name: 'Indigo Quarry Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Indigo%20Quarry%20Relaxed.mp3' },
-  { name: 'Indigo Quarry Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Indigo%20Quarry%20Theme.mp3' },
-  { name: 'Less Awful Ravenous Rainbows', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Less%20Awful%20Ravenous%20Rainbows.mp3' },
-  { name: 'Let\'s Go, Beatrix!', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Let%27s%20Go%2C%20Beatrix%21.mp3' },
-  { name: 'Mochi\'s Manor Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Mochi%27s%20Manor%20Night.mp3' },
-  { name: 'Mochi\'s Manor Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Mochi%27s%20Manor%20Theme.mp3' },
-  { name: 'Moss Blanket Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Moss%20Blanket%20Late%20Night.mp3' },
-  { name: 'Moss Blanket Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Moss%20Blanket%20Night.mp3' },
-  { name: 'Moss Blanket Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Moss%20Blanket%20Relaxed.mp3' },
-  { name: 'Moss Blanket Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Moss%20Blanket%20Theme.mp3' },
-  { name: 'Nimble Valley Race', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Nimble%20Valley%20Race.mp3' },
-  { name: 'Nimble Valley Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Nimble%20Valley%20Theme.mp3' },
-  { name: 'Ogden\'s Retreat Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ogden%27s%20Retreat%20Night.mp3' },
-  { name: 'Ogden\'s Retreat Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ogden%27s%20Retreat%20Theme.mp3' },
-  { name: 'Party Gordo Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Party%20Gordo%20Theme.mp3' },
-  { name: 'Radio Elevator Shimmy', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Radio%20Elevator%20Shimmy.mp3' },
-  { name: 'Radio Good Morning', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Radio%20Good%20Morning.mp3' },
-  { name: 'Radio Jazzy', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Radio%20Jazzy.mp3' },
-  { name: 'Radio Romantic', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Radio%20Romantic.mp3' },
-  { name: 'Ranch Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ranch%20Late%20Night.mp3' },
-  { name: 'Ranch Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ranch%20Night.mp3' },
-  { name: 'Ranch Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ranch%20Theme.mp3' },
-  { name: 'Ranch Wistful', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ranch%20Wistful.mp3' },
-  { name: 'Shadows of Evil - Round changing music [Slowed, reverbed & extended] - Black Ops 3 Zombies', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Shadows%20of%20Evil%20-%20Round%20changing%20music%20%5BSlowed%2C%20reverbed%20%26%20extended%5D%20-%20Black%20Ops%203%20Zombies.mp3' },
-  { name: 'She\'s on Fire!', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/She%27s%20on%20Fire%21.mp3' },
-  { name: 'Slime Sea Moonlit Calm', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Slime%20Sea%20Moonlit%20Calm.mp3' },
-  { name: 'Slime Sea Sunlit Waves', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Slime%20Sea%20Sunlit%20Waves.mp3' },
-  { name: 'The Slimeulation Corruption (Bonus Track)', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The%20Slimeulation%20Corruption%20%28Bonus%20Track%29.mp3' },
-  { name: 'The Slimeulation Dry Reef', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The%20Slimeulation%20Dry%20Reef.mp3' },
-  { name: 'The Slimeulation Indigo Quarry', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The%20Slimeulation%20Indigo%20Quarry.mp3' },
-  { name: 'The Slimeulation Moss Blanket', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The%20Slimeulation%20Moss%20Blanket.mp3' },
-  { name: 'The Wilds Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The%20Wilds%20Night.mp3' },
-  { name: 'The Wilds Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The%20Wilds%20Theme.mp3' },
-  { name: 'Those Awful Ravenous Rainbows', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Those%20Awful%20Ravenous%20Rainbows.mp3' },
-  { name: 'Viktor\'s Workshop Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Viktor%27s%20Workshop%20Night.mp3' },
-  { name: 'Viktor\'s Workshop Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Viktor%27s%20Workshop%20Theme.mp3' },
-  { name: 'Wiggly Wonderland Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Wiggly%20Wonderland%20Theme.mp3' },
+  { name: 'Ancient Ruins Courtyard', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient.Ruins.Courtyard.mp3' },
+  { name: 'Ancient Ruins Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient.Ruins.Late.Night.mp3' },
+  { name: 'Ancient Ruins Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient.Ruins.Night.mp3' },
+  { name: 'Ancient Ruins Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient.Ruins.Relaxed.mp3' },
+  { name: 'Ancient Ruins Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ancient.Ruins.Theme.mp3' },
+  { name: 'Desert Firestorm', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Desert.Firestorm.mp3' },
+  { name: 'Desert Heating Up', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Desert.Heating.Up.mp3' },
+  { name: 'Dry Reef Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Dry.Reef.Late.Night.mp3' },
+  { name: 'Dry Reef Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Dry.Reef.Night.mp3' },
+  { name: 'Dry Reef Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Dry.Reef.Relaxed.mp3' },
+  { name: 'Dry Reef Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Dry.Reef.Theme.mp3' },
+  { name: 'Glass Desert Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Glass.Desert.Night.mp3' },
+  { name: 'Glass Desert Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Glass.Desert.Relaxed.mp3' },
+  { name: 'Glass Desert Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Glass.Desert.Theme.mp3' },
+  { name: 'Indigo Quarry Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Indigo.Quarry.Late.Night.mp3' },
+  { name: 'Indigo Quarry Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Indigo.Quarry.Night.mp3' },
+  { name: 'Indigo Quarry Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Indigo.Quarry.Relaxed.mp3' },
+  { name: 'Indigo Quarry Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Indigo.Quarry.Theme.mp3' },
+  { name: 'Less Awful Ravenous Rainbows', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Less.Awful.Ravenous.Rainbows.mp3' },
+  { name: 'Let\'s Go, Beatrix!', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Let.s.Go.Beatrix.mp3' },
+  { name: 'Mochi\'s Manor Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Mochi.s.Manor.Night.mp3' },
+  { name: 'Mochi\'s Manor Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Mochi.s.Manor.Theme.mp3' },
+  { name: 'Moss Blanket Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Moss.Blanket.Late.Night.mp3' },
+  { name: 'Moss Blanket Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Moss.Blanket.Night.mp3' },
+  { name: 'Moss Blanket Relaxed', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Moss.Blanket.Relaxed.mp3' },
+  { name: 'Moss Blanket Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Moss.Blanket.Theme.mp3' },
+  { name: 'Nimble Valley Race', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Nimble.Valley.Race.mp3' },
+  { name: 'Nimble Valley Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Nimble.Valley.Theme.mp3' },
+  { name: 'Ogden\'s Retreat Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ogden.s.Retreat.Night.mp3' },
+  { name: 'Ogden\'s Retreat Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ogden.s.Retreat.Theme.mp3' },
+  { name: 'Party Gordo Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Party.Gordo.Theme.mp3' },
+  { name: 'Radio Elevator Shimmy', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Radio.Elevator.Shimmy.mp3' },
+  { name: 'Radio Good Morning', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Radio.Good.Morning.mp3' },
+  { name: 'Radio Jazzy', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Radio.Jazzy.mp3' },
+  { name: 'Radio Romantic', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Radio.Romantic.mp3' },
+  { name: 'Ranch Late Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ranch.Late.Night.mp3' },
+  { name: 'Ranch Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ranch.Night.mp3' },
+  { name: 'Ranch Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ranch.Theme.mp3' },
+  { name: 'Ranch Wistful', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Ranch.Wistful.mp3' },
+  { name: 'Shadows of Evil - Round changing music [Slowed, reverbed & extended] - Black Ops 3 Zombies', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Shadows.of.Evil.-.Round.changing.music.Slowed.reverbed.extended.-.Black.Ops.3.Zombies.mp3' },
+  { name: 'She\'s on Fire!', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/She.s.on.Fire.mp3' },
+  { name: 'Slime Sea Moonlit Calm', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Slime.Sea.Moonlit.Calm.mp3' },
+  { name: 'Slime Sea Sunlit Waves', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Slime.Sea.Sunlit.Waves.mp3' },
+  { name: 'The Slimeulation Corruption (Bonus Track)', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The.Slimeulation.Corruption.Bonus.Track.mp3' },
+  { name: 'The Slimeulation Dry Reef', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The.Slimeulation.Dry.Reef.mp3' },
+  { name: 'The Slimeulation Indigo Quarry', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The.Slimeulation.Indigo.Quarry.mp3' },
+  { name: 'The Slimeulation Moss Blanket', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The.Slimeulation.Moss.Blanket.mp3' },
+  { name: 'The Wilds Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The.Wilds.Night.mp3' },
+  { name: 'The Wilds Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/The.Wilds.Theme.mp3' },
+  { name: 'Those Awful Ravenous Rainbows', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Those.Awful.Ravenous.Rainbows.mp3' },
+  { name: 'Viktor\'s Workshop Night', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Viktor.s.Workshop.Night.mp3' },
+  { name: 'Viktor\'s Workshop Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Viktor.s.Workshop.Theme.mp3' },
+  { name: 'Wiggly Wonderland Theme', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/Wiggly.Wonderland.Theme.mp3' },
   { name: 'badthings-01', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/badthings-01.mp3' },
   { name: 'badthings-02', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/badthings-02.mp3' },
   { name: 'badthings-03', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/badthings-03.mp3' },
@@ -1759,7 +1759,7 @@ function switchPeriodMusic(period) {
   currentMusicPeriod = period;
   const wasPlaying = musicPlaying;
   bgmAudio.pause();
-  bgmAudio.src = period === 'present' ? currentTrack : (periodMusic[period] || 'bgm.mp3');
+  bgmAudio.src = period === 'present' ? currentTrack : (periodMusic[period] || 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/bgm.mp3');
   bgmAudio.load();
   if (wasPlaying) bgmAudio.play().catch(() => {});
 }
@@ -5118,7 +5118,7 @@ function updateSettingsBtns() {
   if (sm) sm.textContent = 'MUSIC: ' + (musicPlaying ? 'ON' : 'OFF');
 }
 
-let currentTrack = localStorage.getItem('luxRngTrack') || 'bgm.mp3';
+let currentTrack = localStorage.getItem('luxRngTrack') || 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/bgm.mp3';
 function populateMusicDropdown() {
   const dd = document.getElementById('musicDropdown');
   if (!dd) return;
@@ -5157,7 +5157,7 @@ if (musicWrap) {
 
 // apply saved track on load
 (function applySavedTrack() {
-  if (currentTrack && currentTrack !== 'bgm.mp3') {
+  if (currentTrack && currentTrack !== 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/bgm.mp3') {
     bgmAudio.src = currentTrack;
     bgmAudio.load();
   }
