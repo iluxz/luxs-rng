@@ -649,6 +649,8 @@ const bestRollStat = document.getElementById('bestRollStat');
 const playtimeStat = document.getElementById('playtimeStat');
 const resetSaveBtn = document.getElementById('resetSaveBtn');
 const musicBtn = document.getElementById('musicBtn');
+const flashBtn = document.getElementById('flashBtn');
+let flashesEnabled = true;
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -699,6 +701,18 @@ musicBtn.addEventListener('click', () => {
   if (musicPlaying) stopMusic();
   else startMusic();
 });
+
+function updateFlashBtn() {
+  flashBtn.textContent = flashesEnabled ? 'FLASH ON' : 'FLASH OFF';
+  flashBtn.classList.toggle('active', !flashesEnabled);
+}
+flashBtn.addEventListener('click', () => {
+  flashesEnabled = !flashesEnabled;
+  updateFlashBtn();
+  saveGame();
+  showToast(flashesEnabled ? 'flashes on' : 'flashes off');
+});
+updateFlashBtn();
 
 const upgrades = [
   { id: 'auto', name: 'Auto Roll', desc: 'rolls automatically every 0.8s', cost: 50, type: 'unlock' },
@@ -1596,11 +1610,10 @@ function switchTimePeriod(period) {
 
   setTimeout(() => {
     // explosion
-    flash.style.opacity = 1;
+    if (flashesEnabled) { flash.style.opacity = 1; setTimeout(() => { flash.style.opacity = 0; }, 150); }
     shake = 30;
     chroma = 1;
     spawnParticles(200, currentRarity.color, currentRarity.glow);
-    setTimeout(() => { flash.style.opacity = 0; }, 150);
 
     timePeriod = timeTravelTarget;
     switchPeriodMusic(timePeriod);
@@ -1726,8 +1739,7 @@ function updatePeriodUI() {
 function triggerEffects(r) {
   shake = Math.max(shake, r.shake);
   chroma = Math.min(1, chroma + r.chroma);
-  flash.style.opacity = r.flash;
-  setTimeout(() => { flash.style.opacity = 0; }, 80);
+  if (flashesEnabled) { flash.style.opacity = r.flash; setTimeout(() => { flash.style.opacity = 0; }, 80); }
   spawnParticles(r.particles, r.color, r.glow);
 }
 
@@ -2530,6 +2542,8 @@ function prestige() {
   streakBonusMult = 1;
   streakBonusUntil = 0;
   autoSellThreshold = -1;
+  flashesEnabled = true;
+  updateFlashBtn();
   questClaimed = {};
   taskProgress = {};
   currentRarity = rarities[0];
@@ -3055,7 +3069,7 @@ const SAVE_VERSION = 3;
 function saveGame() {
   try {
     localStorage.setItem('luxRngSave', JSON.stringify({
-      saveVersion: SAVE_VERSION, inventory, pastInventory, futureInventory, mutatedInventory, baseLuck, rolls, credits, unlocked, shopCounts, autoRoll, achievementsUnlocked, bestRarityIndex, startTime, currentBiome, prestigePoints, prestigeCount, lifetimeRolls, lifetimeCredits, dailyChallengeDate, dailyChallengeProgress, ownedRarities, collectionRewardClaimed, pityCounter, rollStreak, autoSellThreshold, questClaimed, taskProgress
+      saveVersion: SAVE_VERSION, inventory, pastInventory, futureInventory, mutatedInventory, baseLuck, rolls, credits, unlocked, shopCounts, autoRoll, achievementsUnlocked, bestRarityIndex, startTime, currentBiome, prestigePoints, prestigeCount, lifetimeRolls, lifetimeCredits, dailyChallengeDate, dailyChallengeProgress, ownedRarities, collectionRewardClaimed, pityCounter, rollStreak, autoSellThreshold, questClaimed, taskProgress, flashesEnabled
     }, (key, value) => {
       // Infinity/NaN are not JSON-serializable; encode them as tagged strings.
       if (value === Infinity) return '__INF__';
@@ -3096,6 +3110,7 @@ function loadGame() {
     if (typeof data.pityCounter === 'number') pityCounter = data.pityCounter;
     if (typeof data.rollStreak === 'number') rollStreak = data.rollStreak;
     if (typeof data.autoSellThreshold === 'number') autoSellThreshold = data.autoSellThreshold;
+    if (typeof data.flashesEnabled === 'boolean') { flashesEnabled = data.flashesEnabled; updateFlashBtn(); }
     if (data.questClaimed) questClaimed = { ...questClaimed, ...data.questClaimed };
     if (data.taskProgress) taskProgress = { ...taskProgress, ...data.taskProgress };
     if (typeof data.prestigePoints === 'number') prestigePoints = data.prestigePoints;
@@ -3157,6 +3172,8 @@ function resetSave() {
   streakBonusMult = 1;
   streakBonusUntil = 0;
   autoSellThreshold = -1;
+  flashesEnabled = true;
+  updateFlashBtn();
   questClaimed = {};
   taskProgress = {};
   startTime = Date.now();
