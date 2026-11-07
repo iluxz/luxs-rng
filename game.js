@@ -3650,7 +3650,7 @@ function renderFuse() {
     }
     if (result) {
       if (forgeItems.length === 2) {
-        const r = getFuseResult(forgeItems[0], forgeItems[1], inv, rar);
+        const r = getFuseResult(forgeItems, inv, rar);
         result.textContent = r ? '-> ' + r : 'no recipe';
       } else {
         result.textContent = '';
@@ -3660,24 +3660,20 @@ function renderFuse() {
 
   if (combineBtn) {
     combineBtn.onclick = () => {
-      if (forgeItems.length !== 2) { showToast('need 2 items in forge'); return; }
-      const r = getFuseResult(forgeItems[0], forgeItems[1], inv, rar);
+      if (forgeItems.length < 2) { showToast('need 2+ items in forge'); return; }
+      const r = getFuseResult(forgeItems, inv, rar);
       if (!r) { showToast('no recipe for this combo'); return; }
-      const a = forgeItems[0], b = forgeItems[1];
-      // consume: if same item, need 2 copies; if different, 1 each
-      if (a === b) {
-        if ((inv[a] || 0) < 2) { showToast('need 2 ' + a); return; }
-        inv[a] -= 2;
-      } else {
-        if ((inv[a] || 0) < 1 || (inv[b] || 0) < 1) { showToast('missing items'); return; }
-        inv[a] -= 1; inv[b] -= 1;
-      }
-      // also handle 3-of-same via normal fuse (not 2-item)
+      const counts = {};
+      for (const it of forgeItems) counts[it] = (counts[it] || 0) + 1;
+      let ok = true;
+      for (const it in counts) { if ((inv[it] || 0) < counts[it]) { ok = false; break; } }
+      if (!ok) { showToast('missing items'); return; }
+      for (const it in counts) inv[it] -= counts[it];
       inv[r] = (inv[r] || 0) + 1;
       fusionCount++;
       setCurrentInventory(inv);
       playFusionSound();
-      showToast('fused ' + a + (a===b?' x2': ' + ' + b) + ' -> ' + r);
+      showToast('fused ' + forgeItems.join(' + ') + ' -> ' + r);
       forgeItems = [];
       renderForgeSlots();
       updateUI();
@@ -3746,28 +3742,51 @@ function renderFuse() {
 }
 
 // cross-rarity recipe table
+function isCraftable(name) {
+  const rar = getCurrentRarities();
+  const li = rar.findIndex(r => r.name === 'Legendary');
+  const idx = rar.findIndex(r => r.name === name);
+  if (li < 0 || idx < 0) return true;
+  return idx >= li;
+}
 const crossRecipes = [
-  // {a, b, result}
+  { items: ['Frosted', 'Epic', 'Celestial'], result: 'Legendary' },
+  { items: ['Quantum', 'Ethereal'], result: 'Infinity' },
+  { items: ['Cosmic', 'Nebula'], result: 'Multiverse' },
+  { items: ['Dust (R)', 'Tabula'], result: '???' },
+  { items: ['Mystic', 'Divine'], result: 'Nebula' },
+  { items: ['Radiant', 'Ethereal'], result: 'Transcendent' },
+  { items: ['Abyss', 'Eternal'], result: 'Quantum' },
 ];
 
-function getFuseResult(a, b, inv, rar) {
-  if (a === b) {
+function getFuseResult(items, inv, rar) {
+  // check cross-rarity recipes first (exact match, any rarity allowed)
+  for (const rec of crossRecipes) {
+    if (rec.items.length !== items.length) continue;
+    const sorted = items.slice().sort();
+    const recSorted = rec.items.slice().sort();
+    if (sorted.every((v, i) => v === recSorted[i])) return rec.result;
+  }
+  // 2-of-same -> next tier (or special)
+  if (items.length === 2 && items[0] === items[1]) {
+    const a = items[0];
+    if (!isCraftable(a)) return null;
     const r = rar.find(x => x.name === a);
     const idx = r ? rar.indexOf(r) : -1;
     if (idx >= 0 && idx < rar.length - 1) {
-      // special recipes
       if (a === 'Tabula') return 'Core';
       if (a === 'Core') return 'Nexus';
       const craftR = rar.find(x => x.craftOnly && rar.indexOf(x) > 0 && rar[rar.indexOf(x)-1].name === a);
       if (craftR) return craftR.name;
-      // default: 2 of same -> next tier (for all rarities)
       return rar[idx + 1].name;
     }
-    return null;
   }
-  // cross-rarity recipes
-  for (const rec of crossRecipes) {
-    if ((rec.a === a && rec.b === b) || (rec.a === b && rec.b === a)) return rec.result;
+  // 3-of-same -> next tier
+  if (items.length === 3 && items[0] === items[1] && items[1] === items[2]) {
+    const a = items[0];
+    const r = rar.find(x => x.name === a);
+    const idx = r ? rar.indexOf(r) : -1;
+    if (idx >= 0 && idx < rar.length - 1) return rar[idx + 1].name;
   }
   return null;
 }
