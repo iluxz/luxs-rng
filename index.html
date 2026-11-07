@@ -2249,6 +2249,7 @@ function triggerRoll(count = 1) {
   // determine result immediately but delay reveal
   let best = null;
   const results = [];
+  const appliedNames = [];
   for (let i = 0; i < count; i++) {
     let r;
     if (Math.random() < breakthroughChance && timePeriod !== 'present') {
@@ -2294,20 +2295,34 @@ function triggerRoll(count = 1) {
     const isMutated = Math.random() < effMutationChance;
     const bt = r.breakthrough;
     const rIdx = rar.indexOf(r) >= 0 ? rar.indexOf(r) : rar.findIndex(x => x.name === r.name);
+    let applied = false;
     if (autoSellThreshold >= 0 && rIdx >= 0 && rIdx < autoSellThreshold) {
       credits += sellPrice(r);
       showToast('auto-sold ' + r.name);
+      applied = 'sold';
     } else if (isMutated) {
       const mutName = r.name + ' (M)';
       mutatedInventory[mutName] = (mutatedInventory[mutName] || 0) + 1;
+      applied = mutName;
     } else if (bt) {
       const btName = r.name + ' (BT)';
       inv[btName] = (inv[btName] || 0) + 1;
+      applied = btName;
     } else {
       inv[r.name] = (inv[r.name] || 0) + 1;
+      applied = r.name;
     }
+    appliedNames.push({ name: r.name, applied });
     rolls++;
     credits += 1 + getShopBonus().credits + Math.floor(Math.log10(r.luck + 10) * 0.5) + (shopCounts.creditsBracelet || 0) * Math.floor(Math.log10(r.luck + 10) * 2);
+  }
+  // guard: ensure every rolled rarity that was supposed to be kept is actually in inventory
+  for (const entry of appliedNames) {
+    if (entry.applied === 'sold') continue;
+    if ((inv[entry.applied] || 0) <= 0) {
+      inv[entry.applied] = (inv[entry.applied] || 0) + 1;
+      showToast('recovered ' + entry.applied);
+    }
   }
   setCurrentInventory(inv);
 
