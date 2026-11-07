@@ -2936,7 +2936,6 @@ function prestige() {
   streakBonusMult = 1;
   streakBonusUntil = 0;
   autoSellThreshold = -1;
-  flashesEnabled = true;
   updateFlashBtn();
   qMarkOdds = 1.6e17;
   qMarkRollCounter = 0;
@@ -2995,7 +2994,6 @@ function transcend() {
   streakBonusMult = 1;
   streakBonusUntil = 0;
   autoSellThreshold = -1;
-  flashesEnabled = true;
   updateFlashBtn();
   qMarkOdds = 1.6e17;
   qMarkRollCounter = 0;
@@ -4168,17 +4166,6 @@ if (musicWrap) {
   }
 })();
 settingsBtn.addEventListener('click', () => { updateSettingsBtns(); openModal(settingsModal); });
-document.getElementById('settingsFlashBtn').addEventListener('click', () => {
-  flashesEnabled = !flashesEnabled;
-  updateFlashBtn();
-  updateSettingsBtns();
-  saveGame();
-  showToast(flashesEnabled ? 'flashes on' : 'flashes off');
-});
-document.getElementById('settingsMusicBtn').addEventListener('click', () => {
-  if (musicPlaying) stopMusic(); else startMusic();
-  updateSettingsBtns();
-});
 document.getElementById('settingsEventsBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(eventsModal); renderEvents(); });
 document.getElementById('settingsClose').addEventListener('click', () => closeModal(settingsModal));
 
