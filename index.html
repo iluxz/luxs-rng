@@ -2293,7 +2293,8 @@ function triggerRoll(count = 1) {
   for (const r of results) {
     const isMutated = Math.random() < effMutationChance;
     const bt = r.breakthrough;
-    if (autoSellThreshold >= 0 && rar.indexOf(r) < autoSellThreshold) {
+    const rIdx = rar.indexOf(r) >= 0 ? rar.indexOf(r) : rar.findIndex(x => x.name === r.name);
+    if (autoSellThreshold >= 0 && rIdx >= 0 && rIdx < autoSellThreshold) {
       credits += sellPrice(r);
     } else if (isMutated) {
       const mutName = r.name + ' (M)';
