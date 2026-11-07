@@ -2249,7 +2249,6 @@ function triggerRoll(count = 1) {
   // determine result immediately but delay reveal
   let best = null;
   const results = [];
-  const appliedNames = [];
   for (let i = 0; i < count; i++) {
     let r;
     if (Math.random() < breakthroughChance && timePeriod !== 'present') {
@@ -2291,36 +2290,43 @@ function triggerRoll(count = 1) {
 
   // apply inventory/luck/credits + mutations + breakthroughs
   const effMutationChance = Math.min(0.5, MUTATION_CHANCE + getShopBonus().mutationChance);
+  const appliedNames = [];
   for (const r of results) {
     const isMutated = Math.random() < effMutationChance;
     const bt = r.breakthrough;
     const rIdx = rar.indexOf(r) >= 0 ? rar.indexOf(r) : rar.findIndex(x => x.name === r.name);
     let applied = false;
+    let beforeCount = 0;
     if (autoSellThreshold >= 0 && rIdx >= 0 && rIdx < autoSellThreshold) {
       credits += sellPrice(r);
       showToast('auto-sold ' + r.name);
       applied = 'sold';
     } else if (isMutated) {
       const mutName = r.name + ' (M)';
+      beforeCount = mutatedInventory[mutName] || 0;
       mutatedInventory[mutName] = (mutatedInventory[mutName] || 0) + 1;
       applied = mutName;
     } else if (bt) {
       const btName = r.name + ' (BT)';
+      beforeCount = inv[btName] || 0;
       inv[btName] = (inv[btName] || 0) + 1;
       applied = btName;
     } else {
+      beforeCount = inv[r.name] || 0;
       inv[r.name] = (inv[r.name] || 0) + 1;
       applied = r.name;
     }
-    appliedNames.push({ name: r.name, applied });
+    appliedNames.push({ name: r.name, applied, beforeCount, mutated: isMutated });
     rolls++;
     credits += 1 + getShopBonus().credits + Math.floor(Math.log10(r.luck + 10) * 0.5) + (shopCounts.creditsBracelet || 0) * Math.floor(Math.log10(r.luck + 10) * 2);
   }
-  // guard: ensure every rolled rarity that was supposed to be kept is actually in inventory
+  // guard: ensure every rolled rarity that was supposed to be kept actually incremented
   for (const entry of appliedNames) {
     if (entry.applied === 'sold') continue;
-    if ((inv[entry.applied] || 0) <= 0) {
-      inv[entry.applied] = (inv[entry.applied] || 0) + 1;
+    const store = entry.mutated ? mutatedInventory : inv;
+    const afterCount = store[entry.applied] || 0;
+    if (afterCount <= entry.beforeCount) {
+      store[entry.applied] = (store[entry.applied] || 0) + 1;
       showToast('recovered ' + entry.applied);
     }
   }
