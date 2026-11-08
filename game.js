@@ -1756,8 +1756,10 @@ function triggerRoll(count = 1) {
   // pity: guaranteed +1 tier if no new best for a while
   if (pityCounter >= PITY_THRESHOLD) {
     const rar0 = getCurrentRarities();
-    const bumpIdx = Math.min(bestRarityIndex + 1, rar0.length - 1);
-    if (bumpIdx > bestRarityIndex) {
+    let bumpIdx = Math.min(bestRarityIndex + 1, rar0.length - 1);
+    // skip craft-only rarities (they can't be rolled)
+    while (bumpIdx < rar0.length && rar0[bumpIdx] && rar0[bumpIdx].craftOnly) bumpIdx++;
+    if (bumpIdx > bestRarityIndex && bumpIdx < rar0.length) {
       best = rar0[bumpIdx];
       // pity grants the rarity for real: add it to inventory too
       const invNow = getCurrentInventory();
@@ -1778,7 +1780,7 @@ function triggerRoll(count = 1) {
     if (rollHistory.length > 20) rollHistory.pop();
     const rh = document.getElementById('rollHistory');
     if (rh) rh.innerHTML = rollHistory.map(n => '<div>' + n + '</div>').join('');
-    const isNewBest = idx > bestRarityIndex;
+    const isNewBest = idx > bestRarityIndex && !(best && best.craftOnly);
     if (isNewBest) {
       bestRarityIndex = idx;
       if (autoEquipBest) {
