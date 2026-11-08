@@ -290,7 +290,7 @@ function hexToRGB(hex) {
   return res;
 }
 
-function drawGLCube(color, glow, t, extraGlow) {
+function drawGLCube(color, glow, t, extraGlow, mutated) {
   if (!gl || !glProgram || !glBuffers) return;
 
   const w = glCanvas.width;
@@ -332,8 +332,9 @@ function drawGLCube(color, glow, t, extraGlow) {
   gl.drawElements(gl.TRIANGLES, glBuffers.vertexCount, gl.UNSIGNED_SHORT, 0);
 
   // inner core: smaller, counter-rotating, glows with the rarity colour
-  const coreTilt = mat4Multiply(mat4RotationY(-cubeRot * 1.8), mat4RotationX(0.55 + Math.sin(t * 0.7) * 0.12));
-  const coreMV = mat4Multiply(view, mat4Multiply(coreTilt, mat4Scale(0.52, 0.52, 0.52)));
+  const coreScale = mutated ? 0.62 : 0.52;
+  const coreTilt = mat4Multiply(mat4RotationY(-cubeRot * (mutated ? 2.4 : 1.8)), mat4RotationX(0.55 + Math.sin(t * 0.7) * 0.12));
+  const coreMV = mat4Multiply(view, mat4Multiply(coreTilt, mat4Scale(coreScale, coreScale, coreScale)));
   gl.uniformMatrix4fv(glUniforms.uModelView, false, coreMV);
   gl.uniform3fv(glUniforms.uColor, glowRGB);
   gl.uniform3fv(glUniforms.uGlow, colorRGB);
@@ -2452,20 +2453,78 @@ function draw() {
   }
   const col = getRarityColor(displayRarity, t);
   const glow = getRarityGlow(displayRarity, t);
+  const isMutated = (mutatedInventory[currentRarity.name + ' (M)'] || 0) > 0;
   drawBackground(w, h, t, col, glow);
-  drawGLCube(col, glow, t, rollGlow);
-  // mutated ring: if current rarity has a mutated version, draw a ring
+  drawGLCube(col, glow, t, rollGlow, isMutated);
+  // mutated ring(s): if current rarity has a mutated version, draw rings
   if (mutatedInventory[currentRarity.name + ' (M)'] > 0) {
     const cx = w / 2, cy = h / 2;
-    const r = Math.min(w, h) * 0.32;
     ctx.save();
-    ctx.strokeStyle = rgbaOf('#ff00ff', 0.6);
-    ctx.lineWidth = 2;
+    const r1 = Math.min(w, h) * 0.34;
+    ctx.strokeStyle = rgbaOf('#ff00ff', 0.7);
+    ctx.lineWidth = 3;
     ctx.shadowColor = '#ff00ff';
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 20;
     ctx.beginPath();
-    ctx.ellipse(cx, cy, r, r * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy, r1, r1 * 0.3, 0, 0, Math.PI * 2);
     ctx.stroke();
+    const r2 = Math.min(w, h) * 0.27;
+    ctx.strokeStyle = rgbaOf('#00ffff', 0.55);
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r2, r2 * 0.3, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // RNG dice pips: when RNG is equipped, draw pips on the cube faces
+  if (equippedRarity === 'RNG') {
+    const aspect = w / h;
+    const proj = mat4Perspective(Math.PI / 4, aspect, 0.1, 100);
+    const view = mat4Translate(0, 0, -8);
+    const rotX = mat4RotationX(-0.35 + cubeRotX);
+    const rotY = mat4RotationY(cubeRot);
+    const tilt = mat4Multiply(rotY, rotX);
+    const faces = [
+      { n: [1,0,0], c: [0.5,0,0] },
+      { n: [-1,0,0], c: [-0.5,0,0] },
+      { n: [0,1,0], c: [0,0.5,0] },
+      { n: [0,-1,0], c: [0,-0.5,0] },
+      { n: [0,0,1], c: [0,0,0.5] },
+      { n: [0,0,-1], c: [0,0,-0.5] },
+    ];
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 8;
+    for (const f of faces) {
+      // face normal in view space (rotation only)
+      const nx = f.n[0]*tilt[0] + f.n[1]*tilt[4] + f.n[2]*tilt[8];
+      const ny = f.n[0]*tilt[1] + f.n[1]*tilt[5] + f.n[2]*tilt[9];
+      const nz = f.n[0]*tilt[2] + f.n[1]*tilt[6] + f.n[2]*tilt[10];
+      if (nz >= -0.1) continue; // face pointing away
+      const cx = f.c[0], cy = f.c[1], cz = f.c[2];
+      const tx = cx*tilt[0] + cy*tilt[4] + cz*tilt[8];
+      const ty = cx*tilt[1] + cy*tilt[5] + cz*tilt[9];
+      const tz = cx*tilt[2] + cy*tilt[6] + cz*tilt[10];
+      const vx = tx*view[0] + ty*view[4] + tz*view[8] + view[12];
+      const vy = tx*view[1] + ty*view[5] + tz*view[9] + view[13];
+      const vz = tx*view[2] + ty*view[6] + tz*view[10] + view[14];
+      const vw = tx*view[3] + ty*view[7] + tz*view[11] + view[15];
+      const px = vx*proj[0] + vy*proj[4] + vz*proj[8] + vw*proj[12];
+      const py = vx*proj[1] + vy*proj[5] + vz*proj[9] + vw*proj[13];
+      const pw = vx*proj[3] + vy*proj[7] + vz*proj[11] + vw*proj[15];
+      if (Math.abs(pw) < 0.0001) continue;
+      const ndcX = px / pw;
+      const ndcY = py / pw;
+      const sx = (ndcX + 1) * 0.5 * w;
+      const sy = (1 - ndcY) * 0.5 * h;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -2633,7 +2692,16 @@ function renderInventory() {
     const iconEl = document.createElement('div');
     iconEl.className = 'icon';
     const col = r ? (r.color === 'rainbow' ? '#fff' : r.color === 'prism' ? '#fff' : r.color) : '#888';
-    iconEl.style.background = r ? (r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color2 ? 'linear-gradient(135deg,' + r.color + ',' + r.color2 + ')' : r.color) : '#444';
+    if (r && r.name === 'RNG') {
+      iconEl.textContent = '\u{1F3B2}';
+      iconEl.style.background = 'transparent';
+      iconEl.style.fontSize = '18px';
+      iconEl.style.display = 'flex';
+      iconEl.style.alignItems = 'center';
+      iconEl.style.justifyContent = 'center';
+    } else {
+      iconEl.style.background = r ? (r.color === 'rainbow' ? 'linear-gradient(45deg,#f0a,#0ff,#8f0)' : r.color === 'prism' ? 'conic-gradient(#f0a,#0ff,#8f0,#f0a)' : r.color2 ? 'linear-gradient(135deg,' + r.color + ',' + r.color2 + ')' : r.color) : '#444';
+    }
     iconEl.style.color = col;
     topRow.appendChild(iconEl);
     const infoEl = document.createElement('div');
