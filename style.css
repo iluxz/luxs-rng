@@ -697,3 +697,71 @@ button.locked::after {
   color: #fff;
   text-shadow: 0 0 10px #ff0, 0 0 20px #f80;
 }
+.mini-cube-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(102px, 1fr));
+  gap: 10px;
+  max-height: 58vh;
+  overflow-y: auto;
+  padding: 4px 6px 14px;
+}
+.mini-rarity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 6px 9px;
+  border: 1px solid rgba(43, 208, 208, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.mini-cube {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  margin: 4px 0 2px;
+  transform-style: preserve-3d;
+  animation: miniCubeSpin 9s linear infinite;
+}
+.mini-cube i {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background: var(--cube-bg);
+  --face-bright: 1;
+  box-shadow: 0 0 16px var(--cube-glow), inset 0 0 10px rgba(255, 255, 255, 0.22);
+}
+.mini-cube i:nth-child(1) { --face-bright: 1; transform: translateZ(22px); }
+.mini-cube i:nth-child(2) { --face-bright: 0.72; transform: rotateY(90deg) translateZ(22px); }
+.mini-cube i:nth-child(3) { --face-bright: 1.28; transform: rotateX(90deg) translateZ(22px); }
+.mini-cube i:nth-child(4) { --face-bright: 0.6; transform: rotateY(180deg) translateZ(22px); }
+.mini-cube i:nth-child(5) { --face-bright: 0.55; transform: rotateY(-90deg) translateZ(22px); }
+.mini-cube i:nth-child(6) { --face-bright: 0.9; transform: rotateX(-90deg) translateZ(22px); }
+.mini-cube.rainbow i { animation: rainbowHue 3s linear infinite; }
+.mini-cube.prism i { animation: prismHue 1.5s linear infinite; }
+@keyframes rainbowHue { from { filter: hue-rotate(0deg) brightness(var(--face-bright)); } to { filter: hue-rotate(360deg) brightness(var(--face-bright)); } }
+@keyframes prismHue { from { filter: hue-rotate(0deg) brightness(var(--face-bright)); } to { filter: hue-rotate(360deg) brightness(var(--face-bright)); } }
+.mini-cube-name {
+  font-size: 10px;
+  font-family: Georgia, serif;
+  letter-spacing: 1px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-cube-odds {
+  font-size: 9px;
+  color: var(--muted);
+}
+.mini-cube-tag {
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 210, 74, 0.45);
+  color: #ffd24a;
+}
+@keyframes miniCubeSpin {
+  from { transform: rotateX(-22deg) rotateY(-32deg); }
+  to { transform: rotateX(-22deg) rotateY(328deg); }
+}

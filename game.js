@@ -41,23 +41,23 @@ function initGL() {
       vec3 n = normalize(vNormal);
       vec3 lightDir = normalize(vec3(0.5, 1.0, 0.8));
       float diff = max(dot(n, lightDir), 0.0);
-      float ambient = 0.3;
-      vec3 color = uColor * (ambient + diff * 0.7);
+      float ambient = 0.4;
+      vec3 color = uColor * (ambient + diff * 0.6);
       // fresnel rim
       vec3 viewDir = normalize(-vPosition);
       float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 3.0);
-      color += uGlow * fresnel * (0.5 + uExtraGlow * 1.5);
+      color += uGlow * fresnel * (0.6 + uExtraGlow * 1.8);
       // sharp specular highlight for a glassy surface
       vec3 halfDir = normalize(lightDir + viewDir);
-      float spec = pow(max(dot(n, halfDir), 0.0), 48.0);
-      color += uGlow * spec * 0.55;
+      float spec = pow(max(dot(n, halfDir), 0.0), 36.0);
+      color += uGlow * spec * 0.6;
       // emissive pulse
-      color += uColor * (0.1 + 0.05 * sin(uTime * 4.0));
+      color += uColor * (0.15 + 0.08 * sin(uTime * 4.0));
       // slow light sweep across the faces
       float sweep = sin(vPosition.y * 2.2 - uTime * 1.4) * 0.5 + 0.5;
-      color += uGlow * sweep * (0.035 + uExtraGlow * 0.12);
+      color += uGlow * sweep * (0.05 + uExtraGlow * 0.15);
       // extra glow during deceleration
-      color += uGlow * uExtraGlow * 0.8;
+      color += uGlow * uExtraGlow * 1.0;
       gl_FragColor = vec4(color, uAlpha);
     }
   `;
@@ -674,7 +674,6 @@ async function submitScore() {
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-const bestRollStat = document.getElementById('bestRollStat');
 const playtimeStat = document.getElementById('playtimeStat');
 const resetSaveBtn = document.getElementById('resetSaveBtn');
 const musicBtn = document.getElementById('musicBtn');
@@ -838,7 +837,7 @@ const upgrades = [
   { id: 'autoSpeed', name: 'Auto Speed', desc: 'auto roll 10% faster (stacks multiplicatively)', cost: 4000, type: 'stack', effect: { autoSpeed: 0.10 }, max: 10 },
   { id: 'mutationCharm', name: 'Mutation Charm', desc: '+15% mutation chance', cost: 7500, type: 'stack', effect: { mutationChance: 0.015 }, max: 5 },
   { id: 'dustRemover', name: 'Dust Remover', desc: 'removes Dust from the roll pool', cost: 25000, type: 'unlock' },
-  { id: 'dustReactor', name: 'Dust Reactor', desc: 'consume 5 dust for +20 permanent luck (stacks)', cost: 5000, type: 'stack', effect: { luck: 20 }, max: 20, dustCost: 5 },
+  { id: 'dustReactor', name: 'Dust Reactor', desc: 'consume any 5 dust (any type) for +20 permanent luck (stacks)', cost: 5000, type: 'stack', effect: { luck: 20 }, max: 20, dustCost: 5 },
   { id: 'luckAmplifier', name: 'Luck Amplifier', desc: 'exponentially more luck each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 2.5, baseLuck: 1, luckMult: 10, max: 30 },
   { id: 'creditsAmplifier', name: 'Credits Amplifier', desc: 'exponentially more credits each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 3, baseCredits: 1, creditsMult: 10, max: 20 },
   { id: 'timeMachine', name: 'Time Machine', desc: 'travel to past and future', cost: 50000, type: 'unlock' },
@@ -939,6 +938,7 @@ const achievements = [
 ];
 
 const changelog = [
+  { version: 'v0.86', note: 'feedback pass: rarity showcase reworked into a full aura grid (every rarity on a spinning cube); achievements now say craft for craft-only rarities; best roll replaced with VIEW STATS in the update log; craft-only rarities no longer leak via roll fallbacks or pity; sell prices restored (10x luck, scaled by rebirth/transcend) with a late-game floor; dust reactor accepts any dust type; forging a recipe-less combo now crumbles into 1 dust; card battle playable past the first card and after a loss; forge accepts 2-5 items; recipe book now lists only craftable combos; recipes expanded and cleaned up' },
   { version: 'v0.85', note: 'leaderboard worker fix: retry fetch/submit with backoff, offline fallback' },
   { version: 'v0.8', note: 'massive update: aura fusion (combine 3 of same aura into next tier, plus 2-tabula->core and craft-only chain core->nexus->alpha->genesis->creation->eternia->omnipotence); transcendence system (permanent +50% luck per transcendence, requires 3+ rebirths); events system (daily-rotating events with bonuses: void week, fusion fest, streak surge, dust blessing, cosmic storm, prestige rush); settings menu (decluttered topbar, flash/music/auto-fuse/auto-equip toggles, save slots, stats, import/export); mobile responsive layout; flash toggle; ??? dynamic rarity (odds change every 20 rolls between 1/160qd and 1/646qd, censored name, ?!? upgrade reveals odds and +10 roll interval); equip rarity system; corruption mode (cubeful harmony: black screen, smeared game graphics, fearful harmony audio, progressive distortion, seeded by clipboard content); checksum guard (anti-tamper: modified saves trigger corruption); dust economy rework (under-epic sells for 1.5, dust sells for 1, dust (R) after 1T luck sells for higher, dust reactor consumes dust for luck, refund system); rarity sets (rainbow/prism/top tier) with luck rewards; auto-fuse; roll history panel; keyboard shortcuts (space=roll, S=shop, A=auto, esc=close); tooltips on rarity rows; 3 new biomes (lucky, greedy, frenzy); 12 new daily challenges; sound effects (fusion chime, transcendence fanfare); save slots (3); rarity evolution (5 of same -> evolved (E) +10% luck); daily login bonus; prestige milestones (5/10/25 rebirths); rarity showcase modal; sell price rebalanced (power-scaled); more rarities above core (nexus, singularity, apex, zenith, omega, alpha, xenogenesis, creation, eternia, omnipotence); luck cap extended to 10Sx; luck upgrades extended (max 50/25/15/40); admin infinite credits; cosmic moved to 1/150qd; extra aura for top rarities; prestige credits boost + shop discount; ??? glaze' },
   { version: 'v0.7', note: 'removed quick roll, added shopkeeper dialogue, prestige/rebirth, daily challenges, more shop upgrades (x10, x100, auto speed, mutation charm), enhanced cube visuals, offline leaderboard, bug fixes; shop menu now scrolls, luck cap extended to 1T with Infinity via admin, removed common Null, gradients for top rarities, new rarities (Google, Perplexity, The Box, Jbo, Sigma, Tophat, Tabula), draggable cube background, obj nod inside the cube, obj now speaks, achievement luck economy rebalanced; biome change timer + biome-based ui colors; luck cap raised to 1Qn, rarity odds made monotonic so Tabula is rarest and reachable; freeze fixed, perf fixes (merged rAF, particle cap, hex cache); luck amplifier + credits amplifier exp upgrades; credits bracelet amplified with rarity scaling; pity system, streak counter with temp luck boosts, jackpot celebration on Tabula, auto-sell + manual sell, collection tracker with completion reward; time machine reworked into quest zones: past = desert with card battles, future = city with card battles, NPCs, themed backgrounds, no cube/rarities/inventory in those periods' },
@@ -1469,7 +1469,7 @@ for (let i = lateStart; i < rarities.length; i++) {
   achievements.push({
     id: 'reach_' + i,
     name: r.name,
-    desc: 'roll a ' + r.name + ' cube',
+    desc: (r.craftOnly ? 'craft a ' : 'roll a ') + r.name + ' cube',
     check: () => bestRarityIndex >= i,
     reward: { luck: 1e9 * Math.pow(300, p) }
   });
@@ -1523,11 +1523,12 @@ function getShopBonus() {
 function sellPrice(r) {
   if (r.name === 'Dust') return 1;
   if (r.name === 'Dust (R)') { const lk = getTotals(); const fl = Number.isFinite(lk) ? lk : LUCK_CAP; return Math.max(2, Math.floor(Math.log10(fl + 10) * 50)); }
-  const rar = getCurrentRarities();
-  const epicIdx = rar.findIndex(x => x.name === 'Epic');
-  const idx = rar.findIndex(x => x.name === r.name);
-  if (epicIdx >= 0 && idx >= 0 && idx < epicIdx) return 1.5;
-  return Math.max(1, Math.floor(Math.pow((r.luck || 1) + 1, 0.2) * 10));
+  // old prices back: 10x the rarity's luck value, boosted by rebirth/transcend
+  const base = Math.max(1, Math.floor((r.luck || 1) * 10));
+  const cycleBoost = (1 + prestigeCount * 0.5) * (1 + transcendenceCount * 2);
+  // late-game floor so a reset never makes rare cubes worthless
+  const floor = Math.max(1, Math.floor(Math.pow(10, Math.min(prestigeCount, 5)) * (1 + transcendenceCount * 10)));
+  return Math.max(1, Math.floor(base * cycleBoost), floor);
 }
 
 function getCurrentRarities() {
@@ -1612,6 +1613,18 @@ function getProbabilitiesForRarities(rarList) {
   return weights.map(w => w / total);
 }
 
+function rollableFallback(rarList) {
+  for (let i = rarList.length - 1; i >= 0; i--) {
+    const r = rarList[i];
+    if (!r) continue;
+    if (r.craftOnly) continue;
+    if (r.name === 'RNG' && !rngUnlocked) continue;
+    if (unlocked.dustRemover && r.name === 'Dust') continue;
+    return r;
+  }
+  return rarList[0];
+}
+
 function rollOne() {
   const probs = getProbabilities();
   const x = Math.random();
@@ -1621,7 +1634,7 @@ function rollOne() {
     cum += probs[i];
     if (x <= cum) return rar[i];
   }
-  return rar[rar.length - 1];
+  return rollableFallback(rar);
 }
 
 function triggerRoll(count = 1) {
@@ -1662,7 +1675,7 @@ function triggerRoll(count = 1) {
         cum += presentProbs[j];
         if (x <= cum) { r = rarities[j]; break; }
       }
-      if (!r) r = rarities[rarities.length - 1];
+      if (!r) r = rollableFallback(rarities);
       // mark as breakthrough
       r = { ...r, breakthrough: true };
     } else if (Math.random() < breakthroughChance && timePeriod === 'present') {
@@ -1679,7 +1692,7 @@ function triggerRoll(count = 1) {
           cum += otherProbs[j];
           if (x <= cum) { r = otherRarities[j]; break; }
         }
-        if (!r) r = otherRarities[otherRarities.length - 1];
+        if (!r) r = rollableFallback(otherRarities);
         r = { ...r, breakthrough: true };
       }
     } else {
@@ -1759,7 +1772,7 @@ function triggerRoll(count = 1) {
     const rar0 = getCurrentRarities();
     let bumpIdx = Math.min(bestRarityIndex + 1, rar0.length - 1);
     // skip craft-only rarities (they can't be rolled)
-    while (bumpIdx < rar0.length && rar0[bumpIdx] && rar0[bumpIdx].craftOnly) bumpIdx++;
+    while (bumpIdx < rar0.length && rar0[bumpIdx] && (rar0[bumpIdx].craftOnly || (rar0[bumpIdx].name === 'RNG' && !rngUnlocked))) bumpIdx++;
     if (bumpIdx > bestRarityIndex && bumpIdx < rar0.length) {
       best = rar0[bumpIdx];
       // pity grants the rarity for real: add it to inventory too
@@ -2623,10 +2636,6 @@ function updateUI() {
   lastRollEl.innerHTML = `last roll: <strong style="color:${currentRarity.color === 'rainbow' ? '#fff' : currentRarity.color === 'prism' ? '#fff' : currentRarity.color}">${currentRarity.name}</strong>`;
   updatePrestigeUI();
 
-  const rar = getCurrentRarities();
-  const clampedIdx = Math.min(bestRarityIndex, Math.max(0, rar.length - 1));
-  const best = rar[clampedIdx] || rar[0] || { name: '-', color: '#888' };
-  bestRollStat.innerHTML = `<span style="color:${best.color === 'rainbow' ? '#fff' : best.color === 'prism' ? '#fff' : best.color}">${best.name}</span>`;
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   const pt = elapsed < 60 ? elapsed + 's' : elapsed < 3600 ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's' : Math.floor(elapsed / 3600) + 'h ' + Math.floor((elapsed % 3600) / 60) + 'm';
   playtimeStat.textContent = pt;
@@ -2894,6 +2903,28 @@ function closeShop() {
   shopModal.classList.remove('open');
 }
 
+function isDustKey(k) {
+  return /^Dust(?: \((?:R|M|BT|E)\))?$/.test(k);
+}
+
+function consumeDust(amount) {
+  const inv = getCurrentInventory();
+  let need = amount;
+  for (const store of [inv, mutatedInventory]) {
+    const keys = Object.keys(store).filter(k => isDustKey(k) && store[k] > 0);
+    keys.sort((a, b) => (a === 'Dust' ? -1 : b === 'Dust' ? 1 : 0));
+    for (const k of keys) {
+      if (need <= 0) break;
+      const take = Math.min(need, store[k]);
+      store[k] -= take;
+      need -= take;
+    }
+  }
+  if (need > 0) return false;
+  setCurrentInventory(inv);
+  return true;
+}
+
 function buyUpgrade(id) {
   const up = upgrades.find(u => u.id === id);
   if (up.type === 'unlock') {
@@ -2921,10 +2952,7 @@ function buyUpgrade(id) {
     const cost = shopCost(up, count);
     if (count >= up.max || credits < cost) return false;
     if (up.dustCost) {
-      const inv = getCurrentInventory();
-      if ((inv['Dust'] || 0) < up.dustCost) { showToast('need ' + up.dustCost + ' dust'); return false; }
-      inv['Dust'] -= up.dustCost;
-      setCurrentInventory(inv);
+      if (!consumeDust(up.dustCost)) { showToast('need ' + up.dustCost + ' dust (any type)'); return false; }
     }
     credits -= cost;
     shopCounts[id] = count + 1;
@@ -3225,7 +3253,8 @@ function startCardBattle() {
 }
 
 function playCard(idx) {
-  if (!cardBattle.active || cardBattle.gameOver || cardBattle.chosen !== null) return;
+  if (!cardBattle.active || cardBattle.gameOver) return;
+  if (idx < 0 || idx >= cardBattle.playerHand.length) return;
   cardBattle.chosen = cardBattle.playerHand[idx];
   // npc picks random remaining
   const npcIdx = Math.floor(Math.random() * cardBattle.npcHand.length);
@@ -3242,9 +3271,9 @@ function playCard(idx) {
   // check game over
   if (cardBattle.pScore >= 2 || cardBattle.nScore >= 2 || cardBattle.round >= 3) {
     cardBattle.gameOver = true;
+    cardBattle.active = false;
     if (cardBattle.pScore > cardBattle.nScore) {
       // victory
-      cardBattle.active = false;
       // update quest progress
       const qs = quests.filter(q => q.period === timePeriod);
       for (const q of qs) {
@@ -3543,6 +3572,7 @@ achievementsModal.addEventListener('click', e => { if (e.target === achievements
 
 changelogBtn.addEventListener('click', () => { openModal(changelogModal); renderChangelog(); });
 changelogClose.addEventListener('click', () => closeModal(changelogModal));
+document.getElementById('changelogStatsBtn').addEventListener('click', () => { closeModal(changelogModal); openModal(statsModal); renderStats(); });
 changelogModal.addEventListener('click', e => { if (e.target === changelogModal) closeModal(changelogModal); });
 resetSaveBtn.addEventListener('click', resetSave);
 
@@ -3719,7 +3749,7 @@ function renderFuse() {
     chip.style.cssText = 'padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.05);cursor:grab;font-size:10px;color:var(--cyan-bright)';
     chip.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', key); });
     chip.addEventListener('click', () => {
-      if (forgeItems.length >= 2) return;
+      if (forgeItems.length >= 5) return;
       if ((inv[key] || 0) <= forgeItems.filter(x=>x===key).length) { showToast('no more ' + key); return; }
       forgeItems.push(key);
       renderForgeSlots();
@@ -3735,7 +3765,7 @@ function renderFuse() {
       e.preventDefault();
       forge.style.borderColor = 'var(--border)';
       const name = e.dataTransfer.getData('text/plain');
-      if (forgeItems.length >= 2) return;
+      if (forgeItems.length >= 5) return;
       if ((inv[name] || 0) <= forgeItems.filter(x=>x===name).length) { showToast('no more ' + name); return; }
       forgeItems.push(name);
       renderForgeSlots();
@@ -3757,9 +3787,9 @@ function renderFuse() {
       slots.appendChild(slot);
     }
     if (result) {
-      if (forgeItems.length === 2) {
+      if (forgeItems.length >= 2) {
         const r = getFuseResult(forgeItems, inv, rar);
-        result.textContent = r ? '-> ' + r : 'no recipe';
+        result.textContent = r ? '-> ' + r : (isRngRecipe(forgeItems) && !rngUnlocked ? 'RNG recipe locked' : 'no recipe (will crumble into 1 Dust)');
       } else {
         result.textContent = '';
       }
@@ -3770,7 +3800,26 @@ function renderFuse() {
     combineBtn.onclick = () => {
       if (forgeItems.length < 2) { showToast('need 2+ items in forge'); return; }
       const r = getFuseResult(forgeItems, inv, rar);
-      if (!r) { showToast('no recipe for this combo'); return; }
+      if (!r) {
+        if (isRngRecipe(forgeItems) && !rngUnlocked) { showToast('RNG recipe is locked'); return; }
+        // no recipe: the forge crumbles the ingredients into dust
+        const counts = {};
+        for (const it of forgeItems) counts[it] = (counts[it] || 0) + 1;
+        let ok = true;
+        for (const it in counts) { if ((inv[it] || 0) < counts[it]) { ok = false; break; } }
+        if (!ok) { showToast('missing items'); return; }
+        for (const it in counts) inv[it] -= counts[it];
+        inv['Dust'] = (inv['Dust'] || 0) + 1;
+        setCurrentInventory(inv);
+        playFusionSound();
+        showToast('no recipe - the forge crumbles it into 1 Dust');
+        forgeItems = [];
+        renderForgeSlots();
+        updateUI();
+        saveGame();
+        renderFuse();
+        return;
+      }
       const counts = {};
       for (const it of forgeItems) counts[it] = (counts[it] || 0) + 1;
       let ok = true;
@@ -3781,7 +3830,6 @@ function renderFuse() {
       fusionCount++;
       setCurrentInventory(inv);
       // update best rarity index if crafted rarity is higher
-      const rar = getCurrentRarities();
       const rIdx = rar.findIndex(x => x.name === r);
       if (rIdx >= 0 && rIdx > bestRarityIndex) { bestRarityIndex = rIdx; }
       playFusionSound();
@@ -3831,6 +3879,8 @@ function renderFuse() {
       inv['End'] = (inv['End'] || 0) + 1;
       fusionCount++;
       setCurrentInventory(inv);
+      const endIdx = rar.findIndex(x => x.name === 'End');
+      if (endIdx > bestRarityIndex) bestRarityIndex = endIdx;
       playFusionSound();
       showToast('crafted End');
       updateUI();
@@ -3841,7 +3891,7 @@ function renderFuse() {
     if (palette) palette.parentElement.insertBefore(erow, palette.parentElement.firstChild);
   }
   if (fuseList) {
-    const hints = ['2x same rarity -> next tier (or special)', '3x same -> next tier (use 3 copies via click)'];
+    const hints = ['2x same rarity -> next tier (or special)', '3x same -> next tier', 'up to 5 items per combo', 'no recipe -> 1 dust'];
     for (let i = 0; i < rar.length; i++) {
       if (rar[i].craftOnly && i > 0) hints.push('2x ' + rar[i-1].name + ' -> ' + rar[i].name);
     }
@@ -3862,14 +3912,29 @@ function isCraftable(name) {
   return idx >= li;
 }
 const crossRecipes = [
-  { items: ['Frosted', 'Epic', 'Celestial'], result: 'Legendary' },
-  { items: ['Quantum', 'Ethereal'], result: 'Infinity' },
-  { items: ['Cosmic', 'Nebula'], result: 'Multiverse' },
-  { items: ['Dust (R)', 'Tabula'], result: '???' },
+  // early / mid shortcuts: spend three cubes to skip a tier
+  { items: ['Rare', 'Rare', 'Celestial'], result: 'Epic' },
+  { items: ['Epic', 'Epic', 'Frosted'], result: 'Legendary' },
+  { items: ['Legendary', 'Auric', 'Mythic'], result: 'Mystic' },
+  { items: ['Mystic', 'Divine', 'Nebula'], result: 'Ascended' },
+  { items: ['Ascended', 'Radiant', 'Ethereal'], result: 'Transcendent' },
+  { items: ['Transcendent', 'Quantum', 'Abyss'], result: 'Eternal' },
+  { items: ['Eternal', 'Sovereign', 'Infinity'], result: 'Oblivion' },
+  { items: ['Oblivion', 'Genesis', 'Apotheosis'], result: 'Omnipotent' },
+  { items: ['Omnipotent', 'Absolute', 'Beyond'], result: 'Eternity' },
+  // late shortcuts: the grind gets a real path
+  { items: ['Nothing', 'Null', 'Void'], result: 'Zero' },
+  { items: ['Zero', 'One', 'All'], result: 'Universe' },
+  { items: ['Universe', 'Multiverse', 'Cosmos'], result: 'Omniverse' },
+  { items: ['Omniverse', 'Google', 'Perplexity'], result: '???' },
+  { items: ['???', 'Cosmic', 'The Box'], result: 'Sigma' },
+  { items: ['Sigma', 'Tophat', 'Jbo'], result: 'Tabula' },
+  { items: ['Nexus', 'Singularity', 'Apex'], result: 'Zenith' },
+  { items: ['Apex', 'Zenith'], result: 'Omega' },
+  { items: ['Omega', 'Alpha', 'Zenith'], result: 'Xenogenesis' },
+  { items: ['Xenogenesis', 'Creation', 'Eternia'], result: 'Omnipotence' },
+  // the one true secret
   { items: ['???', '???', 'Cosmic', 'End', 'Eternia'], result: 'RNG' },
-  { items: ['Mystic', 'Divine'], result: 'Nebula' },
-  { items: ['Radiant', 'Ethereal'], result: 'Transcendent' },
-  { items: ['Abyss', 'Eternal'], result: 'Quantum' },
 ];
 
 function getFuseResult(items, inv, rar) {
@@ -3903,6 +3968,14 @@ function getFuseResult(items, inv, rar) {
     if (idx >= 0 && idx < rar.length - 1) return rar[idx + 1].name;
   }
   return null;
+}
+
+function isRngRecipe(items) {
+  const rec = ['???', '???', 'Cosmic', 'End', 'Eternia'];
+  if (items.length !== rec.length) return false;
+  const a = items.slice().sort();
+  const b = rec.slice().sort();
+  return a.every((v, i) => v === b[i]);
 }
 
 document.getElementById('fuseClose').addEventListener('click', () => closeModal(fuseModal));
@@ -4297,22 +4370,71 @@ function renderShowcase() {
   if (!showcaseContent) return;
   showcaseContent.innerHTML = '';
   const rar = getCurrentRarities();
-  const best = rar[Math.min(bestRarityIndex, rar.length - 1)] || rar[0];
-  const col = best.color === 'rainbow' ? '#fff' : best.color === 'prism' ? '#fff' : best.color;
-  const div = document.createElement('div');
-  div.style.cssText = 'padding:20px';
-  div.innerHTML = '<div style="width:80px;height:80px;margin:0 auto 12px;border-radius:8px;background:' + (best.color2 ? 'linear-gradient(135deg,' + best.color + ',' + best.color2 + ')' : best.color) + ';box-shadow:0 0 30px ' + best.glow + '"></div>' +
-    '<div style="font-size:20px;font-family:Georgia,serif;letter-spacing:4px;color:' + col + ';text-shadow:0 0 20px ' + best.glow + '">' + best.name + '</div>' +
-    '<div style="font-size:11px;color:var(--muted);margin-top:8px">luck: ' + formatNum(best.luck) + ' | odds: 1/' + formatNum(best.odds) + '</div>' +
-    '<div style="font-size:11px;color:var(--muted)">rolls: ' + formatNum(rolls) + ' | credits: ' + formatNum(credits) + '</div>';
-  const btn = document.createElement('button');
-  btn.textContent = 'CAPTURE';
-  btn.style.marginTop = '12px';
-  btn.addEventListener('click', () => {
-    showToast('screenshot captured (right-click to save)');
-  });
-  div.appendChild(btn);
-  showcaseContent.appendChild(div);
+  if (!rar || !rar.length) {
+    showcaseContent.innerHTML = '<div style="padding:20px;font-size:11px;color:var(--muted)">no rarities in this period.</div>';
+    return;
+  }
+  const probs = getProbabilities();
+  const intro = document.createElement('div');
+  intro.style.cssText = 'font-size:10px;color:var(--muted);margin:0 8px 10px;line-height:1.5';
+  intro.textContent = 'every rarity, previewed on the cube. odds shown at your current luck.';
+  showcaseContent.appendChild(intro);
+  const grid = document.createElement('div');
+  grid.className = 'mini-cube-grid';
+  for (let i = 0; i < rar.length; i++) {
+    const r = rar[i];
+    const c1 = r.color === 'rainbow' ? 'hsl(0,90%,60%)' : r.color === 'prism' ? 'hsl(0,100%,70%)' : (r.color || '#888');
+    const c2 = r.color2 || c1;
+    let bg;
+    if (r.color === 'rainbow') bg = 'hsl(0,90%,60%)';
+    else if (r.color === 'prism') bg = 'hsl(0,100%,70%)';
+    else if (r.color2) bg = 'linear-gradient(135deg,' + c1 + ',' + c2 + ')';
+    else bg = c1;
+
+    const tile = document.createElement('div');
+    tile.className = 'mini-rarity';
+
+    const cube = document.createElement('div');
+    cube.className = 'mini-cube' + (r.color === 'rainbow' ? ' rainbow' : r.color === 'prism' ? ' prism' : '');
+    cube.style.setProperty('--cube-bg', bg);
+    cube.style.setProperty('--cube-glow', r.glow || c1);
+    cube.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i>';
+
+    const name = document.createElement('div');
+    name.className = 'mini-cube-name';
+    name.textContent = r.name;
+    name.style.color = c1;
+    name.style.textShadow = '0 0 12px ' + (r.glow || c1);
+
+    const odds = document.createElement('div');
+    odds.className = 'mini-cube-odds';
+    const p = probs[i] || 0;
+    if (r.craftOnly) odds.textContent = 'craft only';
+    else if (r.name === 'RNG' && !rngUnlocked) odds.textContent = 'locked';
+    else {
+      const oddsNum = p > 0 ? 1 / p : r.odds;
+      odds.textContent = '1/' + (oddsNum < 1000 ? Math.round(oddsNum) : formatNum(oddsNum));
+    }
+
+    tile.appendChild(cube);
+    tile.appendChild(name);
+    tile.appendChild(odds);
+    if (ownedRarities[r.name]) {
+      const tag = document.createElement('div');
+      tag.className = 'mini-cube-tag';
+      tag.textContent = 'owned';
+      tag.style.borderColor = 'rgba(43,208,208,0.45)';
+      tag.style.color = 'var(--cyan-bright)';
+      tile.appendChild(tag);
+    } else if (r.craftOnly) {
+      const tag = document.createElement('div');
+      tag.className = 'mini-cube-tag';
+      tag.textContent = 'craft';
+      tile.appendChild(tag);
+    }
+    grid.appendChild(tile);
+  }
+  showcaseContent.appendChild(grid);
 }
 
 document.getElementById('settingsShowcaseBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(showcaseModal); renderShowcase(); });
@@ -4336,13 +4458,16 @@ function renderRecipeBook() {
   for (const rec of crossRecipes) {
     recipes.push({ a: rec.items.join(' + '), b: '', result: rec.result });
   }
-  // dedupe
+  // dedupe and drop anything the forge won't actually accept
   const seen = new Set();
   const unique = recipes.filter(r => {
     const k = r.a + '+' + r.b + '=' + r.result;
     if (seen.has(k)) return false;
     seen.add(k);
     return true;
+  }).filter(rec => {
+    const items = rec.b ? [rec.a, rec.b] : rec.a.split(' + ');
+    return getFuseResult(items, null, rar) === rec.result;
   });
   for (const rec of unique) {
     const row = document.createElement('div');
