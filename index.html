@@ -2046,7 +2046,7 @@ const rarities = [
   { name: 'Eternia',     odds: 1e23,       cap: 4.7e23,    color: '#00ffff', color2: '#ffff00', glow: '#80ffff', glow2: '#ffff80', luck: 5.6e24,   particles: 1650, shake: 295,  flash: 1.00, chroma: 1.00, craftOnly: true },
   { name: 'Omnipotence', odds: 1e24,      cap: 4.7e24,    color: '#ffd700', color2: '#ff0040', glow: '#ffe080', glow2: '#ff80a0', luck: 1.12e25,  particles: 1700, shake: 300,  flash: 1.00, chroma: 1.00, craftOnly: true },
   { name: 'End',         odds: 1e25,      cap: 4.7e25,    color: '#000000', color2: '#1a1a1a', glow: '#ffffff', glow2: '#808080', luck: 1e26,     particles: 2000, shake: 400,  flash: 1.00, chroma: 1.00, craftOnly: true, distort: true },
-  { name: 'RNG',         odds: 3.33e26,   cap: 4.7e26,    color: 'prism',    glow: '#ffffff', luck: 1e27,     particles: 5000, shake: 500,  flash: 1.00, chroma: 1.00 },
+  { name: 'RNG',         odds: 3.33e26,   cap: 4.7e26,    color: 'prism',    glow: '#ffffff', luck: 1e27,     particles: 5000, shake: 500,  flash: 1.00, chroma: 1.00, craftOnly: true },
 ];
 
 // past rarities (amber/brown theme) — scaled to match present rarity odds (rarest = 1 in 150 quadrillion)
@@ -4788,6 +4788,7 @@ const crossRecipes = [
   { items: ['Quantum', 'Ethereal'], result: 'Infinity' },
   { items: ['Cosmic', 'Nebula'], result: 'Multiverse' },
   { items: ['Dust (R)', 'Tabula'], result: '???' },
+  { items: ['???', '???', 'Cosmic', 'End', 'Eternia'], result: 'RNG' },
   { items: ['Mystic', 'Divine'], result: 'Nebula' },
   { items: ['Radiant', 'Ethereal'], result: 'Transcendent' },
   { items: ['Abyss', 'Eternal'], result: 'Quantum' },
@@ -4797,6 +4798,7 @@ function getFuseResult(items, inv, rar) {
   // check cross-rarity recipes first (exact match, any rarity allowed)
   for (const rec of crossRecipes) {
     if (rec.items.length !== items.length) continue;
+    if (rec.result === 'RNG' && !rngUnlocked) continue;
     const sorted = items.slice().sort();
     const recSorted = rec.items.slice().sort();
     if (sorted.every((v, i) => v === recSorted[i])) return rec.result;
@@ -5253,6 +5255,9 @@ function renderRecipeBook() {
   for (let i = 0; i < rar.length; i++) {
     if (rar[i].craftOnly && i > 0) recipes.push({ a: rar[i-1].name, b: rar[i-1].name, result: rar[i].name });
   }
+  for (const rec of crossRecipes) {
+    recipes.push({ a: rec.items.join(' + '), b: '', result: rec.result });
+  }
   // dedupe
   const seen = new Set();
   const unique = recipes.filter(r => {
@@ -5264,7 +5269,7 @@ function renderRecipeBook() {
   for (const rec of unique) {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;justify-content:space-between;padding:3px 6px;border-bottom:1px solid rgba(43,208,208,0.1);font-size:10px';
-    row.innerHTML = '<span style="color:var(--muted)">' + rec.a + ' + ' + rec.b + '</span><span style="color:var(--cyan-bright)">-> ' + rec.result + '</span>';
+    row.innerHTML = '<span style="color:var(--muted)">' + (rec.b ? (rec.a + ' + ' + rec.b) : rec.a) + '</span><span style="color:var(--cyan-bright)">-> ' + rec.result + '</span>';
     recipeList.appendChild(row);
   }
 }
