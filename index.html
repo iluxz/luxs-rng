@@ -769,6 +769,7 @@ button.locked::after {
 
     <aside class="panel" id="rightPanel">
       <h2>INVENTORY</h2>
+      <input id="invSearch" type="text" placeholder="search inventory..." style="width:100%;padding:6px 8px;margin-bottom:8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:11px">
       <div id="inventory"></div>
       <div id="lastRoll">last roll: <strong>-</strong></div>
       <div id="rollHistory" style="margin-top:8px;font-size:10px;color:var(--muted);max-height:80px;overflow-y:auto"></div>
@@ -1528,6 +1529,8 @@ const chromatic = document.getElementById('chromatic');
 const rollText = document.getElementById('rollText');
 const rarityTable = document.getElementById('rarityTable');
 const inventoryEl = document.getElementById('inventory');
+const invSearch = document.getElementById('invSearch');
+if (invSearch) invSearch.addEventListener('input', () => renderInventory());
 const lastRollEl = document.getElementById('lastRoll');
 const luckEl = document.getElementById('luck');
 const rollsEl = document.getElementById('rolls');
@@ -3594,7 +3597,8 @@ function renderRarityTable(luck) {
 function renderInventory() {
   inventoryEl.innerHTML = '';
   const inv = getCurrentInventory();
-  const keys = Object.keys(inv).filter(k => inv[k] > 0);
+  const q = invSearch ? invSearch.value.trim().toLowerCase() : '';
+  const keys = Object.keys(inv).filter(k => inv[k] > 0 && (!q || k.toLowerCase().includes(q)));
   // also include mutated entries for this period's rarities
   for (const mk of Object.keys(mutatedInventory)) {
     if (mutatedInventory[mk] > 0 && !keys.includes(mk)) keys.push(mk);

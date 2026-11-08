@@ -533,6 +533,8 @@ const chromatic = document.getElementById('chromatic');
 const rollText = document.getElementById('rollText');
 const rarityTable = document.getElementById('rarityTable');
 const inventoryEl = document.getElementById('inventory');
+const invSearch = document.getElementById('invSearch');
+if (invSearch) invSearch.addEventListener('input', () => renderInventory());
 const lastRollEl = document.getElementById('lastRoll');
 const luckEl = document.getElementById('luck');
 const rollsEl = document.getElementById('rolls');
@@ -2599,7 +2601,8 @@ function renderRarityTable(luck) {
 function renderInventory() {
   inventoryEl.innerHTML = '';
   const inv = getCurrentInventory();
-  const keys = Object.keys(inv).filter(k => inv[k] > 0);
+  const q = invSearch ? invSearch.value.trim().toLowerCase() : '';
+  const keys = Object.keys(inv).filter(k => inv[k] > 0 && (!q || k.toLowerCase().includes(q)));
   // also include mutated entries for this period's rarities
   for (const mk of Object.keys(mutatedInventory)) {
     if (mutatedInventory[mk] > 0 && !keys.includes(mk)) keys.push(mk);
