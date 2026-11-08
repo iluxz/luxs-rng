@@ -567,14 +567,15 @@ const leaderboardModal = document.getElementById('leaderboardModal');
 const dailyBtn = document.getElementById('dailyBtn');
 const dailyModal = document.getElementById('dailyModal');
 const fuseBtn = document.getElementById('fuseBtn');
-const fuseModal = document.getElementById('fuseModal');
-if (fuseBtn) fuseBtn.addEventListener('click', () => { openModal(fuseModal); renderFuse(); });
+const labModal = document.getElementById('labModal');
+const fuseModal = labModal;
+if (fuseBtn) fuseBtn.addEventListener('click', () => { openModal(labModal); renderLabTab('fuse'); });
 const fuseList = document.getElementById('fuseList');
 const eventsModal = document.getElementById('eventsModal');
 const eventsList = document.getElementById('eventsList');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
-const evolveModal = document.getElementById('evolveModal');
+const evolveModal = labModal;
 const evolveList = document.getElementById('evolveList');
 const showcaseModal = document.getElementById('showcaseModal');
 const showcaseContent = document.getElementById('showcaseContent');
@@ -3978,7 +3979,7 @@ function isRngRecipe(items) {
   return a.every((v, i) => v === b[i]);
 }
 
-document.getElementById('fuseClose').addEventListener('click', () => closeModal(fuseModal));
+document.getElementById('labClose').addEventListener('click', () => closeModal(labModal));
 
 function renderEvents() {
   if (!eventsList) return;
@@ -4363,8 +4364,61 @@ function renderEvolve() {
   }
 }
 
-document.getElementById('settingsEvolveBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(evolveModal); renderEvolve(); });
-document.getElementById('evolveClose').addEventListener('click', () => closeModal(evolveModal));
+function renderReactor() {
+  const el = document.getElementById('labReactorList');
+  if (!el) return;
+  el.innerHTML = '';
+  const inv = getCurrentInventory();
+  const dustKeys = Object.keys(inv).filter(k => /^Dust(?: \((?:R|M|BT|E)\))?$/.test(k) && inv[k] > 0);
+  const mutatedDust = Object.keys(mutatedInventory).filter(k => /^Dust(?: \((?:R|M|BT|E)\))?$/.test(k) && mutatedInventory[k] > 0);
+  const totalDust = dustKeys.reduce((s, k) => s + (inv[k] || 0), 0) + mutatedDust.reduce((s, k) => s + (mutatedInventory[k] || 0), 0);
+  const row = document.createElement('div');
+  row.className = 'shop-item';
+  row.innerHTML = '<div class="info"><div class="name">Dust Reactor</div><div class="desc">consume any 5 dust for +20 permanent luck (stacks). you have ' + totalDust + ' dust total.</div></div>';
+  const btn = document.createElement('button');
+  btn.textContent = 'BUILD (' + (shopCounts.dustReactor || 0) + '/' + (upgrades.find(u => u.id === 'dustReactor').max) + ')';
+  btn.addEventListener('click', () => {
+    if (buyUpgrade('dustReactor')) { renderReactor(); }
+  });
+  row.appendChild(btn);
+  el.appendChild(row);
+  if (totalDust === 0) {
+    const note = document.createElement('div');
+    note.style.cssText = 'color:var(--muted);text-align:center;padding:20px;font-size:10px';
+    note.textContent = 'no dust on hand. forge a recipe-less combo to get some.';
+    el.appendChild(note);
+  }
+}
+
+function renderExperiments() {
+  const el = document.getElementById('labExperimentsList');
+  if (!el) return;
+  el.innerHTML = '';
+  const experiments = [
+    { name: 'Mutate Roll', desc: '5% chance to mutate a rolled aura (already passive)', cost: 'passive' },
+    { name: 'Transmute', desc: 'convert 3 of a rarity into 1 of the next tier (use the forge)', cost: '3x' },
+    { name: 'Prestige Infusion', desc: 'each rebirth boosts dust reactor output by 10%', cost: 'prestige' },
+  ];
+  for (const e of experiments) {
+    const row = document.createElement('div');
+    row.className = 'shop-item';
+    row.innerHTML = '<div class="info"><div class="name">' + e.name + '</div><div class="desc">' + e.desc + '</div></div><div style="font-size:9px;color:var(--muted)">' + e.cost + '</div>';
+    el.appendChild(row);
+  }
+}
+
+function renderLabTab(tab) {
+  document.querySelectorAll('.labTab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.labPanel').forEach(p => p.style.display = 'none');
+  const panel = document.getElementById('lab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+  if (panel) panel.style.display = 'block';
+  if (tab === 'fuse') renderFuse();
+  else if (tab === 'evolve') renderEvolve();
+  else if (tab === 'reactor') renderReactor();
+  else if (tab === 'experiments') renderExperiments();
+}
+
+document.querySelectorAll('.labTab').forEach(b => b.addEventListener('click', () => renderLabTab(b.dataset.tab)));
 
 function renderShowcase() {
   if (!showcaseContent) return;
