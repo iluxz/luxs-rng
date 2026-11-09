@@ -1,4 +1,11 @@
 ﻿const canvas = document.getElementById('cubeCanvas');
+const labCanvas = document.getElementById('labCanvas');
+let labCtx = null;
+const fishingCanvas = document.getElementById('fishingCanvas');
+let fishingCtx = null;
+let labCylBuf = null;
+let labCylIdxBuf = null;
+let labCylIdxCount = 0;
 const ctx = canvas.getContext('2d');
 const bgCanvas = document.getElementById('bgCanvas');
 const bgctx = bgCanvas.getContext('2d');
@@ -567,14 +574,18 @@ const leaderboardModal = document.getElementById('leaderboardModal');
 const dailyBtn = document.getElementById('dailyBtn');
 const dailyModal = document.getElementById('dailyModal');
 const fuseBtn = document.getElementById('fuseBtn');
-const fuseModal = document.getElementById('fuseModal');
-if (fuseBtn) fuseBtn.addEventListener('click', () => { openModal(fuseModal); renderFuse(); });
+const fishBtn = document.getElementById('fishBtn');
+const labView = document.getElementById('labView');
+const labModal = labView;
+const fuseModal = labView;
+const evolveModal = labView;
+if (fuseBtn) fuseBtn.addEventListener('click', () => { enterLab('fuse'); });
+if (fishBtn) fishBtn.addEventListener('click', () => { enterFishing(); });
 const fuseList = document.getElementById('fuseList');
 const eventsModal = document.getElementById('eventsModal');
 const eventsList = document.getElementById('eventsList');
-const settingsBtn = document.getElementById('settingsBtn');
+settingsBtn.addEventListener('click', () => { updateSettingsBtns(); openModal(settingsModal); });
 const settingsModal = document.getElementById('settingsModal');
-const evolveModal = document.getElementById('evolveModal');
 const evolveList = document.getElementById('evolveList');
 const showcaseModal = document.getElementById('showcaseModal');
 const showcaseContent = document.getElementById('showcaseContent');
@@ -767,7 +778,8 @@ const musicTracks = [
   { name: 'badthings-22', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/badthings-22.mp3' },
   { name: 'bgm', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/bgm.mp3' },
   { name: 'future_bgm', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/future_bgm.mp3' },
-  { name: 'past_bgm', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/past_bgm.mp3' }
+  { name: 'past_bgm', src: 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/past_bgm.mp3' },
+  { name: 'GLACEIR (Deltarune)', src: 'glaceir.mp3' },
 ];
 let currentMusicPeriod = 'present';
 
@@ -813,13 +825,20 @@ if (musicBtn) musicBtn.addEventListener('click', () => {
   updateSettingsBtns();
 });
 
+function updateSettingsBtns() {
+  const sf = document.getElementById('settingsFlashBtn');
+  const sm = document.getElementById('settingsMusicBtn');
+  if (sf) sf.textContent = 'FLASH: ' + (flashesEnabled ? 'ON' : 'OFF');
+  if (sm) sm.textContent = 'MUSIC: ' + (musicPlaying ? 'ON' : 'OFF');
+}
+
 function updateFlashBtn() {
   if (flashBtn) {
     flashBtn.textContent = 'FLASH: ' + (flashesEnabled ? 'ON' : 'OFF');
     flashBtn.classList.toggle('active', !flashesEnabled);
   }
-  updateSettingsBtns();
 }
+
 flashBtn.addEventListener('click', () => {
   flashesEnabled = !flashesEnabled;
   updateFlashBtn();
@@ -838,6 +857,15 @@ const upgrades = [
   { id: 'mutationCharm', name: 'Mutation Charm', desc: '+15% mutation chance', cost: 7500, type: 'stack', effect: { mutationChance: 0.015 }, max: 5 },
   { id: 'dustRemover', name: 'Dust Remover', desc: 'removes Dust from the roll pool', cost: 25000, type: 'unlock' },
   { id: 'dustReactor', name: 'Dust Reactor', desc: 'consume any 5 dust (any type) for +20 permanent luck (stacks)', cost: 5000, type: 'stack', effect: { luck: 20 }, max: 20, dustCost: 5 },
+  { id: 'dustMagnet', name: 'Dust Magnet', desc: '+50% dust from all sources (stacks)', cost: 15000, type: 'stack', effect: { dustMult: 0.5 }, max: 3 },
+  { id: 'autoTransmute', name: 'Auto-Transmute', desc: 'automatically transmutes 3 of a kind into the next tier', cost: 25000, type: 'unlock' },
+  { id: 'streakAmp', name: 'Streak Amplifier', desc: 'halves the streak threshold for temp luck boosts', cost: 20000, type: 'unlock' },
+  { id: 'collectionBoost', name: 'Collection Boost', desc: '+10% credits per owned rarity (stacks)', cost: 30000, type: 'stack', effect: { collectionBoost: 0.1 }, max: 5 },
+  { id: 'creditSurge', name: 'Credit Surge', desc: '+500 credits per roll, scales with rarity', cost: 50000, type: 'stack', effect: { credits: 500 }, max: 10 },
+  { id: 'luckOverdrive', name: 'Luck Overdrive', desc: '+100 permanent luck (stacks)', cost: 100000, type: 'stack', effect: { luck: 100 }, max: 20 },
+  { id: 'prestigeAmplifier', name: 'Prestige Amplifier', desc: 'double prestige gain', cost: 200000, type: 'unlock' },
+  { id: 'transcendBoost', name: 'Transcend Boost', desc: '+1 transcendence point', cost: 500000, type: 'stack', effect: { transcendence: 1 }, max: 5 },
+  { id: 'autoReel', name: 'Auto-Reel', desc: 'automatically reels in the sweet spot for 2x credits', cost: 100000, type: 'unlock' },
   { id: 'luckAmplifier', name: 'Luck Amplifier', desc: 'exponentially more luck each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 2.5, baseLuck: 1, luckMult: 10, max: 30 },
   { id: 'creditsAmplifier', name: 'Credits Amplifier', desc: 'exponentially more credits each level (cost and gain both grow)', type: 'exp', baseCost: 2500, costMult: 3, baseCredits: 1, creditsMult: 10, max: 20 },
   { id: 'timeMachine', name: 'Time Machine', desc: 'travel to past and future', cost: 50000, type: 'unlock' },
@@ -938,6 +966,7 @@ const achievements = [
 ];
 
 const changelog = [
+  { version: 'v0.9', note: 'v0.9 update: Cube Laboratory (full-screen view with FUSE/EVOLVE/REACTOR/EXPERIMENTS tabs, side arrow entry, back button); real experiment mechanics (Mutate Boost +25% mutation, Transmute 3->1, Prestige Infusion passive); 5 new rollable rarities (Entropy, Aether, Tomato, Nether, Duo) + 2 craft-only (Obsidian, Prism) with unique recipes; 4 new shop upgrades (Credit Surge, Luck Overdrive, Prestige Amplifier, Transcend Boost); 2 new biomes (Abyssal, Radiant); 3x fusion now skips 2 tiers; luck cap raised to 1 septillion (1e24); daily roll bonus for login streak >= 3; unique crafting recipe for every rarity (no more boring 2x-same); color2 rarities now show static blend instead of rainbow; collection stat updated to 0/71; fixed duplicate eventsModal nesting that broke settings modal' },
   { version: 'v0.86', note: 'feedback pass: rarity showcase reworked into a full aura grid (every rarity on a spinning cube); achievements now say craft for craft-only rarities; best roll replaced with VIEW STATS in the update log; craft-only rarities no longer leak via roll fallbacks or pity; sell prices restored (10x luck, scaled by rebirth/transcend) with a late-game floor; dust reactor accepts any dust type; forging a recipe-less combo now crumbles into 1 dust; card battle playable past the first card and after a loss; forge accepts 2-5 items; recipe book now lists only craftable combos; recipes expanded and cleaned up' },
   { version: 'v0.85', note: 'leaderboard worker fix: retry fetch/submit with backoff, offline fallback' },
   { version: 'v0.8', note: 'massive update: aura fusion (combine 3 of same aura into next tier, plus 2-tabula->core and craft-only chain core->nexus->alpha->genesis->creation->eternia->omnipotence); transcendence system (permanent +50% luck per transcendence, requires 3+ rebirths); events system (daily-rotating events with bonuses: void week, fusion fest, streak surge, dust blessing, cosmic storm, prestige rush); settings menu (decluttered topbar, flash/music/auto-fuse/auto-equip toggles, save slots, stats, import/export); mobile responsive layout; flash toggle; ??? dynamic rarity (odds change every 20 rolls between 1/160qd and 1/646qd, censored name, ?!? upgrade reveals odds and +10 roll interval); equip rarity system; corruption mode (cubeful harmony: black screen, smeared game graphics, fearful harmony audio, progressive distortion, seeded by clipboard content); checksum guard (anti-tamper: modified saves trigger corruption); dust economy rework (under-epic sells for 1.5, dust sells for 1, dust (R) after 1T luck sells for higher, dust reactor consumes dust for luck, refund system); rarity sets (rainbow/prism/top tier) with luck rewards; auto-fuse; roll history panel; keyboard shortcuts (space=roll, S=shop, A=auto, esc=close); tooltips on rarity rows; 3 new biomes (lucky, greedy, frenzy); 12 new daily challenges; sound effects (fusion chime, transcendence fanfare); save slots (3); rarity evolution (5 of same -> evolved (E) +10% luck); daily login bonus; prestige milestones (5/10/25 rebirths); rarity showcase modal; sell price rebalanced (power-scaled); more rarities above core (nexus, singularity, apex, zenith, omega, alpha, xenogenesis, creation, eternia, omnipotence); luck cap extended to 10Sx; luck upgrades extended (max 50/25/15/40); admin infinite credits; cosmic moved to 1/150qd; extra aura for top rarities; prestige credits boost + shop discount; ??? glaze' },
@@ -1054,6 +1083,13 @@ const rarities = [
   { name: 'Eternia',     odds: 1e23,       cap: 4.7e23,    color: '#00ffff', color2: '#ffff00', glow: '#80ffff', glow2: '#ffff80', luck: 5.6e24,   particles: 1650, shake: 295,  flash: 1.00, chroma: 1.00, craftOnly: true },
   { name: 'Omnipotence', odds: 1e24,      cap: 4.7e24,    color: '#ffd700', color2: '#ff0040', glow: '#ffe080', glow2: '#ff80a0', luck: 1.12e25,  particles: 1700, shake: 300,  flash: 1.00, chroma: 1.00, craftOnly: true },
   { name: 'End',         odds: 1e25,      cap: 4.7e25,    color: '#000000', color2: '#1a1a1a', glow: '#ffffff', glow2: '#808080', luck: 1e26,     particles: 2000, shake: 400,  flash: 1.00, chroma: 1.00, craftOnly: true, distort: true },
+  { name: 'Entropy',     odds: 2e25,       cap: 9.4e25,     color: '#ff3030', color2: '#800000', glow: '#ff8080', glow2: '#ff0000', luck: 2e26,     particles: 5200, shake: 510,  flash: 1.00, chroma: 1.00 },
+  { name: 'Aether',      odds: 5e25,       cap: 2.35e26,    color: '#e0f0ff', color2: '#a0d0ff', glow: '#ffffff', glow2: '#c0e0ff', luck: 5e26,     particles: 5400, shake: 520,  flash: 1.00, chroma: 1.00 },
+  { name: 'Tomato',      odds: 1e26,       cap: 4.7e26,     color: '#ff4040', color2: '#ff8040', glow: '#ff8080', glow2: '#ffc080', luck: 1e27,     particles: 5600, shake: 530,  flash: 1.00, chroma: 1.00 },
+  { name: 'Nether',      odds: 1.5e26,     cap: 7.05e26,    color: '#400080', color2: '#200040', glow: '#8040ff', glow2: '#4000ff', luck: 1.5e27,   particles: 5800, shake: 540,  flash: 1.00, chroma: 1.00 },
+  { name: 'Duo',         odds: 2.5e26,     cap: 1.175e27,   color: '#ff00ff', color2: '#00ffff', glow: '#ff80ff', glow2: '#80ffff', luck: 2.5e27,   particles: 6000, shake: 550,  flash: 1.00, chroma: 1.00 },
+  { name: 'Obsidian',    odds: 2.8e26,     cap: 1.3e27,     color: '#1a1a2e', color2: '#4a0080', glow: '#4040ff', glow2: '#8000ff', luck: 5e27,     particles: 6200, shake: 560,  flash: 1.00, chroma: 1.00, craftOnly: true },
+  { name: 'Prism',       odds: 3.0e26,     cap: 1.4e27,     color: '#c0c0ff', color2: '#ffc0ff', glow: '#e0e0ff', glow2: '#ffe0ff', luck: 8e27,     particles: 6400, shake: 570,  flash: 1.00, chroma: 1.00, craftOnly: true },
   { name: 'RNG',         odds: 3.33e26,   cap: 4.7e26,    color: 'prism',    glow: '#ffffff', luck: 1e27,     particles: 5000, shake: 500,  flash: 1.00, chroma: 1.00, craftOnly: true },
 ];
 
@@ -1230,7 +1266,7 @@ applyAuraBoost(rarities);
 let inventory = {};
 let pastInventory = {};
 let futureInventory = {};
-const LUCK_CAP = 1e22; // normal max: 10 sextillion (10Sx)
+const LUCK_CAP = 1e24; // 1 septillion
 let baseLuck = 1;
 let rolls = 0;
 let credits = 0;
@@ -1239,6 +1275,7 @@ let unlocked = { auto: false, x10: true, x100: true };
 let isAdmin = false;
 let shopCounts = { luckBracelet: 0, luckyGloves: 0, fortuneTalisman: 0, creditsBracelet: 0, autoSpeed: 0, mutationCharm: 0, luckAmplifier: 0, creditsAmplifier: 0 };
 let prestigePoints = 0;
+let prestigeGainMult = 1;
 let prestigeCount = 0;
 let transcendencePoints = 0;
 let transcendenceCount = 0;
@@ -1285,6 +1322,8 @@ const biomes = [
   { name: 'Greedy', boost: [], color: '#00ff80', mult: 1, creditMult: 4 }, // quadruples credits
   { name: 'Frenzy', boost: [0,1,2,3,4], color: '#ff8000', mult: 4, creditMult: 2 }, // boosts low rarities
   { name: 'Chaos', boost: [], color: '#ff0040', mult: 5, creditMult: 3 }, // boosts everything
+  { name: 'Abyssal', color: '#1a0030', luckBoost: 2, boost: [], mult: 3, creditMult: 2, duration: 90000 },
+  { name: 'Radiant', color: '#fff0c0', luckBoost: 3, boost: [], mult: 4, creditMult: 3, duration: 45000 },
 ];
 
 let currentBiome = 'normal';
@@ -1429,6 +1468,26 @@ let timeTravelTarget = 'present';
 let bestRarityIndex = 0;
 let startTime = Date.now();
 let autoInterval = 1000;
+let inLab = false;
+let inFishing = false;
+let mutateBoost = false;
+let autoFish = false;
+let fishLastCast = 0;
+let fishCastAnim = 0;
+let fishCooldown = 2000;
+let fishMinigameActive = false;
+let fishMinigameStart = 0;
+let fishMinigameBonus = false;
+let fishMinigameTimer = null;
+let fishCaughtAnim = 0;
+let fishCaughtName = '';
+let fishCaughtColor = '#2bd0d0';
+let fishPending = null;
+let fishRodLevel = 0;
+let fishBaitLevel = 0;
+let fishBoatLevel = 0;
+let fishTotalCaught = 0;
+
 
 // ── achievement luck economy ──────────────────────────────────────────────
 // rarity achievements now pay 5% of that rarity's own luck value, so the
@@ -1504,9 +1563,10 @@ function getShopBonus() {
     if (up.type === 'stack') {
       const count = shopCounts[up.id] || 0;
       credits += count * (up.effect.credits || 0);
-      luck += count * (up.effect.luck || 0);
+      luck += count * ((up.id === 'dustReactor') ? (up.effect.luck || 0) * (1 + prestigeCount * 0.1) : (up.effect.luck || 0));
       autoSpeed += count * (up.effect.autoSpeed || 0);
       mutationChance += count * (up.effect.mutationChance || 0);
+      if (up.effect.transcendence) transcendencePoints += up.effect.transcendence;
     } else if (up.type === 'exp') {
       const count = shopCounts[up.id] || 0;
       if (count > 0 && up.baseLuck) {
@@ -1704,7 +1764,7 @@ function triggerRoll(count = 1) {
   bonusMultiplier = 1;
 
   // apply inventory/luck/credits + mutations + breakthroughs
-  const effMutationChance = Math.min(0.5, MUTATION_CHANCE + getShopBonus().mutationChance);
+  const effMutationChance = Math.min(0.5, MUTATION_CHANCE + getShopBonus().mutationChance + (mutateBoost ? 0.25 : 0));
   const appliedNames = [];
   for (const r of results) {
     const isMutated = Math.random() < effMutationChance;
@@ -1737,7 +1797,7 @@ function triggerRoll(count = 1) {
     rolls++;
     const biomeCM = (biomes.find(b => b.name === currentBiome) || biomes[0]).creditMult || 1;
     const prestigeCreditMult = 1 + prestigePoints * 0.01;
-    credits += Math.round((1 + getShopBonus().credits + Math.floor(Math.log10(r.luck + 10) * 0.5) + (shopCounts.creditsBracelet || 0) * Math.floor(Math.log10(r.luck + 10) * 2)) * biomeCM * prestigeCreditMult);
+    credits += Math.round((1 + getShopBonus().credits + Math.floor(Math.log10(r.luck + 10) * 0.5) + (shopCounts.creditsBracelet || 0) * Math.floor(Math.log10(r.luck + 10) * 2)) * biomeCM * prestigeCreditMult * (1 + (shopCounts.collectionBoost || 0) * 0.1 * Math.min(Object.keys(ownedRarities).length, 10)));
   }
   // ??? dynamic odds: change every N rolls
   qMarkRollCounter += count;
@@ -1809,7 +1869,8 @@ function triggerRoll(count = 1) {
 
     // streak
     rollStreak++;
-    if (rollStreak === 10 || rollStreak === 50 || rollStreak === 100 || rollStreak === 500) {
+    const streakThresholds = unlocked.streakAmp ? [5, 25, 50, 250] : [10, 50, 100, 500];
+    if (streakThresholds.indexOf(rollStreak) >= 0) {
       const mult = rollStreak >= 500 ? 3 : rollStreak >= 100 ? 2.5 : rollStreak >= 50 ? 2 : 1.5;
       streakBonusMult = mult;
       streakBonusUntil = Date.now() + 30000;
@@ -1862,6 +1923,26 @@ function triggerRoll(count = 1) {
 }
 
 function manualRoll() {
+  if (inLab) {
+    // render 3D specimen cube on GL canvas
+    if (gl && glCanvas) {
+      const _gw = glCanvas.clientWidth || window.innerWidth * 0.6;
+      const _gh = glCanvas.clientHeight || window.innerHeight;
+      const _gdpr = window.devicePixelRatio || 1;
+      if (glCanvas.width !== Math.floor(_gw * _gdpr) || glCanvas.height !== Math.floor(_gh * _gdpr)) {
+        glCanvas.width = Math.floor(_gw * _gdpr);
+        glCanvas.height = Math.floor(_gh * _gdpr);
+        gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+      }
+      gl.clearColor(0.02, 0.04, 0.08, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      const _specColor = '#2bd0d0';
+      const _specGlow = '#2bd0d0';
+      const _t = Date.now() / 1000;
+      drawGLCube(_specColor, _specGlow, _t, 0.6, false);
+    }
+    return;
+  }
   if (timePeriod !== 'present') { showToast('rolling only works in the present'); return; }
   if (autoRoll) return;
   if (Date.now() - manualCooldown < MANUAL_COOLDOWN_MS) return;
@@ -2188,16 +2269,14 @@ function getRarityColor(r, t) {
     return `hsl(${hue}, 100%, 70%)`;
   }
   if (r.color2) {
-    const k = 0.5 + 0.5 * Math.sin(t * 0.9 + (r.gradPhase || 0));
-    return blendHex(r.color, r.color2, k);
+    return blendHex(r.color, r.color2, 0.5);
   }
   return r.color;
 }
 
 function getRarityGlow(r, t) {
   if (r.glow2) {
-    const k = 0.5 + 0.5 * Math.sin(t * 0.9 + 1.7 + (r.gradPhase || 0));
-    return blendHex(r.glow, r.glow2, k);
+    return blendHex(r.glow, r.glow2, 0.5);
   }
   return r.glow;
 }
@@ -2217,6 +2296,418 @@ function initCityTerminals() {
   cityTerminals = [];
   cityHacked = 0;
   for (let i = 0; i < 3; i++) cityTerminals.push({ hacked: false, rare: Math.random() < 0.3 });
+}
+
+function shadeHex(hex, m) {
+  const c = hexToRGB(hex);
+  const to = v => Math.round(Math.max(0, Math.min(1, v * m)) * 255);
+  return 'rgb(' + to(c[0]) + ',' + to(c[1]) + ',' + to(c[2]) + ')';
+}
+
+
+
+function initLabCylinder() {
+  if (labCylBuf) return;
+  if (!gl) return;
+  const segments = 14;
+  const rings = 14;
+  const R = 0.42;
+  const cylHalf = 0.55;
+  const totalHalf = cylHalf + R;
+  const verts = [];
+  const idx = [];
+  // generate rings from top to bottom
+  const ringVerts = []; // array of arrays of vertex indices
+  for (let r = 0; r < rings; r++) {
+    const yNorm = r / (rings - 1); // 0..1
+    const y = totalHalf - yNorm * (2 * totalHalf); // topHalf .. -totalHalf
+    const ay = Math.abs(y);
+    let radius;
+    if (ay <= cylHalf) radius = R;
+    else radius = Math.sqrt(Math.max(0, R * R - (ay - cylHalf) * (ay - cylHalf)));
+    const ring = [];
+    for (let i = 0; i < segments; i++) {
+      const a = (i / segments) * Math.PI * 2;
+      const x = Math.cos(a) * radius;
+      const z = Math.sin(a) * radius;
+      // normal: for cylinder part horizontal, for cap part radial+vertical
+      let nx, ny, nz;
+      if (ay <= cylHalf) { nx = Math.cos(a); ny = 0; nz = Math.sin(a); }
+      else {
+        const sign = y > 0 ? 1 : -1;
+        const radial = (ay - cylHalf) / R;
+        const vert = sign * Math.sqrt(Math.max(0, 1 - radial * radial));
+        nx = Math.cos(a) * radial;
+        ny = vert;
+        nz = Math.sin(a) * radial;
+      }
+      const vi = verts.length / 6;
+      verts.push(x, y, z, nx, ny, nz);
+      ring.push(vi);
+    }
+    ringVerts.push(ring);
+  }
+  // connect adjacent rings
+  for (let r = 0; r < rings - 1; r++) {
+    for (let i = 0; i < segments; i++) {
+      const a = ringVerts[r][i];
+      const b = ringVerts[r][(i + 1) % segments];
+      const c = ringVerts[r + 1][i];
+      const d = ringVerts[r + 1][(i + 1) % segments];
+      idx.push(a, c, b);
+      idx.push(b, c, d);
+    }
+  }
+
+  labCylBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, labCylBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+  labCylIdxBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, labCylIdxBuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+  labCylIdxCount = idx.length;
+}
+
+function drawLabGL() {
+  if (!gl || !glProgram || !glBuffers) return;
+  const rect = glCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const w = rect.width > 0 ? rect.width : 600;
+  const h = rect.height > 0 ? rect.height : 400;
+  if (glCanvas.width !== Math.floor(w * dpr) || glCanvas.height !== Math.floor(h * dpr)) {
+    glCanvas.width = Math.floor(w * dpr);
+    glCanvas.height = Math.floor(h * dpr);
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+  }
+  gl.clearColor(0.01, 0.02, 0.05, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(glProgram);
+
+  const aspect = w / h;
+  const proj = mat4Perspective(Math.PI / 4, aspect, 0.1, 100);
+  const view = mat4Translate(0, 0, -18);
+  gl.uniformMatrix4fv(glUniforms.uProjection, false, proj);
+  gl.uniform1f(glUniforms.uTime, Date.now() / 1000);
+  gl.uniform1f(glUniforms.uExtraGlow, 0.6);
+
+  const aPos = gl.getAttribLocation(glProgram, 'aPosition');
+  const aNorm = gl.getAttribLocation(glProgram, 'aNormal');
+  gl.bindBuffer(gl.ARRAY_BUFFER, glBuffers.posBuffer);
+  gl.enableVertexAttribArray(aPos);
+  gl.enableVertexAttribArray(aNorm);
+  gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 24, 0);
+  gl.vertexAttribPointer(aNorm, 3, gl.FLOAT, false, 24, 12);
+
+  const palette = ['#2bd0d0', '#ff5ad0', '#ffd700', '#5af0ff', '#a020f0', '#ff8040', '#00ff80', '#ff4a4a', '#c0c0ff'];
+  const t = Date.now() / 1000;
+  const positions = [
+    [-5, 2.5, 0], [-1.7, 2.5, 0], [1.7, 2.5, 0], [5, 2.5, 0],
+    [-5, -0.5, 0], [-1.7, -0.5, 0], [1.7, -0.5, 0], [5, -0.5, 0],
+    [0, -3, 2],
+  ];
+  gl.enable(gl.DEPTH_TEST);
+
+  // floor slab under everything
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glBuffers.idxBuffer);
+  const floorMV = mat4Multiply(view, mat4Multiply(mat4Translate(0, -4.2, 0), mat4Scale(12, 0.06, 12)));
+  gl.uniformMatrix4fv(glUniforms.uModelView, false, floorMV);
+  gl.uniform3fv(glUniforms.uColor, [0.05, 0.08, 0.12]);
+  gl.uniform3fv(glUniforms.uGlow, [0.15, 0.3, 0.4]);
+  gl.uniform1f(glUniforms.uAlpha, 0.9);
+  gl.drawElements(gl.TRIANGLES, glBuffers.vertexCount, gl.UNSIGNED_SHORT, 0);
+
+  // containment rings + cubes
+  for (let i = 0; i < positions.length; i++) {
+    const p = positions[i];
+    const col = palette[i % palette.length];
+    const colorRGB = hexToRGB(col);
+    const glowRGB = hexToRGB(col);
+    const rot = t * (0.5 + i * 0.08) + i * 0.9;
+     // 3D capsule (cylinder) around the cube
+     initLabCylinder();
+     if (labCylBuf) {
+       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+       gl.depthMask(false);
+       gl.enable(gl.BLEND);
+       const cylMV = mat4Multiply(view, mat4Multiply(
+         mat4Translate(p[0], p[1], p[2]),
+         mat4Scale(0.5, 1.15, 0.5)
+       ));
+       gl.bindBuffer(gl.ARRAY_BUFFER, labCylBuf);
+       gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 24, 0);
+       gl.vertexAttribPointer(aNorm, 3, gl.FLOAT, false, 24, 12);
+       gl.uniformMatrix4fv(glUniforms.uModelView, false, cylMV);
+       gl.uniform3fv(glUniforms.uColor, [0.2, 0.45, 0.55]);
+       gl.uniform3fv(glUniforms.uGlow, glowRGB);
+       gl.uniform1f(glUniforms.uAlpha, 0.35);
+       gl.uniform1f(glUniforms.uExtraGlow, 0.6);
+       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, labCylIdxBuf);
+       gl.drawElements(gl.TRIANGLES, labCylIdxCount, gl.UNSIGNED_SHORT, 0);
+       gl.depthMask(true);
+     }
+     // restore cube buffers
+     gl.bindBuffer(gl.ARRAY_BUFFER, glBuffers.posBuffer);
+     gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 24, 0);
+     gl.vertexAttribPointer(aNorm, 3, gl.FLOAT, false, 24, 12);
+     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glBuffers.idxBuffer);
+
+
+    // cube
+    const mv = mat4Multiply(view, mat4Multiply(
+      mat4Translate(p[0], p[1], p[2]),
+      mat4Multiply(mat4RotationY(rot), mat4Multiply(mat4RotationX(rot * 0.6), mat4Scale(0.3, 0.3, 0.3)))
+    ));
+    gl.uniformMatrix4fv(glUniforms.uModelView, false, mv);
+    gl.uniform3fv(glUniforms.uColor, colorRGB);
+    gl.uniform3fv(glUniforms.uGlow, glowRGB);
+    gl.uniform1f(glUniforms.uAlpha, 1);
+    gl.uniform1f(glUniforms.uExtraGlow, 0.5);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glBuffers.idxBuffer);
+    gl.drawElements(gl.TRIANGLES, glBuffers.vertexCount, gl.UNSIGNED_SHORT, 0);
+
+    // wireframe halo on cube
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.depthMask(false);
+    const haloMV = mat4Multiply(view, mat4Multiply(
+      mat4Translate(p[0], p[1], p[2]),
+      mat4Multiply(mat4RotationY(rot), mat4Multiply(mat4RotationX(rot * 0.6), mat4Scale(0.33, 0.33, 0.33)))
+    ));
+    gl.uniformMatrix4fv(glUniforms.uModelView, false, haloMV);
+    gl.uniform3fv(glUniforms.uColor, glowRGB);
+    gl.uniform3fv(glUniforms.uGlow, glowRGB);
+    gl.uniform1f(glUniforms.uAlpha, 0.2);
+    gl.uniform1f(glUniforms.uExtraGlow, 0.7);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glBuffers.edgeBuffer);
+    gl.drawElements(gl.LINES, glBuffers.edgeCount, gl.UNSIGNED_SHORT, 0);
+    gl.depthMask(true);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  }
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glBuffers.idxBuffer);
+}
+
+function drawLabOverlay2D() {
+  if (!labCanvas || !glCanvas) return;
+  if (!labCtx) labCtx = labCanvas.getContext('2d');
+  const ctx = labCtx;
+  const dpr = window.devicePixelRatio || 1;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  if (labCanvas.width !== Math.floor(w * dpr) || labCanvas.height !== Math.floor(h * dpr)) {
+    labCanvas.width = Math.floor(w * dpr);
+    labCanvas.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  ctx.clearRect(0, 0, w, h);
+
+  const glRect = glCanvas.getBoundingClientRect();
+  const f = 1.0 / Math.tan(Math.PI / 4 / 2);
+  const aspect = glCanvas.width / glCanvas.height;
+
+  const positions = [
+    [-5, 2.5, 0], [-1.7, 2.5, 0], [1.7, 2.5, 0], [5, 2.5, 0],
+    [-5, -0.5, 0], [-1.7, -0.5, 0], [1.7, -0.5, 0], [5, -0.5, 0],
+    [0, -3, 2],
+  ];
+
+  function project(p) {
+    const zview = 18 - p[2];
+    const ndcX = (f / aspect * p[0]) / zview;
+    const ndcY = (f * p[1]) / zview;
+    const sx = (ndcX * 0.5 + 0.5) * (glCanvas.width / dpr);
+    const sy = (1 - (ndcY * 0.5 + 0.5)) * (glCanvas.height / dpr);
+    return { x: glRect.left + sx, y: glRect.top + sy };
+  }
+
+  for (let i = 0; i < positions.length; i++) {
+    const p = positions[i];
+    const s = project(p);
+    const capW = 50, capH = 86;
+    const grad = ctx.createLinearGradient(s.x - capW/2, 0, s.x + capW/2, 0);
+    grad.addColorStop(0, 'rgba(43,208,208,0.08)');
+    grad.addColorStop(0.5, 'rgba(43,208,208,0.22)');
+    grad.addColorStop(1, 'rgba(43,208,208,0.08)');
+    ctx.fillStyle = grad;
+    roundRect(ctx, s.x - capW/2, s.y - capH/2, capW, capH, 16);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(43,208,208,0.6)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, s.x - capW/2, s.y - capH/2, capW, capH, 16);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(43,208,208,0.3)';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y - capH/2, capW/2, Math.PI, 0);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(s.x, s.y + capH/2, capW/2, 0, Math.PI);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = 'rgba(43,208,208,0.5)';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('CUBE LABORATORY', 16, 24);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+
+
+function drawLabScene(ctx, w, h, transparent) {
+  const t = Date.now() / 1000;
+  if (!transparent) {
+  // dark lab background
+  const bg = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w,h)*0.7);
+  bg.addColorStop(0, '#0d1a28');
+  bg.addColorStop(1, '#05080c');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+  }
+  // subtle grid
+  ctx.strokeStyle = 'rgba(43,208,208,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= w; x += 50) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y <= h; y += 50) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+  const cx = w * 0.35, cy = h * 0.5;
+
+  // platform
+  ctx.fillStyle = 'rgba(20,24,32,0.9)';
+  ctx.fillRect(cx - 120, cy + 60, 240, 20);
+  ctx.strokeStyle = 'rgba(43,208,208,0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cx - 120, cy + 60, 240, 20);
+  // platform glow
+  const pg = ctx.createRadialGradient(cx, cy + 70, 0, cx, cy + 70, 140);
+  pg.addColorStop(0, 'rgba(43,208,208,0.15)');
+  pg.addColorStop(1, 'rgba(43,208,208,0)');
+  ctx.fillStyle = pg;
+  ctx.fillRect(cx - 140, cy + 50, 280, 60);
+
+  // central cube specimen (pulsing)
+  const pulse = 0.5 + 0.5 * Math.sin(t * 2);
+  const cubeSize = 50 + pulse * 8;
+  ctx.shadowColor = '#2bd0d0';
+  ctx.shadowBlur = 40 + pulse * 20;
+  ctx.fillStyle = '#2bd0d0';
+  ctx.fillRect(cx - cubeSize/2, cy - cubeSize/2, cubeSize, cubeSize);
+  ctx.shadowBlur = 0;
+  // cube inner highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(cx - cubeSize/2, cy - cubeSize/2, cubeSize, cubeSize * 0.3);
+  // cube wireframe overlay
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cx - cubeSize/2, cy - cubeSize/2, cubeSize, cubeSize);
+  // inner core
+  ctx.fillStyle = 'rgba(43,208,208,0.6)';
+  ctx.fillRect(cx - cubeSize*0.2, cy - cubeSize*0.2, cubeSize*0.4, cubeSize*0.4);
+
+  // connecting pipes from cube to equipment
+  ctx.strokeStyle = 'rgba(43,208,208,0.3)';
+  ctx.lineWidth = 2;
+  // left pipe
+  ctx.beginPath();
+  ctx.moveTo(cx - cubeSize/2, cy);
+  ctx.lineTo(cx - 160, cy);
+  ctx.lineTo(cx - 160, cy - 80);
+  ctx.stroke();
+  // right pipe
+  ctx.beginPath();
+  ctx.moveTo(cx + cubeSize/2, cy);
+  ctx.lineTo(cx + 160, cy);
+  ctx.lineTo(cx + 160, cy - 80);
+  ctx.stroke();
+  // top pipe
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - cubeSize/2);
+  ctx.lineTo(cx, cy - 140);
+  ctx.stroke();
+
+  // left monitor
+  const mx1 = cx - 220, my1 = cy - 120;
+  ctx.fillStyle = 'rgba(10,14,20,0.9)';
+  ctx.fillRect(mx1, my1, 120, 80);
+  ctx.strokeStyle = 'rgba(43,208,208,0.4)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mx1, my1, 120, 80);
+  ctx.fillStyle = 'rgba(43,208,208,0.15)';
+  ctx.fillRect(mx1 + 6, my1 + 6, 108, 68);
+  // monitor lines
+  ctx.fillStyle = 'rgba(43,208,208,0.4)';
+  ctx.font = '8px monospace';
+  ctx.fillText('SPECIMEN', mx1 + 10, my1 + 20);
+  ctx.fillText('STATUS: ACTIVE', mx1 + 10, my1 + 34);
+  ctx.fillText('PURITY: ' + Math.floor(80 + pulse * 15) + '%', mx1 + 10, my1 + 48);
+
+  // right monitor
+  const mx2 = cx + 100, my2 = cy - 120;
+  ctx.fillStyle = 'rgba(10,14,20,0.9)';
+  ctx.fillRect(mx2, my2, 120, 80);
+  ctx.strokeStyle = 'rgba(43,208,208,0.4)';
+  ctx.strokeRect(mx2, my2, 120, 80);
+  ctx.fillStyle = 'rgba(43,208,208,0.15)';
+  ctx.fillRect(mx2 + 6, my2 + 6, 108, 68);
+  ctx.fillStyle = 'rgba(43,208,208,0.4)';
+  ctx.font = '8px monospace';
+  ctx.fillText('ENERGY', mx2 + 10, my2 + 20);
+  ctx.fillText('OUTPUT: ' + Math.floor(40 + pulse * 30) + 'kW', mx2 + 10, my2 + 34);
+  ctx.fillText('TEMP: ' + Math.floor(22 + pulse * 5) + 'C', mx2 + 10, my2 + 48);
+
+  // top vat
+  const vx = cx - 60, vy = cy - 180;
+  ctx.fillStyle = 'rgba(10,14,20,0.9)';
+  if (ctx.roundRect) ctx.roundRect(vx, vy, 120, 60, 8); else ctx.rect(vx, vy, 120, 60);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(43,208,208,0.4)';
+  ctx.stroke();
+  const vg = ctx.createLinearGradient(0, vy, 0, vy + 60);
+  vg.addColorStop(0, 'rgba(43,208,208,0.1)');
+  vg.addColorStop(1, 'rgba(43,208,208,0.25)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(vx + 4, vy + 4, 112, 52);
+  ctx.fillStyle = 'rgba(43,208,208,0.5)';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('CONTAINMENT', cx, vy + 34);
+  ctx.textAlign = 'left';
+
+  // bottom vat
+  const vx2 = cx - 60, vy2 = cy + 100;
+  ctx.fillStyle = 'rgba(10,14,20,0.9)';
+  if (ctx.roundRect) ctx.roundRect(vx2, vy2, 120, 50, 8); else ctx.rect(vx2, vy2, 120, 50);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(43,208,208,0.4)';
+  ctx.stroke();
+  const vg2 = ctx.createLinearGradient(0, vy2, 0, vy2 + 50);
+  vg2.addColorStop(0, 'rgba(43,208,208,0.08)');
+  vg2.addColorStop(1, 'rgba(43,208,208,0.2)');
+  ctx.fillStyle = vg2;
+  ctx.fillRect(vx2 + 4, vy2 + 4, 112, 42);
+  ctx.fillStyle = 'rgba(43,208,208,0.5)';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('REACTOR', cx, vy2 + 29);
+  ctx.textAlign = 'left';
+
+  // title
+  ctx.fillStyle = 'rgba(43,208,208,0.6)';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('CUBE LABORATORY', 16, 24);
 }
 
 function drawDesertScene(ctx, w, h) {
@@ -2354,8 +2845,9 @@ function draw() {
     if (Math.random() < 0.4) spawnParticles(8, '#ff0040', '#ff80a0');
   }
 
-  // quest zones (past/future) have no cube, no background, no particles
-  if (timePeriod !== 'present') {
+  // quest zones (past/future) and the lab have no cube, no background, no particles
+  if (inFishing) { drawFishingScene(); return; }
+  if (timePeriod !== 'present' || inLab) {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     if (glCanvas.width !== Math.floor(rect.width * dpr) || glCanvas.height !== Math.floor(rect.height * dpr)) {
@@ -2377,6 +2869,24 @@ function draw() {
     }
     bgctx.clearRect(0, 0, rect.width, rect.height);
 
+    if (inLab) {
+      // simple blue grid background for the lab
+      if (!labCtx) labCtx = labCanvas.getContext('2d');
+      const _ldpr = window.devicePixelRatio || 1;
+      const _lw = window.innerWidth, _lh = window.innerHeight;
+      if (labCanvas.width !== Math.floor(_lw * _ldpr) || labCanvas.height !== Math.floor(_lh * _ldpr)) {
+        labCanvas.width = Math.floor(_lw * _ldpr);
+        labCanvas.height = Math.floor(_lh * _ldpr);
+        labCtx.setTransform(_ldpr, 0, 0, _ldpr, 0, 0);
+      }
+      labCtx.fillStyle = '#050a12';
+      labCtx.fillRect(0, 0, _lw, _lh);
+      labCtx.strokeStyle = 'rgba(43,208,208,0.12)';
+      labCtx.lineWidth = 1;
+      for (let x = 0; x <= _lw; x += 40) { labCtx.beginPath(); labCtx.moveTo(x, 0); labCtx.lineTo(x, _lh); labCtx.stroke(); }
+      for (let y = 0; y <= _lh; y += 40) { labCtx.beginPath(); labCtx.moveTo(0, y); labCtx.lineTo(_lw, y); labCtx.stroke(); }
+      return;
+    }
     // themed cube in the background (rotating)
     cubeRot += 0.02;
     cubeRotX += 0.008;
@@ -2632,6 +3142,25 @@ function updateUI() {
   renderQuests();
   renderRarityTable(luck);
   renderInventory();
+  if (unlocked.autoTransmute) {
+    const invAT = getCurrentInventory();
+    const rarAT = getCurrentRarities();
+    let transmuted = false;
+    for (const key of Object.keys(invAT)) {
+      if (invAT[key] >= 3 && !key.includes(' (M)') && !key.includes(' (BT)') && !key.includes(' (E)')) {
+        const r = rarAT.find(x => x.name === key);
+        const idx = r ? rarAT.indexOf(r) : -1;
+        if (idx >= 0 && idx < rarAT.length - 1) {
+          invAT[key] -= 3;
+          invAT[rarAT[idx + 1].name] = (invAT[rarAT[idx + 1].name] || 0) + 1;
+          fusionCount++;
+          transmuted = true;
+          break;
+        }
+      }
+    }
+    if (transmuted) { setCurrentInventory(invAT); updateUI(); saveGame(); }
+  }
   checkSets();
   lastRollEl.innerHTML = `last roll: <strong style="color:${currentRarity.color === 'rainbow' ? '#fff' : currentRarity.color === 'prism' ? '#fff' : currentRarity.color}">${currentRarity.name}</strong>`;
   updatePrestigeUI();
@@ -2941,6 +3470,12 @@ function buyUpgrade(id) {
       qMarkChangeInterval += 10;
       qMarkShowChance = true;
     }
+    if (id === 'prestigeAmplifier') {
+      prestigeGainMult = (prestigeGainMult || 1) * 2;
+    }
+    if (id === 'autoReel') {
+      showToast('auto-reel unlocked! casts now auto-reel for 2x');
+    }
   } else if (up.type === 'exp') {
     const count = shopCounts[id] || 0;
     const cost = shopCost(up, count);
@@ -3012,7 +3547,7 @@ function refundUpgrade(id) {
 function getPrestigeGain() {
   const rar = getCurrentRarities();
   const idx = bestRarityIndex;
-  let gain = Math.max(0, Math.floor(Math.log10(credits + 1)) - 2);
+  let gain = Math.max(0, Math.floor(Math.log10(credits + 1)) - 2) * (prestigeGainMult || 1);
   if (idx >= 10) gain += Math.floor((idx - 10) / 5);
   return gain;
 }
@@ -3809,7 +4344,7 @@ function renderFuse() {
         for (const it in counts) { if ((inv[it] || 0) < counts[it]) { ok = false; break; } }
         if (!ok) { showToast('missing items'); return; }
         for (const it in counts) inv[it] -= counts[it];
-        inv['Dust'] = (inv['Dust'] || 0) + 1;
+        inv['Dust'] = (inv['Dust'] || 0) + 1 + (shopCounts.dustMagnet || 0);
         setCurrentInventory(inv);
         playFusionSound();
         showToast('no recipe - the forge crumbles it into 1 Dust');
@@ -3912,9 +4447,16 @@ function isCraftable(name) {
   return idx >= li;
 }
 const crossRecipes = [
+  // unique recipes for craft-only rarities
+  { items: ['Omega', 'Infinity'], result: 'Alpha' },
+  { items: ['Tabula', 'Cosmic'], result: 'Core' },
+  { items: ['Core', 'Sigma'], result: 'Nexus' },
+  { items: ['Omega', 'Sovereign', 'Infinity'], result: 'Xenogenesis' },
+  { items: ['Quantum', 'Ethereal', 'Transcendent'], result: 'Creation' },
+  { items: ['Ascended', 'Radiant', 'Divine', 'Nebula'], result: 'Eternia' },
+  { items: ['Eternia', 'Creation', 'Xenogenesis'], result: 'Omnipotence' },
   // early / mid shortcuts: spend three cubes to skip a tier
-  { items: ['Rare', 'Rare', 'Celestial'], result: 'Epic' },
-  { items: ['Epic', 'Epic', 'Frosted'], result: 'Legendary' },
+  { items: ['Epic', 'Frosted', 'Celestial'], result: 'Legendary' },
   { items: ['Legendary', 'Auric', 'Mythic'], result: 'Mystic' },
   { items: ['Mystic', 'Divine', 'Nebula'], result: 'Ascended' },
   { items: ['Ascended', 'Radiant', 'Ethereal'], result: 'Transcendent' },
@@ -3935,7 +4477,39 @@ const crossRecipes = [
   { items: ['Xenogenesis', 'Creation', 'Eternia'], result: 'Omnipotence' },
   // the one true secret
   { items: ['???', '???', 'Cosmic', 'End', 'Eternia'], result: 'RNG' },
+  { items: ['Duo', 'Nether', 'Tomato'], result: 'Obsidian' },
+  { items: ['Obsidian', 'Aether', 'Entropy'], result: 'Prism' },
 ];
+
+// generate a unique multi-ingredient recipe for every rarity that doesn't already have one
+(function generateAllRecipes() {
+  const rar = rarities;
+  const existing = new Set(crossRecipes.map(r => r.result));
+  const legendaryIdx = rar.findIndex(r => r.name === 'Legendary');
+  const minIdx = legendaryIdx >= 0 ? legendaryIdx : 3;
+  for (let i = minIdx; i < rar.length; i++) {
+    const name = rar[i].name;
+    if (existing.has(name)) continue;
+    // pick 2-3 distinct lower-tier rarities deterministically
+    const picks = [];
+    const candidates = [Math.floor(i/2), Math.floor(i/3), Math.floor(i/4), i-1, i-2];
+    for (const c of candidates) {
+      if (c >= 0 && c < i && !picks.includes(c)) picks.push(c);
+      if (picks.length >= 3) break;
+    }
+    if (picks.length < 2) { picks.push(i-1); }
+    // dedupe by name
+    const names = [];
+    const seen = new Set();
+    for (const c of picks) {
+      if (!seen.has(rar[c].name)) { seen.add(rar[c].name); names.push(rar[c].name); }
+    }
+    if (names.length < 2) names.push(rar[Math.max(0, i-1)].name);
+    crossRecipes.push({ items: names, result: name });
+    existing.add(name);
+  }
+})();
+
 
 function getFuseResult(items, inv, rar) {
   // check cross-rarity recipes first (exact match, any rarity allowed)
@@ -3960,12 +4534,13 @@ function getFuseResult(items, inv, rar) {
       return rar[idx + 1].name;
     }
   }
-  // 3-of-same -> next tier
+  // 3-of-same -> skip 2 tiers
   if (items.length === 3 && items[0] === items[1] && items[1] === items[2]) {
     const a = items[0];
     const r = rar.find(x => x.name === a);
     const idx = r ? rar.indexOf(r) : -1;
-    if (idx >= 0 && idx < rar.length - 1) return rar[idx + 1].name;
+    if (idx >= 0 && idx + 2 < rar.length) return rar[idx + 2].name;
+    if (idx >= 0 && idx + 1 < rar.length) return rar[idx + 1].name;
   }
   return null;
 }
@@ -3978,364 +4553,472 @@ function isRngRecipe(items) {
   return a.every((v, i) => v === b[i]);
 }
 
-document.getElementById('fuseClose').addEventListener('click', () => closeModal(fuseModal));
-
-function renderEvents() {
-  if (!eventsList) return;
-  eventsList.innerHTML = '';
-  const ev = getCurrentEvent();
-  for (const e of gameEvents) {
-    const row = document.createElement('div');
-    row.className = 'shop-item' + (e.id === ev.id ? '' : ' owned');
-    row.innerHTML = '<div class="info"><div class="name">' + e.name + (e.id === ev.id ? ' (ACTIVE)' : '') + '</div><div class="desc">' + e.desc + '</div></div>';
-    eventsList.appendChild(row);
-  }
-  const note = document.createElement('div');
-  note.style.cssText = 'color:var(--muted);font-size:10px;margin-top:8px';
-  note.textContent = 'events rotate daily. active: ' + ev.name;
-  eventsList.appendChild(note);
+function enterLab(tab) {
+  inLab = true;
+  const mainEl = document.querySelector('main');
+  if (mainEl) mainEl.style.display = 'none';
+  const arrow = document.getElementById('labArrow');
+  if (arrow) arrow.style.display = 'none';
+  openModal(labView);
+  renderLabTab(tab || 'fuse');
+}
+function exitLab() {
+  inLab = false;
+  const mainEl = document.querySelector('main');
+  if (mainEl) mainEl.style.display = '';
+  const arrow = document.getElementById('labArrow');
+  if (arrow) arrow.style.display = '';
+  closeModal(labView);
+}
+function enterFishing() {
+  inFishing = true;
+  const mainEl = document.querySelector('main');
+  if (mainEl) mainEl.style.display = 'none';
+  const arrow = document.getElementById('labArrow');
+  if (arrow) arrow.style.display = 'none';
+  const fv = document.getElementById('fishingView');
+  if (fv) fv.style.display = 'block';
+  renderFishing();
+}
+function exitFishing() {
+  inFishing = false;
+  const mainEl = document.querySelector('main');
+  if (mainEl) mainEl.style.display = '';
+  const arrow = document.getElementById('labArrow');
+  if (arrow) arrow.style.display = '';
+  const fv = document.getElementById('fishingView');
+  if (fv) fv.style.display = 'none';
 }
 
-document.getElementById('eventsClose').addEventListener('click', () => closeModal(eventsModal));
+function reelFish() {
+  if (!fishMinigameActive || !fishPending) { showToast('no active cast'); return; }
+  const elapsed = Date.now() - fishMinigameStart;
+  fishMinigameActive = false;
+  if (fishMinigameTimer) clearTimeout(fishMinigameTimer);
 
-function renderStats() {
-  if (!statsList) return;
-  statsList.innerHTML = '';
-  const rar = getCurrentRarities();
-  const best = rar[Math.min(bestRarityIndex, rar.length - 1)] || rar[0];
-  const lines = [
-    ['rolls', formatNum(rolls)],
-    ['lifetime rolls', formatNum(lifetimeRolls + rolls)],
-    ['credits', formatNum(credits)],
-    ['lifetime credits', formatNum(lifetimeCredits + credits)],
-    ['base luck', formatNum(baseLuck)],
-    ['total luck', formatNum(getTotals())],
-    ['best rarity', best ? best.name : '-'],
-    ['prestige points', formatNum(prestigePoints)],
-    ['prestige count', prestigeCount],
-    ['transcendence', transcendenceCount],
-    ['fusion count', fusionCount],
-    ['owned rarities', Object.keys(ownedRarities).length + '/' + rarities.length],
-    ['collection complete', collectionRewardClaimed ? 'yes' : 'no'],
-    ['pity counter', pityCounter],
-    ['roll streak', rollStreak],
-    ['auto-sell', autoSellThreshold >= 0 ? 'below ' + (rar[autoSellThreshold] ? rar[autoSellThreshold].name : autoSellThreshold) : 'OFF'],
+  // green zone: 400-700ms. perfect zone: 480-520ms
+  const inGreen = elapsed >= 400 && elapsed <= 700;
+  const inPerfect = elapsed >= 480 && elapsed <= 520;
+
+  if (!inGreen) {
+    fishPending = null;
+    fishCaughtAnim = 1;
+    fishCaughtName = 'MISSED';
+    fishCaughtColor = '#ff4040';
+    playCatchSound();
+    showToast('missed! cast failed');
+    updateUI(); saveGame(); renderFishing();
+    return;
+  }
+
+  const mult = inPerfect ? 2 : 1;
+  const creditsGain = fishPending.baseCredits * fishPending.boatCatches * mult;
+  credits += creditsGain;
+  fishTotalCaught += fishPending.boatCatches;
+  fishCaughtAnim = 1;
+  fishCaughtName = '+' + creditsGain + ' CR';
+  fishCaughtColor = '#2bd0d0';
+  playCatchSound();
+  if (inPerfect) showToast('PERFECT reel! 2x credits (+' + creditsGain + ')');
+  else showToast('reeled in! (+' + creditsGain + ' CR)');
+  fishPending = null;
+  updateUI(); saveGame(); renderFishing();
+}
+
+function renderFishing() {
+  const el = document.getElementById('fishingList');
+  if (!el) return;
+  el.innerHTML = '';
+  const inv = getCurrentInventory();
+
+  const castRow = document.createElement('div');
+  castRow.className = 'shop-item';
+  castRow.innerHTML = '<div class="info"><div class="name">Cast Line</div><div class="desc">catch a fish for credits (no rarities gained). rod lv' + fishRodLevel + ' bait lv' + fishBaitLevel + ' boat lv' + fishBoatLevel + '</div></div>';
+  const castBtn = document.createElement('button');
+  castBtn.textContent = 'CAST';
+  castBtn.addEventListener('click', () => { castFish(); renderFishing(); });
+  castRow.appendChild(castBtn);
+  if (fishMinigameActive) {
+    const reelRow = document.createElement('div');
+    reelRow.className = 'shop-item';
+    reelRow.style.borderColor = 'rgba(255,208,74,0.45)';
+    reelRow.innerHTML = '<div class="info"><div class="name">REEL NOW!</div><div class="desc">click when the marker is in the green zone (0.4-0.7s) for 2x credits</div></div>';
+    // timing bar
+    const barWrap = document.createElement('div');
+    barWrap.style.cssText = 'width:100%;height:12px;background:rgba(255,255,255,0.1);border-radius:6px;position:relative;margin:6px 0;overflow:hidden';
+    const sweetZone = document.createElement('div');
+    sweetZone.style.cssText = 'position:absolute;left:40%;width:30%;height:100%;background:rgba(100,255,100,0.2);border-radius:6px';
+    barWrap.appendChild(sweetZone);
+    const perfectZone = document.createElement('div');
+    perfectZone.style.cssText = 'position:absolute;left:47%;width:6%;height:100%;background:rgba(255,215,0,0.7);border-radius:2px;box-shadow:0 0 8px rgba(255,215,0,0.5)';
+    barWrap.appendChild(perfectZone);
+    const marker = document.createElement('div');
+    marker.style.cssText = 'position:absolute;top:0;width:4px;height:100%;background:#ffd04a;border-radius:2px;transition:left 0.05s linear';
+    barWrap.appendChild(marker);
+    reelRow.appendChild(barWrap);
+    const reelBtn = document.createElement('button');
+    reelBtn.textContent = 'REEL';
+    reelBtn.style.borderColor = 'rgba(255,208,74,0.45)';
+    reelBtn.style.color = '#ffd04a';
+    reelBtn.addEventListener('click', () => { reelFish(); renderFishing(); });
+    reelRow.appendChild(reelBtn);
+    el.appendChild(reelRow);
+    // animate marker
+    const animateMarker = () => {
+      if (!fishMinigameActive) return;
+      const elapsed = Date.now() - fishMinigameStart;
+      const pct = Math.min(100, (elapsed / 1000) * 100);
+      marker.style.left = pct + '%';
+      requestAnimationFrame(animateMarker);
+    };
+    requestAnimationFrame(animateMarker);
+  }
+  el.appendChild(castRow);
+
+  const autoRow = document.createElement('div');
+  autoRow.className = 'shop-item';
+  autoRow.innerHTML = '<div class="info"><div class="name">Auto-Fish</div><div class="desc">automatically cast every 2s</div></div>';
+  const autoBtn = document.createElement('button');
+  autoBtn.textContent = autoFish ? 'ON' : 'OFF';
+  autoBtn.addEventListener('click', () => { autoFish = !autoFish; updateUI(); saveGame(); renderFishing(); });
+  autoRow.appendChild(autoBtn);
+  el.appendChild(autoRow);
+
+  const statRow = document.createElement('div');
+  statRow.style.cssText = 'font-size:10px;color:var(--muted);padding:8px';
+  statRow.textContent = 'total caught: ' + fishTotalCaught;
+  el.appendChild(statRow);
+
+  const upgHeader = document.createElement('div');
+  upgHeader.style.cssText = 'font-size:11px;color:var(--cyan-bright);margin:8px 0 4px';
+  upgHeader.textContent = 'UPGRADES (cost: rarities)';
+  el.appendChild(upgHeader);
+
+  const upgrades = [
+    { name: 'Rod', level: fishRodLevel, max: 10, cost: (l) => (l+1) * 2, costName: (l) => rarities[Math.min(l + 5, rarities.length-1)].name, desc: 'better catch rates (+10% per level)' },
+    { name: 'Bait', level: fishBaitLevel, max: 10, cost: (l) => (l+1) * 2, costName: (l) => rarities[Math.min(l + 8, rarities.length-1)].name, desc: 'more credits per catch (+20% per level)' },
+    { name: 'Boat', level: fishBoatLevel, max: 5, cost: (l) => (l+1) * 3, costName: (l) => rarities[Math.min(l + 12, rarities.length-1)].name, desc: 'catches per cast (+1 per level)' },
   ];
-  for (const [k, v] of lines) {
+  for (const up of upgrades) {
+    if (up.level >= up.max) {
+      const row = document.createElement('div');
+      row.className = 'shop-item owned';
+      row.innerHTML = '<div class="info"><div class="name">' + up.name + ' (MAXED)</div><div class="desc">' + up.desc + '</div></div>';
+      el.appendChild(row);
+      continue;
+    }
+    const costAmt = up.cost(up.level);
+    const costRarity = up.costName(up.level);
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;justify-content:space-between;padding:4px 6px;border-bottom:1px solid rgba(43,208,208,0.1)';
-    row.innerHTML = '<span style="color:var(--muted)">' + k + '</span><strong style="color:var(--cyan-bright)">' + v + '</strong>';
-    statsList.appendChild(row);
+    row.className = 'shop-item';
+    row.innerHTML = '<div class="info"><div class="name">' + up.name + ' (lv' + up.level + ')</div><div class="desc">' + up.desc + ' | cost: ' + costAmt + ' ' + costRarity + '</div></div>';
+    const btn = document.createElement('button');
+    btn.textContent = 'UPGRADE';
+    btn.addEventListener('click', () => {
+      const inv = getCurrentInventory();
+      const have = inv[costRarity] || 0;
+      if (have < costAmt) { showToast('need ' + costAmt + ' ' + costRarity); return; }
+      inv[costRarity] -= costAmt;
+      setCurrentInventory(inv);
+      if (up.name === 'Rod') fishRodLevel++;
+      else if (up.name === 'Bait') fishBaitLevel++;
+      else if (up.name === 'Boat') fishBoatLevel++;
+      playPurchaseSound();
+      showToast('upgraded ' + up.name);
+      updateUI(); saveGame(); renderFishing();
+    });
+    row.appendChild(btn);
+    el.appendChild(row);
   }
 }
 
-document.getElementById('settingsStatsBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(statsModal); renderStats(); });
+function castFish(auto) {
+  if (!auto && Date.now() - fishLastCast < fishCooldown) { showToast('cooldown: ' + Math.ceil((fishCooldown - (Date.now() - fishLastCast)) / 1000) + 's'); return; }
+  const rar = getCurrentRarities();
+  if (!rar || rar.length === 0) { showToast('no rarities here'); return; }
+  fishLastCast = Date.now();
+  fishCastAnim = 1;
 
-function updateAutoFuseBtn() {
-  const b = document.getElementById('settingsAutoFuseBtn');
-  if (b) b.textContent = 'AUTO-FUSE: ' + (autoFuse ? 'ON' : 'OFF');
-}
-document.getElementById('settingsAutoFuseBtn').addEventListener('click', () => {
-  autoFuse = !autoFuse;
-  updateAutoFuseBtn();
-  saveGame();
-  showToast(autoFuse ? 'auto-fuse on' : 'auto-fuse off');
-});
+  // determine caught rarity
+  const bonus = fishRodLevel * 0.05;
+  let idx = Math.floor(Math.random() * rar.length);
+  if (Math.random() < bonus) idx = Math.min(idx + Math.floor(Math.random() * 3) + 1, rar.length - 1);
+  const r = rar[Math.max(0, Math.min(idx, rar.length - 1))];
+  if (!r || r.craftOnly) { showToast('nothing bit'); return; }
 
-function updateAutoEquipBtn() {
-  const b = document.getElementById('settingsAutoEquipBtn');
-  if (b) b.textContent = 'AUTO-EQUIP BEST: ' + (autoEquipBest ? 'ON' : 'OFF');
-}
+  const boatCatches = auto ? 1 : (1 + fishBoatLevel);
+  const baseCredits = Math.round((idx + 1) * 50 * (1 + fishBaitLevel * 0.2));
 
-function updateSlotBtns() {
-  for (let i = 1; i <= 3; i++) {
-    const b = document.getElementById('slot' + i + 'Btn');
-    if (b) b.classList.toggle('active', currentSlot === i);
+  if (auto || unlocked.autoReel) {
+    // auto-fish/auto-reel: give 2x credits immediately
+    credits += baseCredits * boatCatches * 2;
+    fishTotalCaught += boatCatches;
+    fishCaughtAnim = 1;
+    fishCaughtName = '+' + (baseCredits * boatCatches) + ' CR';
+    fishCaughtColor = '#2bd0d0';
+    playCatchSound();
+    showToast('auto-caught ' + r.name + ' (+' + (baseCredits * boatCatches * 2) + ' CR) 2x');
+    updateUI(); saveGame();
+    return;
   }
-}
-for (let i = 1; i <= 3; i++) {
-  document.getElementById('slot' + i + 'Btn').addEventListener('click', () => {
-    if (currentSlot === i) return;
-    saveGame();
-    currentSlot = i;
-    localStorage.setItem('luxRngSlot', String(i));
-    location.reload();
-  });
-}
-updateSlotBtns();
-document.getElementById('settingsAutoEquipBtn').addEventListener('click', () => {
-  autoEquipBest = !autoEquipBest;
-  updateAutoEquipBtn();
-  saveGame();
-  showToast(autoEquipBest ? 'auto-equip on' : 'auto-equip off');
-});
-document.getElementById('statsClose').addEventListener('click', () => closeModal(statsModal));
 
-function triggerCorruption(seed) {
-  if (corrupted) return;
-  seed = seed || '';
-  // seeded PRNG based on clipboard content
-  let h = 5381;
-  for (let i = 0; i < seed.length; i++) h = ((h << 5) + h + seed.charCodeAt(i)) >>> 0;
-  let rngState = h || 1;
-  function seededRandom() {
-    rngState = (rngState * 1664525 + 1013904223) >>> 0;
-    return rngState / 4294967296;
-  }
-  window.__corruptRng = seededRandom;
-  corrupted = true;
-  autoRoll = false;
-  const co = document.getElementById('corruptOverlay');
-  if (co) co.style.display = 'block';
-  // block all interaction
-  document.body.style.pointerEvents = 'none';
-  co.style.pointerEvents = 'all';
-  // stop original bgm
-  try { bgmAudio.pause(); musicPlaying = false; if (musicBtn) musicBtn.textContent = '♪ OFF'; } catch (e) {}
-  updateSettingsBtns();
-  // play fearful harmony audio on loop (only sound in corruption)
+  // manual cast: start minigame, don't give credits yet
+  fishPending = { rarity: r, idx: idx, baseCredits: baseCredits, boatCatches: boatCatches };
+  fishMinigameActive = true;
+  fishMinigameStart = Date.now();
+  fishMinigameBonus = false;
+  if (fishMinigameTimer) clearTimeout(fishMinigameTimer);
+  if (fishMinigameTimer) clearTimeout(fishMinigameTimer);
+  fishMinigameTimer = setTimeout(() => {
+    if (fishMinigameActive && fishPending) {
+      fishMinigameActive = false;
+      fishPending = null;
+      fishCaughtAnim = 1;
+      fishCaughtName = 'TIMEOUT';
+      fishCaughtColor = '#ff4040';
+      showToast('line went out of screen - cast failed');
+      updateUI(); saveGame(); renderFishing();
+    }
+  }, 1000);
+  fishCaughtAnim = 1;
+  fishCaughtName = 'REEL!';
+  fishCaughtColor = '#ffd04a';
+  playCastSound();
+  showToast('cast! reel in the green zone');
+  updateUI(); saveGame();
+  renderFishing();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// auto-fish in game loop
+function playCastSound() {
   try {
-    const fh = new Audio('https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/fearfulharmony.mp3');
-    fh.loop = true;
-    fh.volume = 0.6;
-    fh.play().catch(() => {});
-    window.__fhAudio = fh;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(300, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
+    g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.2);
   } catch (e) {}
-  // capture snapshots
-  const canvases = [document.getElementById('cubeCanvasGL'), document.getElementById('cubeCanvas'), document.getElementById('bgCanvas')];
-  const snapshots = [];
-  for (const c of canvases) {
-    try { snapshots.push(c.toDataURL('image/png')); } catch (e) {}
-  }
-  const inlineSvgs = Array.from(document.querySelectorAll('svg')).map(s => s.outerHTML);
-  const smear = document.getElementById('corruptSmear');
-  const src = snapshots.length ? snapshots[0] : null;
-  // PROGRESSIVE corruption: start black, add more distortion over time
-  let wave = 0;
-  function addWave() {
-    if (!corrupted) return;
-    wave++;
-    const intensity = Math.min(1, wave / 8);
-    // hall of mirrors (grows with waves)
-    const mirrorCount = Math.min(12, 2 + wave * 2);
-    for (let i = 0; i < mirrorCount; i++) {
-      const el = document.createElement('img');
-      if (src) el.src = src;
-      el.style.position = 'absolute';
-      el.style.left = '50%';
-      el.style.top = '50%';
-      const scale = 1 - i * 0.06;
-      el.style.width = (100 * scale) + '%';
-      el.style.height = (100 * scale) + '%';
-      el.style.transform = 'translate(-50%, -50%) scale(' + scale + ') rotate(' + (i * 7 + wave * 3) + 'deg)';
-      el.style.opacity = (0.5 - i * 0.03) * intensity;
-      el.style.filter = 'blur(' + (i * 0.6) + 'px) hue-rotate(' + (i * 30 + wave * 15) + 'deg) contrast(' + (1.1 + i * 0.1) + ')';
-      el.style.mixBlendMode = 'screen';
-      smear.appendChild(el);
-    }
-    // distorted copies
-    const distCount = Math.min(20, 3 + wave * 3);
-    for (let i = 0; i < distCount; i++) {
-      const el = document.createElement('img');
-      const s = snapshots.length ? snapshots[Math.floor(seededRandom() * snapshots.length)] : null;
-      if (s) el.src = s;
-      el.style.position = 'absolute';
-      el.style.left = (seededRandom() * 90) + '%';
-      el.style.top = (seededRandom() * 90) + '%';
-      el.style.width = (20 + seededRandom() * 50) + '%';
-      const sx = (seededRandom() < 0.5 ? -1 : 1) * (0.6 + seededRandom() * 1.8);
-      const sy = (seededRandom() < 0.5 ? -1 : 1) * (0.6 + seededRandom() * 1.8);
-      const skewX = (seededRandom() * 40 - 20) * intensity;
-      const skewY = (seededRandom() * 40 - 20) * intensity;
-      el.style.transform = 'scale(' + sx + ', ' + sy + ') skew(' + skewX + 'deg, ' + skewY + 'deg) rotate(' + (seededRandom() * 60 - 30) + 'deg)';
-      el.style.opacity = (0.3 + seededRandom() * 0.5) * intensity;
-      el.style.filter = 'blur(' + (seededRandom() * 8) + 'px) hue-rotate(' + (seededRandom() * 360) + 'deg) contrast(' + (0.5 + seededRandom() * 2) + ') brightness(' + (0.5 + seededRandom()) + ')';
-      el.style.mixBlendMode = seededRandom() < 0.5 ? 'difference' : 'exclusion';
-      smear.appendChild(el);
-    }
-    // distorted svgs
-    const svgCount = Math.min(12, 2 + wave * 2);
-    for (let i = 0; i < svgCount; i++) {
-      const el = document.createElement('div');
-      el.style.position = 'absolute';
-      el.style.left = (seededRandom() * 85) + '%';
-      el.style.top = (seededRandom() * 85) + '%';
-      const sx = (seededRandom() < 0.5 ? -1 : 1) * (1 + seededRandom() * 3);
-      const sy = (seededRandom() < 0.5 ? -1 : 1) * (1 + seededRandom() * 3);
-      const skewX = seededRandom() * 80 - 40;
-      const skewY = seededRandom() * 80 - 40;
-      const rot = seededRandom() * 360;
-      const persp = 200 + seededRandom() * 400;
-      el.style.transform = 'perspective(' + persp + 'px) rotateX(' + (seededRandom()*60-30) + 'deg) rotateY(' + (seededRandom()*60-30) + 'deg) scale(' + sx + ', ' + sy + ') skew(' + skewX + 'deg, ' + skewY + 'deg) rotate(' + rot + 'deg)';
-      el.style.opacity = (0.5 + seededRandom() * 0.5) * intensity;
-      el.style.filter = 'blur(' + (seededRandom() * 6) + 'px) hue-rotate(' + (seededRandom() * 360) + 'deg) contrast(' + (1.5 + seededRandom() * 2) + ') saturate(' + (seededRandom() * 4) + ')';
-      el.style.mixBlendMode = 'screen';
-      el.style.transformOrigin = 'center center';
-      if (inlineSvgs.length) {
-        el.innerHTML = inlineSvgs[Math.floor(seededRandom() * inlineSvgs.length)];
-        const svg = el.querySelector('svg');
-        if (svg) {
-          svg.style.width = (60 + seededRandom() * 120) + 'px';
-          svg.style.height = 'auto';
-          svg.setAttribute('preserveAspectRatio', 'none');
-        }
-      }
-      smear.appendChild(el);
-    }
-    // schedule next wave
-    if (wave < 8) setTimeout(addWave, 1500);
-  }
-  // start first wave after a delay (starts mostly black)
-  setTimeout(addWave, 800);
-  showToast('\u26a0 CORRUPTED DATA DETECTED');
-
-  // max out distortion
-  shake = 40;
-  chroma = 1;
-  flash.style.opacity = 1;
-  setTimeout(() => { flash.style.opacity = 0; }, 200);
-  spawnParticles(500, '#ff0040', '#ff80a0');
-  // scramble the roll text
-  const rt = document.getElementById('rollText');
-  if (rt) {
-    const nameEl = rt.querySelector('.rarity-name');
-    if (nameEl) {
-      const scramble = () => {
-        if (!corrupted) return;
-        const chars = '!@#$%^&*()_+-=[]{}|;:,.<>?/~`';
-        let out = '';
-        for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
-        nameEl.textContent = out;
-        nameEl.style.color = '#ff0040';
-        setTimeout(scramble, 120);
-      };
-      scramble();
-    }
-  }
 }
 
-const driveAnim = document.getElementById('driveAnim');
-const driveIcon = document.getElementById('driveIcon');
-const driveText = document.getElementById('driveText');
-
-function showDriveAnim(text, icon, duration) {
-  driveText.textContent = text;
-  driveIcon.textContent = icon;
-  driveAnim.style.display = 'flex';
-  return new Promise(res => setTimeout(res, duration));
-}
-
-document.getElementById('settingsExportBtn').addEventListener('click', async () => {
-  closeModal(settingsModal);
-  await showDriveAnim('CLONING DRIVE...', '💾', 1200);
-  const data = localStorage.getItem(saveKey());
-  driveAnim.style.display = 'none';
-  if (!data) { showToast('no save to export'); return; }
-  // copy to clipboard
+function playCatchSound() {
   try {
-    await navigator.clipboard.writeText(data);
-    showToast('save copied to clipboard');
-  } catch (e) {
-    // fallback: show in prompt
-    prompt('copy your save:', data);
-  }
-});
-
-document.getElementById('settingsImportBtn').addEventListener('click', async () => {
-  closeModal(settingsModal);
-  let text = '';
-  try { text = await navigator.clipboard.readText(); } catch (e) { text = ''; }
-  if (!text) { text = prompt('paste your save JSON:') || ''; }
-  if (!text) return;
-  await showDriveAnim('PULLING DRIVE...', '💿', 800);
-  await showDriveAnim('INSERTING...', '💿', 800);
-  driveAnim.style.display = 'none';
-  try {
-    const data = JSON.parse(text, (key, value) => {
-      if (value === '__INF__') return Infinity;
-      if (value === '__NINF__') return -Infinity;
-      if (value === '__NAN__') return NaN;
-      return value;
+    const notes = [523, 659, 784];
+    notes.forEach((n, i) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.value = n;
+      g.gain.setValueAtTime(0.12, audioCtx.currentTime + i * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.1 + 0.2);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(audioCtx.currentTime + i * 0.1);
+      o.stop(audioCtx.currentTime + i * 0.1 + 0.2);
     });
-    // validate: must look like a lux's rng save
-    if (!data || typeof data !== 'object' || typeof data.saveVersion === 'undefined') throw new Error('bad');
-    // checksum verification
-    if (data.checksum) {
-      const checkObj = { ...data };
-      delete checkObj.checksum;
-      const recomputed = _hashStr(JSON.stringify(checkObj, _saveReplacer));
-      if (recomputed !== data.checksum) throw new Error('bad checksum');
-    }
-    localStorage.setItem(saveKey(), text);
-    location.reload();
-  } catch (e) {
-    triggerCorruption(text);
-  }
-});
-
-function updateSettingsBtns() {
-  const sf = document.getElementById('settingsFlashBtn');
-  const sm = document.getElementById('settingsMusicBtn');
-  if (sf) sf.textContent = 'FLASH: ' + (flashesEnabled ? 'ON' : 'OFF');
-  if (sm) sm.textContent = 'MUSIC: ' + (musicPlaying ? 'ON' : 'OFF');
+  } catch (e) {}
 }
 
-let currentTrack = localStorage.getItem('luxRngTrack') || 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/bgm.mp3';
-function populateMusicDropdown() {
-  const dd = document.getElementById('musicDropdown');
-  if (!dd) return;
-  dd.innerHTML = '';
-  for (const t of musicTracks) {
-    const item = document.createElement('div');
-    item.textContent = t.name;
-    item.style.cssText = 'padding:6px 10px;font-size:11px;cursor:pointer;color:var(--text);border-bottom:1px solid rgba(43,208,208,0.1)';
-    item.addEventListener('click', () => {
-      currentTrack = t.src;
-      localStorage.setItem('luxRngTrack', t.src);
-      bgmAudio.pause();
-      bgmAudio.src = t.src;
-      bgmAudio.load();
-      if (musicPlaying) bgmAudio.play().catch(() => {});
-      showToast('track: ' + t.name);
-      const dd2 = document.getElementById('musicDropdown');
-      if (dd2) dd2.style.display = 'none';
-    });
-    dd.appendChild(item);
+function drawFishingScene() {
+  if (!fishingCanvas) return;
+  if (!fishingCtx) fishingCtx = fishingCanvas.getContext('2d');
+  const ctx = fishingCtx;
+  const dpr = window.devicePixelRatio || 1;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  if (fishingCanvas.width !== Math.floor(w * dpr) || fishingCanvas.height !== Math.floor(h * dpr)) {
+    fishingCanvas.width = Math.floor(w * dpr);
+    fishingCanvas.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-}
-populateMusicDropdown();
+  ctx.clearRect(0, 0, w, h);
 
-const musicWrap = document.getElementById('musicWrap');
-if (musicWrap) {
-  musicWrap.addEventListener('mouseenter', () => {
-    const dd = document.getElementById('musicDropdown');
-    if (dd) dd.style.display = 'block';
-  });
-  musicWrap.addEventListener('mouseleave', () => {
-    const dd = document.getElementById('musicDropdown');
-    if (dd) dd.style.display = 'none';
-  });
-}
+  const t = Date.now() / 1000;
 
-// apply saved track on load
-(function applySavedTrack() {
-  if (currentTrack && currentTrack !== 'https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/bgm.mp3') {
-    bgmAudio.src = currentTrack;
-    bgmAudio.load();
+  const waterGrad = ctx.createLinearGradient(0, 0, 0, h);
+  waterGrad.addColorStop(0, '#0a1a2a');
+  waterGrad.addColorStop(0.3, '#0d2a3a');
+  waterGrad.addColorStop(0.7, '#0a3040');
+  waterGrad.addColorStop(1, '#051520');
+  ctx.fillStyle = waterGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.strokeStyle = 'rgba(43,208,208,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= w; x += 5) {
+    const wave = Math.sin(x * 0.02 + t * 2) * 4 + Math.sin(x * 0.05 + t * 1.3) * 2;
+    if (x === 0) ctx.moveTo(x, h * 0.35 + wave);
+    else ctx.lineTo(x, h * 0.35 + wave);
   }
-})();
-settingsBtn.addEventListener('click', () => { updateSettingsBtns(); openModal(settingsModal); });
-document.getElementById('settingsEventsBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(eventsModal); renderEvents(); });
-document.getElementById('settingsClose').addEventListener('click', () => closeModal(settingsModal));
+  ctx.stroke();
+
+  for (let i = 0; i < 20; i++) {
+    const bx = (Math.sin(i * 12.34 + t * 0.5) * 0.5 + 0.5) * w;
+    const by = h * 0.4 + (Math.cos(i * 7.89 + t * 0.3) * 0.5 + 0.5) * h * 0.55;
+    const bsize = 2 + Math.sin(t + i) * 1;
+    ctx.fillStyle = 'rgba(43,208,208,' + (0.1 + 0.15 * Math.abs(Math.sin(t + i))) + ')';
+    ctx.beginPath();
+    ctx.arc(bx, by, bsize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const fishColors = ['#2bd0d0', '#ff5ad0', '#ffd700', '#5af0ff', '#a020f0', '#ff8040', '#00ff80'];
+  const fishCount = 6 + fishBaitLevel * 2;
+  for (let i = 0; i < fishCount; i++) {
+    const fx = (t * 30 + i * 150) % (w + 100) - 50;
+    const fy = h * 0.45 + Math.sin(t * 1.5 + i * 2) * 40 + i * 20;
+    const fsize = 8 + (i % 3) * 4;
+    const fc = fishColors[i % fishColors.length];
+    ctx.save();
+    ctx.translate(fx, fy);
+    if (Math.cos(t * 0.5 + i) < 0) ctx.scale(-1, 1);
+    ctx.fillStyle = fc;
+    ctx.shadowColor = fc;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, fsize, fsize * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = fc;
+    ctx.beginPath();
+    ctx.moveTo(-fsize, 0);
+    ctx.lineTo(-fsize - 8, -6);
+    ctx.lineTo(-fsize - 8, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(fsize * 0.5, -2, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(fsize * 0.5 + 0.5, -2, 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+    // fishing rod - affected by rod level
+  const rodX = w * 0.85;
+  const rodY = h * 0.15;
+  const rodColor = fishRodLevel >= 5 ? 'rgba(255,215,0,0.9)' : fishRodLevel >= 3 ? 'rgba(180,220,255,0.9)' : 'rgba(200,180,140,0.8)';
+  const rodWidth = 2 + fishRodLevel * 0.3;
+  ctx.strokeStyle = rodColor;
+  ctx.lineWidth = rodWidth;
+  ctx.beginPath();
+  ctx.moveTo(rodX, rodY);
+  const bend = fishCastAnim > 0 ? 30 + fishCastAnim * 20 : 20;
+  ctx.lineTo(rodX - bend, rodY + 60);
+  ctx.stroke();
+  const lineEnd = fishCastAnim > 0 ? rodY + 80 + fishCastAnim * 250 : rodY + 80;
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(rodX - bend, rodY + 60);
+  ctx.lineTo(rodX - bend, lineEnd);
+  ctx.stroke();
+  ctx.strokeStyle = rodColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(rodX - bend, lineEnd, 6, 0, Math.PI);
+  ctx.stroke();
+
+  // boat (affected by boat level)
+  const boatSize = 1 + fishBoatLevel * 0.15;
+  const boatX = w * 0.15;
+  const boatY = h * 0.32;
+  ctx.save();
+  ctx.translate(boatX, boatY);
+  ctx.scale(boatSize, boatSize);
+  ctx.fillStyle = 'rgba(120,80,40,0.8)';
+  ctx.beginPath();
+  ctx.moveTo(-40, 0);
+  ctx.lineTo(40, 0);
+  ctx.lineTo(30, 15);
+  ctx.lineTo(-30, 15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(200,160,100,0.6)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(200,180,140,0.8)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -30);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath();
+  ctx.moveTo(0, -30);
+  ctx.lineTo(20, -5);
+  ctx.lineTo(0, -5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  if (fishCaughtAnim > 0) {
+    const a = fishCaughtAnim;
+    const jumpY = h * 0.3 - a * 60;
+    const col = fishCaughtColor;
+    ctx.save();
+    ctx.translate(w * 0.5, jumpY);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 20, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(fishCaughtName, 0, -20);
+    ctx.textAlign = 'left';
+    ctx.restore();
+    fishCaughtAnim = Math.max(0, fishCaughtAnim - 0.02);
+  }
+
+  if (fishCastAnim > 0) fishCastAnim = Math.max(0, fishCastAnim - 0.05);
+
+  ctx.fillStyle = 'rgba(43,208,208,0.5)';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('FISHING TYCOON', 16, 24);
+}
+
 
 function renderEvolve() {
-  if (!evolveList) return;
-  evolveList.innerHTML = '';
+  const el = document.getElementById('evolveList');
+  if (!el) return;
+  el.innerHTML = '';
   const inv = getCurrentInventory();
   const rar = getCurrentRarities();
   const keys = Object.keys(inv).filter(k => inv[k] >= 5 && !k.includes(' (M)') && !k.includes(' (BT)') && !k.includes(' (E)'));
   if (keys.length === 0) {
-    evolveList.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">need 5 of the same aura to evolve.</div>';
+    el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px">need 5 of the same aura to evolve.</div>';
     return;
   }
   for (const key of keys) {
@@ -4359,12 +5042,120 @@ function renderEvolve() {
       renderEvolve();
     });
     row.appendChild(btn);
-    evolveList.appendChild(row);
+    el.appendChild(row);
   }
 }
 
-document.getElementById('settingsEvolveBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(evolveModal); renderEvolve(); });
-document.getElementById('evolveClose').addEventListener('click', () => closeModal(evolveModal));
+function renderReactor() {
+  const el = document.getElementById('labReactorList');
+  if (!el) return;
+  el.innerHTML = '';
+  const inv = getCurrentInventory();
+  const dustKeys = Object.keys(inv).filter(k => /^Dust(?: \((?:R|M|BT|E)\))?$/.test(k) && inv[k] > 0);
+  const mutatedDust = Object.keys(mutatedInventory).filter(k => /^Dust(?: \((?:R|M|BT|E)\))?$/.test(k) && mutatedInventory[k] > 0);
+  const totalDust = dustKeys.reduce((s, k) => s + (inv[k] || 0), 0) + mutatedDust.reduce((s, k) => s + (mutatedInventory[k] || 0), 0);
+  const row = document.createElement('div');
+  row.className = 'shop-item';
+  row.innerHTML = '<div class="info"><div class="name">Dust Reactor</div><div class="desc">consume any 5 dust for +20 permanent luck (stacks). you have ' + totalDust + ' dust total.</div></div>';
+  const btn = document.createElement('button');
+  btn.textContent = 'BUILD (' + (shopCounts.dustReactor || 0) + '/' + (upgrades.find(u => u.id === 'dustReactor').max) + ')';
+  btn.addEventListener('click', () => {
+    if (buyUpgrade('dustReactor')) { renderReactor(); }
+  });
+  row.appendChild(btn);
+  el.appendChild(row);
+  if (totalDust === 0) {
+    const note = document.createElement('div');
+    note.style.cssText = 'color:var(--muted);text-align:center;padding:20px;font-size:10px';
+    note.textContent = 'no dust on hand. forge a recipe-less combo to get some.';
+    el.appendChild(note);
+  }
+}
+
+function renderExperiments() {
+  const el = document.getElementById('labExperimentsList');
+  if (!el) return;
+  el.innerHTML = '';
+  const inv = getCurrentInventory();
+  const rar = getCurrentRarities();
+
+  const row1 = document.createElement('div');
+  row1.className = 'shop-item';
+  row1.innerHTML = '<div class="info"><div class="name">Mutate Boost</div><div class="desc">+25% mutation chance on rolls. costs 5000 credits.</div></div>';
+  const btn1 = document.createElement('button');
+  btn1.textContent = mutateBoost ? 'ACTIVE' : 'BUY (5000 CR)';
+  btn1.addEventListener('click', () => {
+    if (mutateBoost) { showToast('already active'); return; }
+    if (credits < 5000) { showToast('need 5000 credits'); return; }
+    credits -= 5000;
+    mutateBoost = true;
+    updateUI(); saveGame();
+    showToast('mutate boost activated');
+    renderExperiments();
+  });
+  row1.appendChild(btn1);
+  el.appendChild(row1);
+
+  const row2 = document.createElement('div');
+  row2.className = 'shop-item';
+  row2.innerHTML = '<div class="info"><div class="name">Transmute</div><div class="desc">convert 3 of a rarity into 1 of the next tier. pick below.</div></div>';
+  el.appendChild(row2);
+  const transmuteKeys = Object.keys(inv).filter(k => inv[k] >= 3 && !k.includes(' (M)') && !k.includes(' (BT)') && !k.includes(' (E)'));
+  if (transmuteKeys.length === 0) {
+    const note = document.createElement('div');
+    note.style.cssText = 'color:var(--muted);font-size:10px;padding:4px 8px';
+    note.textContent = 'need 3+ of a rarity to transmute.';
+    el.appendChild(note);
+  } else {
+    for (const key of transmuteKeys) {
+      const r = rar.find(x => x.name === key);
+      const idx = r ? rar.indexOf(r) : -1;
+      if (idx < 0 || idx >= rar.length - 1) continue;
+      const result = rar[idx + 1].name;
+      const trow = document.createElement('div');
+      trow.style.cssText = 'display:flex;justify-content:space-between;padding:3px 8px;font-size:10px;border-bottom:1px solid rgba(43,208,208,0.1)';
+      trow.innerHTML = '<span style="color:var(--muted)">' + key + ' x3</span><span style="color:var(--cyan-bright)">-> ' + result + '</span>';
+      const tbtn = document.createElement('button');
+      tbtn.textContent = 'TRANSMUTE';
+      tbtn.style.fontSize = '9px';
+      tbtn.addEventListener('click', () => {
+        if ((inv[key] || 0) < 3) { showToast('need 3 ' + key); return; }
+        inv[key] -= 3;
+        inv[result] = (inv[result] || 0) + 1;
+        fusionCount++;
+        setCurrentInventory(inv);
+        const rIdx = rar.findIndex(x => x.name === result);
+        if (rIdx >= 0 && rIdx > bestRarityIndex) bestRarityIndex = rIdx;
+        playFusionSound();
+        showToast('transmuted 3 ' + key + ' -> ' + result);
+        updateUI(); saveGame(); renderExperiments();
+      });
+      trow.appendChild(tbtn);
+      el.appendChild(trow);
+    }
+  }
+
+  const row3 = document.createElement('div');
+  row3.className = 'shop-item';
+  const infusionBonus = prestigeCount > 0 ? (1 + prestigeCount * 0.1) : 1;
+  row3.innerHTML = '<div class="info"><div class="name">Prestige Infusion</div><div class="desc">passive: each prestige point boosts dust reactor output by 10%. current multiplier: ' + infusionBonus.toFixed(2) + 'x</div></div><div style="font-size:9px;color:var(--muted)">passive</div>';
+  el.appendChild(row3);
+}
+
+function renderLabTab(tab) {
+
+  document.querySelectorAll('.labTab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.labPanel').forEach(p => p.style.display = 'none');
+  const panel = document.getElementById('lab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+  if (panel) panel.style.display = 'block';
+  if (tab === 'fuse') renderFuse();
+  else if (tab === 'evolve') renderEvolve();
+  else if (tab === 'reactor') renderReactor();
+  else if (tab === 'experiments') renderExperiments();
+
+}
+
+document.querySelectorAll('.labTab').forEach(b => b.addEventListener('click', () => renderLabTab(b.dataset.tab)));
 
 function renderShowcase() {
   if (!showcaseContent) return;
@@ -4445,16 +5236,7 @@ function renderRecipeBook() {
   recipeList.innerHTML = '';
   const rar = getCurrentRarities();
   const recipes = [];
-  // 2-of-same -> next tier
-  for (let i = 0; i < rar.length - 1; i++) {
-    recipes.push({ a: rar[i].name, b: rar[i].name, result: rar[i+1].name });
-  }
   // special
-  recipes.push({ a: 'Tabula', b: 'Tabula', result: 'Core' });
-  recipes.push({ a: 'Core', b: 'Core', result: 'Nexus' });
-  for (let i = 0; i < rar.length; i++) {
-    if (rar[i].craftOnly && i > 0) recipes.push({ a: rar[i-1].name, b: rar[i-1].name, result: rar[i].name });
-  }
   for (const rec of crossRecipes) {
     recipes.push({ a: rec.items.join(' + '), b: '', result: rec.result });
   }
@@ -4478,6 +5260,7 @@ function renderRecipeBook() {
 }
 
 document.getElementById('settingsRecipeBtn').addEventListener('click', () => { closeModal(settingsModal); openModal(recipeModal); renderRecipeBook(); });
+document.getElementById('settingsEvolveBtn').addEventListener('click', () => { closeModal(settingsModal); enterLab('evolve'); });
 document.getElementById('recipeClose').addEventListener('click', () => closeModal(recipeModal));
 dailyModal.addEventListener('click', e => { if (e.target === dailyModal) closeModal(dailyModal); });
 lbSubmit.addEventListener('click', submitScore);
@@ -4499,7 +5282,7 @@ function _hashStr(s) {
 function saveGame() {
   try {
     const obj = {
-      saveVersion: SAVE_VERSION, inventory, pastInventory, futureInventory, mutatedInventory, baseLuck, rolls, credits, unlocked, shopCounts, autoRoll, achievementsUnlocked, bestRarityIndex, startTime, currentBiome, prestigePoints, prestigeCount, transcendencePoints, transcendenceCount, lifetimeRolls, lifetimeCredits, dailyChallengeDate, dailyChallengeProgress, ownedRarities, collectionRewardClaimed, pityCounter, rollStreak, autoSellThreshold, questClaimed, taskProgress, flashesEnabled, qMarkOdds, qMarkRollCounter, qMarkChangeInterval, qMarkShowChance, equippedRarity, fusionCount, autoFuse, autoEquipBest, setsClaimed, rngUnlocked
+      saveVersion: SAVE_VERSION, inventory, pastInventory, futureInventory, mutatedInventory, baseLuck, rolls, credits, unlocked, shopCounts, autoRoll, achievementsUnlocked, bestRarityIndex, startTime, currentBiome, prestigePoints, prestigeCount, transcendencePoints, transcendenceCount, lifetimeRolls, lifetimeCredits, dailyChallengeDate, dailyChallengeProgress, ownedRarities, collectionRewardClaimed, pityCounter, rollStreak, autoSellThreshold, questClaimed, taskProgress, flashesEnabled, qMarkOdds, qMarkRollCounter, qMarkChangeInterval, qMarkShowChance, equippedRarity, fusionCount, autoFuse, autoEquipBest, setsClaimed, rngUnlocked, mutateBoost, autoFish, fishRodLevel, fishBaitLevel, fishBoatLevel, fishTotalCaught, autoReel, autoFish, fishRodLevel, fishBaitLevel, fishBoatLevel, fishTotalCaught
     };
     const raw = JSON.stringify(obj, _saveReplacer);
     obj.checksum = _hashStr(raw);
@@ -4558,6 +5341,18 @@ function loadGame() {
     if (typeof data.autoEquipBest === 'boolean') { autoEquipBest = data.autoEquipBest; updateAutoEquipBtn(); }
     if (data.setsClaimed) setsClaimed = data.setsClaimed;
     if (typeof data.rngUnlocked === 'boolean') rngUnlocked = data.rngUnlocked;
+      if (typeof data.mutateBoost === 'boolean') mutateBoost = data.mutateBoost;
+      if (typeof data.autoFish === 'boolean') autoFish = data.autoFish;
+      if (typeof data.fishRodLevel === 'number') fishRodLevel = data.fishRodLevel;
+      if (typeof data.fishBaitLevel === 'number') fishBaitLevel = data.fishBaitLevel;
+      if (typeof data.fishBoatLevel === 'number') fishBoatLevel = data.fishBoatLevel;
+      if (typeof data.fishTotalCaught === 'number') fishTotalCaught = data.fishTotalCaught;
+      if (typeof data.autoReel === 'boolean') unlocked.autoReel = data.autoReel;
+      if (typeof data.autoFish === 'boolean') autoFish = data.autoFish;
+      if (typeof data.fishRodLevel === 'number') fishRodLevel = data.fishRodLevel;
+      if (typeof data.fishBaitLevel === 'number') fishBaitLevel = data.fishBaitLevel;
+      if (typeof data.fishBoatLevel === 'number') fishBoatLevel = data.fishBoatLevel;
+      if (typeof data.fishTotalCaught === 'number') fishTotalCaught = data.fishTotalCaught;
     if (data.questClaimed) questClaimed = { ...questClaimed, ...data.questClaimed };
     if (data.taskProgress) taskProgress = { ...taskProgress, ...data.taskProgress };
     if (typeof data.prestigePoints === 'number') prestigePoints = data.prestigePoints;
@@ -4693,11 +5488,21 @@ function loop(ts) {
   const secs = Math.ceil(remaining / 1000);
   if (biomeTimerEl && biomeTimerEl.textContent !== secs + 's') biomeTimerEl.textContent = secs + 's';
 
-  if (autoRoll && !isRolling && timePeriod === 'present') {
+  if (autoRoll && !isRolling && timePeriod === 'present' && !inLab && !inFishing) {
     if (ts - lastAuto > autoInterval) {
       triggerRoll(1);
       lastAuto = ts;
     }
+  }
+  if (inLab && autoFish && Date.now() - fishLastCast > 2000) {
+    castFish();
+    fishLastCast = Date.now();
+    renderFishing();
+  }
+  if (inFishing && autoFish && Date.now() - fishLastCast > fishCooldown) {
+    castFish(true);
+    fishLastCast = Date.now();
+    renderFishing();
   }
   draw();
   requestAnimationFrame(loop);
@@ -4715,6 +5520,16 @@ if (lastLoginDate !== today) {
   localStorage.setItem('luxRngLastLogin', today);
   localStorage.setItem('luxRngLoginStreak', String(loginStreak));
   const reward = Math.min(10000, 100 * loginStreak);
+  if (loginStreak >= 3) {
+    const rar = getCurrentRarities();
+    const bonusIdx = Math.min(bestRarityIndex + 1, rar.length - 1);
+    if (bonusIdx >= 0 && bonusIdx < rar.length && !rar[bonusIdx].craftOnly) {
+      const inv = getCurrentInventory();
+      inv[rar[bonusIdx].name] = (inv[rar[bonusIdx].name] || 0) + 1;
+      setCurrentInventory(inv);
+      showToast('daily bonus: ' + rar[bonusIdx].name);
+    }
+  }
   credits += reward;
   baseLuck += Math.min(5, loginStreak * 0.5);
   showToast('daily login: day ' + loginStreak + ' — +' + reward + ' credits, +' + Math.min(5, loginStreak * 0.5) + ' luck');
