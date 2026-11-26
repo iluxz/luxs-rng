@@ -6783,9 +6783,46 @@ function saveGame() {
   } catch (e) {}
 }
 
+function migrateLegacyLuxSave() {
+  try {
+    const key = saveKey();
+    const legacy = localStorage.getItem('luxRngSave');
+    if (!legacy) return null;
+    let data;
+    try { data = JSON.parse(legacy); } catch (_) { return null; }
+    if (!data || typeof data !== 'object') return null;
+    const looksLikeSave = ('saveVersion' in data) || ('inventory' in data) || ('rolls' in data) || ('credits' in data);
+    if (!looksLikeSave) return null;
+    localStorage.setItem(key, legacy);
+    console.warn('[lux-rng debug] migrated legacy luxRngSave ->', key);
+    return legacy;
+  } catch (e) {
+    console.error('[lux-rng debug] legacy migration failed', e);
+    return null;
+  }
+}
+
 function loadGame() {
   try {
-    const raw = localStorage.getItem(saveKey());
+    let raw = localStorage.getItem(saveKey());
+    let migrated = false;
+    if (raw) {
+      let probe = null;
+      try { probe = JSON.parse(raw); } catch (_) { probe = null; }
+      const looksLikeSave = probe && typeof probe === 'object' && !Array.isArray(probe) && (('saveVersion' in probe) || ('inventory' in probe) || ('rolls' in probe) || ('credits' in probe) || ('checksum' in probe));
+      if (!looksLikeSave) {
+        console.warn('[lux-rng debug] invalid slot save payload, attempting legacy migration', { key: saveKey(), rawHead: String(raw).slice(0,200) });
+        const legacy = migrateLegacyLuxSave();
+        if (legacy) { raw = legacy; migrated = true; }
+        else {
+          console.warn('[lux-rng debug] invalid slot save and no legacy save; ignoring bad payload');
+          return;
+        }
+      }
+    } else {
+      const legacy = migrateLegacyLuxSave();
+      if (legacy) { raw = legacy; migrated = true; }
+    }
     if (!raw) return;
     const data = JSON.parse(raw, (key, value) => {
       if (value === '__INF__') return Infinity;
@@ -6803,6 +6840,7 @@ function loadGame() {
         return;
       }
     }
+    if (migrated) console.warn('[lux-rng debug] loaded migrated legacy save');
     if (data.inventory) inventory = data.inventory;
     if (data.pastInventory) pastInventory = data.pastInventory;
     if (data.futureInventory) futureInventory = data.futureInventory;
