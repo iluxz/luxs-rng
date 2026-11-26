@@ -2137,30 +2137,91 @@ function triggerCorruption(seed) {
   try { showToast('CORRUPTED DATA DETECTED'); } catch (_) {}
 }
 
+function luxDebugDump(reason, extra = {}) {
+  try {
+    const key = (typeof saveKey === 'function') ? saveKey() : '(no saveKey)';
+    const raw = localStorage.getItem(key);
+    let parsed = null;
+    let parseErr = null;
+    try { parsed = raw ? JSON.parse(raw) : null; } catch (e) { parseErr = String(e && e.message || e); }
+    const lsKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k) lsKeys.push(k);
+    }
+    const dump = {
+      reason,
+      at: new Date().toISOString(),
+      href: location.href,
+      origin: location.origin,
+      protocol: location.protocol,
+      isSecureContext: window.isSecureContext,
+      saveKey: key,
+      currentSlot: typeof currentSlot !== 'undefined' ? currentSlot : '(no slot)',
+      rawType: raw === null ? 'null' : typeof raw,
+      rawLength: raw ? raw.length : 0,
+      rawHead: raw ? raw.slice(0, 300) : null,
+      rawTail: raw ? raw.slice(-300) : null,
+      parsedType: parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed,
+      parsedKeys: parsed && typeof parsed === 'object' ? Object.keys(parsed).slice(0, 80) : null,
+      parseErr,
+      localStorageLength: localStorage.length,
+      localStorageKeys: lsKeys,
+      luxKeys: lsKeys.filter(k => k.toLowerCase().includes('lux') || k.toLowerCase().includes('rng') || k.toLowerCase().includes('save')),
+      extra
+    };
+    console.groupCollapsed('[lux-rng debug] ' + reason);
+    console.log(dump);
+    if (raw) console.log('[lux-rng debug] raw save', raw);
+    console.groupEnd();
+    window.__luxRngLastDebug = dump;
+    return dump;
+  } catch (e) {
+    console.error('[lux-rng debug] dump failed', e);
+    return { reason, error: String(e && e.message || e) };
+  }
+}
+window.luxDebugDump = luxDebugDump;
+window.addEventListener('storage', (e) => {
+  if (!e.key) return;
+  if (e.key.toLower().includes('lux') || e.key.toLowerCase().includes('rng') || e.key.toLowerCase().includes('save')) {
+    console.warn('[lux-rng debug] storage event', { key: e.key, oldLength: e.oldValue ? e.oldValue.length : 0, newLength: e.newValue ? e.newValue.length : 0, newHead: e.newValue ? e.newValue.slice(0,120) : null });
+  }
+});
+window.addEventListener('beforeunload', () => luxDebugDump('beforeunload'));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') luxDebugDump('visibilitychange:hidden'); });
+
 document.getElementById('settingsExportBtn').addEventListener('click', async () => {
   try {
     closeModal(settingsModal);
     saveGame();
     await showDriveAnim('CLONING DRIVE...', '💾', 1200);
-    const data = localStorage.getItem(saveKey());
+    const key = saveKey();
+    const data = localStorage.getItem(key);
     if (driveAnim) driveAnim.style.display = 'none';
-    if (!data) { showToast('no save to export'); return; }
+    const dump = luxDebugDump('export-click', { key, dataPresent: !!data });
+    if (!data) { showToast('no save to export (check console [lux-rng debug])'); return; }
     let parsed = null;
-    try { parsed = JSON.parse(data); } catch (_) {}
+    try { parsed = JSON.parse(data); } catch (e) { console.warn('[lux-rng debug] export parse err', e); }
     if (!parsed || typeof parsed !== 'object' || typeof parsed.saveVersion === 'undefined') {
-      showToast('export blocked: save data looks invalid');
-      console.warn('[lux-rng] export blocked, unexpected save payload', data);
+      showToast('export blocked: invalid save payload (check console)');
+      console.warn('[lux-rng] export blocked, unexpected save payload', { key, data, dump });
+      try { await navigator.clipboard.writeText(String(data)); showToast('copied raw invalid payload for debug'); } catch (_) {}
       return;
     }
     try {
       await navigator.clipboard.writeText(data);
       showToast('save copied to clipboard');
-    } catch (_) {
+      luxDebugDump('export-success', { length: data.length, checksum: parsed.checksum || null, saveVersion: parsed.saveVersion });
+    } catch (e) {
+      console.error('[lux-rng debug] clipboard write failed', e);
       prompt('copy your save:', data);
     }
-  } catch (_) {
+  } catch (e) {
     if (driveAnim) driveAnim.style.display = 'none';
-    showToast('export failed');
+    console.error('[lux-rng debug] export failed', e);
+    luxDebugDump('export-exception', { error: String(e && e.message || e) });
+    showToast('export failed (check console)');
   }
 });
 
