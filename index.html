@@ -2145,48 +2145,54 @@ function luxDebugDump(reason, extra = {}) {
     let parseErr = null;
     try { parsed = raw ? JSON.parse(raw) : null; } catch (e) { parseErr = String(e && e.message || e); }
     const lsKeys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k) lsKeys.push(k);
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k) lsKeys.push(k); }
+    const snapshot = {};
+    for (const k of lsKeys) {
+      const v = localStorage.getItem(k);
+      snapshot[k] = v == null ? v : (v.length > 800 ? v.slice(0,800) + '...[truncated len='+v.length+']' : v);
     }
     const dump = {
-      reason,
-      at: new Date().toISOString(),
-      href: location.href,
-      origin: location.origin,
-      protocol: location.protocol,
-      isSecureContext: window.isSecureContext,
-      saveKey: key,
-      currentSlot: typeof currentSlot !== 'undefined' ? currentSlot : '(no slot)',
-      rawType: raw === null ? 'null' : typeof raw,
-      rawLength: raw ? raw.length : 0,
-      rawHead: raw ? raw.slice(0, 300) : null,
-      rawTail: raw ? raw.slice(-300) : null,
+      reason, at: new Date().toISOString(), href: location.href, origin: location.origin, protocol: location.protocol,
+      isSecureContext: window.isSecureContext, saveKey: key, currentSlot: typeof currentSlot !== 'undefined' ? currentSlot : '(no slot)',
+      rawType: raw === null ? 'null' : typeof raw, rawLength: raw ? raw.length : 0, rawHead: raw ? raw.slice(0,300) : null,
       parsedType: parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed,
-      parsedKeys: parsed && typeof parsed === 'object' ? Object.keys(parsed).slice(0, 80) : null,
-      parseErr,
-      localStorageLength: localStorage.length,
-      localStorageKeys: lsKeys,
-      luxKeys: lsKeys.filter(k => k.toLowerCase().includes('lux') || k.toLowerCase().includes('rng') || k.toLowerCase().includes('save')),
-      extra
+      parsedKeys: parsed && typeof parsed === 'object' ? Object.keys(parsed).slice(0,120) : null, parseErr,
+      localStorageLength: localStorage.length, localStorageKeys: lsKeys,
+      luxKeys: lsKeys.filter(k => /lux|rng|save/i.test(k)), localStorageSnapshot: snapshot, extra
     };
     console.groupCollapsed('[lux-rng debug] ' + reason);
     console.log(dump);
+    try { console.log('[lux-rng debug] snapshot json', JSON.stringify(snapshot)); } catch(_) {}
     if (raw) console.log('[lux-rng debug] raw save', raw);
+    console.trace('[lux-rng debug] trace');
     console.groupEnd();
     window.__luxRngLastDebug = dump;
     return dump;
-  } catch (e) {
-    console.error('[lux-rng debug] dump failed', e);
-    return { reason, error: String(e && e.message || e) };
-  }
+  } catch (e) { console.error('[lux-rng debug] dump failed', e); return { reason, error: String(e && e.message || e) }; }
 }
 window.luxDebugDump = luxDebugDump;
+(function installLuxStorageTrap(){
+  if (window.__luxStorageTrapInstalled) return;
+  window.__luxStorageTrapInstalled = true;
+  const proto = Object.getPrototypeOf(window.localStorage);
+  const origSet = proto.setItem, origRemove = proto.removeItem, origClear = proto.clear;
+  function isWatched(key){ const k=String(key||'').toLowerCase(); return !key || k.includes('lux') || k.includes('rng') || k.includes('save'); }
+  proto.setItem = function(key, value){
+    try { if (isWatched(key)) console.warn('[lux-rng debug] setItem', { key:String(key), valueHead:String(value).slice(0,250), valueLength:String(value).length, stack:(new Error()).stack }); } catch(_) {}
+    return origSet.apply(this, arguments);
+  };
+  proto.removeItem = function(key){
+    try { if (isWatched(key)) console.warn('[lux-rng debug] removeItem', { key:String(key), stack:(new Error()).stack }); } catch(_) {}
+    return origRemove.apply(this, arguments);
+  };
+  proto.clear = function(){
+    try { console.warn('[lux-rng debug] clear', { stack:(new Error()).stack }); } catch(_) {}
+    return origClear.apply(this, arguments);
+  };
+})();
 window.addEventListener('storage', (e) => {
   if (!e.key) return;
-  if (e.key.toLower().includes('lux') || e.key.toLowerCase().includes('rng') || e.key.toLowerCase().includes('save')) {
-    console.warn('[lux-rng debug] storage event', { key: e.key, oldLength: e.oldValue ? e.oldValue.length : 0, newLength: e.newValue ? e.newValue.length : 0, newHead: e.newValue ? e.newValue.slice(0,120) : null });
-  }
+  if (/lux|rng|save/i.test(e.key)) console.warn('[lux-rng debug] storage event', { key:e.key, oldLength:e.oldValue?e.oldValue.length:0, newLength:e.newValue?e.newValue.length:0, newHead:e.newValue?e.newValue.slice(0,160):null });
 });
 window.addEventListener('beforeunload', () => luxDebugDump('beforeunload'));
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') luxDebugDump('visibilitychange:hidden'); });
