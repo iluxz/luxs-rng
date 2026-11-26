@@ -704,7 +704,7 @@ button.locked {
 }
 
 button.locked::after {
-  content: 'ðŸ”’';
+  content: '🔒';
   margin-left: 6px;
   font-size: 10px;
 }
@@ -973,7 +973,7 @@ button.locked::after {
     <div id="corruptSmear" style="position:absolute;inset:0;z-index:5"></div>
   </div>
   <div id="driveAnim" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(2,3,4,0.85);align-items:center;justify-content:center;flex-direction:column;gap:12px">
-    <div id="driveIcon" style="font-size:64px">ðŸ’¾</div>
+    <div id="driveIcon" style="font-size:64px">💾</div>
     <div id="driveText" style="color:var(--cyan-bright);font-size:12px;letter-spacing:2px"></div>
   </div>
 
@@ -1536,7 +1536,7 @@ function drawGLCube(color, glow, t, extraGlow, mutated) {
 // init GL
 initGL();
 
-/* â”€â”€ ambient background layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── ambient background layer ─────────────────────────────────────────── */
 const bgStars = [];
 for (let i = 0; i < 110; i++) {
   bgStars.push({
@@ -1784,7 +1784,7 @@ async function fetchLeaderboard() {
   renderLeaderboardRows(lbOfflineScores);
   const note = document.createElement('div');
   note.style.cssText = 'color:var(--muted);text-align:center;padding:8px;font-size:10px;letter-spacing:1px';
-  note.textContent = 'offline mode â€” scores saved locally';
+  note.textContent = 'offline mode — scores saved locally';
   leaderboardList.appendChild(note);
 }
 
@@ -1937,7 +1937,7 @@ let musicStarted = false;
 function tryStartMusic() {
   if (musicStarted) return;
   musicStarted = true;
-  bgmAudio.play().catch(() => { musicPlaying = false; if (musicBtn) musicBtn.textContent = 'â™ª OFF'; });
+  bgmAudio.play().catch(() => { musicPlaying = false; if (musicBtn) musicBtn.textContent = '♪ OFF'; });
 }
 document.addEventListener('click', tryStartMusic, { once: true });
 document.addEventListener('keydown', tryStartMusic, { once: true });
@@ -1945,7 +1945,7 @@ document.addEventListener('keydown', tryStartMusic, { once: true });
 function startMusic() {
   if (musicPlaying) return;
   musicPlaying = true;
-  if (musicBtn) musicBtn.textContent = 'â™ª ON';
+  if (musicBtn) musicBtn.textContent = '♪ ON';
   bgmAudio.play().catch(() => {});
   updateSettingsBtns();
 }
@@ -1953,7 +1953,7 @@ function startMusic() {
 function stopMusic() {
   if (!musicPlaying) return;
   musicPlaying = false;
-  if (musicBtn) musicBtn.textContent = 'â™ª OFF';
+  if (musicBtn) musicBtn.textContent = '♪ OFF';
   bgmAudio.pause();
   updateSettingsBtns();
 }
@@ -2014,34 +2014,187 @@ document.getElementById('settingsStatsBtn').addEventListener('click', () => {
 document.getElementById('settingsEventsBtn').addEventListener('click', () => {
   closeModal(settingsModal); openModal(eventsModal); renderEvents();
 });
-document.getElementById('settingsExportBtn').addEventListener('click', () => {
-  saveGame();
-  const raw = localStorage.getItem(saveKey());
-  if (!raw) { showToast('no save found'); return; }
-  const blob = new Blob([raw], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'luxs-rng-save.json'; a.click();
-  URL.revokeObjectURL(url);
-  showToast('save exported');
+const driveAnim = document.getElementById('driveAnim');
+const driveIcon = document.getElementById('driveIcon');
+const driveText = document.getElementById('driveText');
+function showDriveAnim(text, icon, duration) {
+  if (driveText) driveText.textContent = text;
+  if (driveIcon) driveIcon.textContent = icon;
+  if (driveAnim) driveAnim.style.display = 'flex';
+  return new Promise(res => setTimeout(res, duration));
+}
+
+let corruptionStarted = false;
+function triggerCorruption(seed) {
+  if (corruptionStarted) return;
+  corruptionStarted = true;
+  corrupted = true;
+  seed = String(seed || '');
+  let h = 5381;
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) + h + seed.charCodeAt(i)) >>> 0;
+  let rngState = h || 1;
+  function seededRandom() {
+    rngState = (rngState * 1664525 + 1013904223) >>> 0;
+    return rngState / 4294967296;
+  }
+
+  try { autoRoll = false; } catch (_) {}
+  try { if (typeof stopMusic === 'function') stopMusic(); } catch (_) {}
+  try { if (bgmAudio) { bgmAudio.pause(); bgmAudio.src = ''; bgmAudio.load(); } } catch (_) {}
+  try {
+    document.querySelectorAll('audio').forEach(a => {
+      try { a.pause(); a.muted = true; a.volume = 0; a.removeAttribute('src'); a.load(); } catch (_) {}
+    });
+  } catch (_) {}
+  try { if (window.__fhAudio) { window.__fhAudio.pause(); } } catch (_) {}
+
+  const co = document.getElementById('corruptOverlay');
+  const smear = document.getElementById('corruptSmear');
+  if (co) co.style.display = 'block';
+  try { document.body.style.pointerEvents = 'none'; if (co) co.style.pointerEvents = 'all'; } catch (_) {}
+
+  try {
+    const fh = new Audio('https://github.com/iluxz/luxs-rng/releases/download/v0.8-audio/fearfulharmony.mp3');
+    fh.loop = true;
+    fh.volume = 0.6;
+    fh.play().catch(() => {});
+    window.__fhAudio = fh;
+  } catch (_) {}
+
+  const canvases = [document.getElementById('cubeCanvasGL'), document.getElementById('cubeCanvas'), document.getElementById('bgCanvas')].filter(Boolean);
+  const snapshots = [];
+  for (const c of canvases) { try { snapshots.push(c.toDataURL('image/png')); } catch (_) {} }
+  const inlineSvgs = Array.from(document.querySelectorAll('svg')).map(s => s.outerHTML);
+  const src = snapshots.length ? snapshots[0] : null;
+
+  let wave = 0;
+  function addWave() {
+    if (!corruptionStarted) return;
+    wave++;
+    const intensity = Math.min(1, wave / 8);
+    if (!smear) return;
+    const mirrorCount = Math.min(12, 2 + wave * 2);
+    for (let i = 0; i < mirrorCount; i++) {
+      const el = document.createElement('img');
+      if (src) el.src = src;
+      el.style.position = 'absolute';
+      el.style.left = '50%'; el.style.top = '50%';
+      const scale = 1 - i * 0.06;
+      el.style.width = (100 * scale) + '%';
+      el.style.height = (100 * scale) + '%';
+      el.style.transform = 'translate(-50%, -50%) scale(' + scale + ') rotate(' + (i * 7 + wave * 3) + 'deg)';
+      el.style.opacity = String((0.5 - i * 0.03) * intensity);
+      el.style.filter = 'blur(' + (i * 0.6) + 'px) hue-rotate(' + (i * 30 + wave * 15) + 'deg) contrast(' + (1.1 + i * 0.1) + ')';
+      el.style.mixBlendMode = 'screen';
+      smear.appendChild(el);
+    }
+    const distCount = Math.min(20, 3 + wave * 3);
+    for (let i = 0; i < distCount; i++) {
+      const el = document.createElement('img');
+      const ssrc = snapshots.length ? snapshots[Math.floor(seededRandom() * snapshots.length)] : null;
+      if (ssrc) el.src = ssrc;
+      el.style.position = 'absolute';
+      el.style.left = (seededRandom() * 90) + '%';
+      el.style.top = (seededRandom() * 90) + '%';
+      el.style.width = (20 + seededRandom() * 50) + '%';
+      const sx = (seededRandom() < 0.5 ? -1 : 1) * (0.6 + seededRandom() * 1.8);
+      const sy = (seededRandom() < 0.5 ? -1 : 1) * (0.6 + seededRandom() * 1.8);
+      const skewX = (seededRandom() * 40 - 20) * intensity;
+      const skewY = (seededRandom() * 40 - 20) * intensity;
+      el.style.transform = 'scale(' + sx + ', ' + sy + ') skew(' + skewX + 'deg, ' + skewY + 'deg) rotate(' + (seededRandom() * 60 - 30) + 'deg)';
+      el.style.opacity = String((0.3 + seededRandom() * 0.5) * intensity);
+      el.style.filter = 'blur(' + (seededRandom() * 8) + 'px) hue-rotate(' + (seededRandom() * 360) + 'deg) contrast(' + (0.5 + seededRandom() * 2) + ') brightness(' + (0.5 + seededRandom()) + ')';
+      el.style.mixBlendMode = seededRandom() < 0.5 ? 'difference' : 'exclusion';
+      smear.appendChild(el);
+    }
+    const svgCount = Math.min(12, 2 + wave * 2);
+    for (let i = 0; i < svgCount; i++) {
+      const el = document.createElement('div');
+      el.style.position = 'absolute';
+      el.style.left = (seededRandom() * 85) + '%';
+      el.style.top = (seededRandom() * 85) + '%';
+      const sx = (seededRandom() < 0.5 ? -1 : 1) * (1 + seededRandom() * 3);
+      const sy = (seededRandom() < 0.5 ? -1 : 1) * (1 + seededRandom() * 3);
+      const skewX = seededRandom() * 80 - 40;
+      const skewY = seededRandom() * 80 - 40;
+      const rot = seededRandom() * 360;
+      const persp = 200 + seededRandom() * 400;
+      el.style.transform = 'perspective(' + persp + 'px) rotateX(' + (seededRandom()*60-30) + 'deg) rotateY(' + (seededRandom()*60-30) + 'deg) scale(' + sx + ', ' + sy + ') skew(' + skewX + 'deg, ' + skewY + 'deg) rotate(' + rot + 'deg)';
+      el.style.opacity = String((0.5 + seededRandom() * 0.5) * intensity);
+      el.style.filter = 'blur(' + (seededRandom() * 6) + 'px) hue-rotate(' + (seededRandom() * 360) + 'deg) contrast(' + (1.5 + seededRandom() * 2) + ') saturate(' + (seededRandom() * 4) + ')';
+      el.style.mixBlendMode = 'screen';
+      el.style.transformOrigin = 'center center';
+      if (inlineSvgs.length) {
+        el.innerHTML = inlineSvgs[Math.floor(seededRandom() * inlineSvgs.length)];
+        const svg = el.querySelector('svg');
+        if (svg) { svg.style.width = (60 + seededRandom() * 120) + 'px'; svg.style.height = 'auto'; svg.setAttribute('preserveAspectRatio', 'none'); }
+      }
+      smear.appendChild(el);
+    }
+    if (wave < 8) setTimeout(addWave, 1500);
+  }
+  setTimeout(addWave, 800);
+  try { showToast('⚠ CORRUPTED DATA DETECTED'); } catch (_) {}
+}
+
+document.getElementById('settingsExportBtn').addEventListener('click', async () => {
+  try {
+    closeModal(settingsModal);
+    saveGame();
+    await showDriveAnim('CLONING DRIVE...', '💾', 1200);
+    const data = localStorage.getItem(saveKey());
+    if (driveAnim) driveAnim.style.display = 'none';
+    if (!data) { showToast('no save to export'); return; }
+    try {
+      await navigator.clipboard.writeText(data);
+      showToast('save copied to clipboard');
+    } catch (_) {
+      prompt('copy your save:', data);
+    }
+  } catch (_) {
+    if (driveAnim) driveAnim.style.display = 'none';
+    showToast('export failed');
+  }
 });
-document.getElementById('settingsImportBtn').addEventListener('click', () => {
-  const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = '.json,application/json';
-  inp.onchange = () => {
-    const f = inp.files && inp.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        const obj = JSON.parse(String(r.result || ''));
-        if (!obj || typeof obj !== 'object') throw new Error('bad');
-        localStorage.setItem(saveKey(), JSON.stringify(obj));
-        location.reload();
-      } catch (_) { showToast('invalid save file'); }
-    };
-    r.readAsText(f);
-  };
-  inp.click();
+
+document.getElementById('settingsImportBtn').addEventListener('click', async () => {
+  try {
+    closeModal(settingsModal);
+    let text = '';
+    try { text = await navigator.clipboard.readText(); } catch (_) { text = ''; }
+    if (!text) { text = prompt('paste your save string:') || ''; }
+    if (!text) return;
+    await showDriveAnim('PULLING DRIVE...', '💿', 800);
+    await showDriveAnim('INSERTING...', '💿', 800);
+    if (driveAnim) driveAnim.style.display = 'none';
+    let data;
+    try {
+      data = JSON.parse(text, (key, value) => {
+        if (value === '__INF__') return Infinity;
+        if (value === '__NINF__') return -Infinity;
+        if (value === '__NAN__') return NaN;
+        return value;
+      });
+    } catch (_) {
+      triggerCorruption(text);
+      return;
+    }
+    if (!data || typeof data !== 'object' || typeof data.saveVersion === 'undefined') {
+      triggerCorruption(text);
+      return;
+    }
+    if (data.checksum) {
+      const checkObj = { ...data };
+      delete checkObj.checksum;
+      const recomputed = _hashStr(JSON.stringify(checkObj, _saveReplacer));
+      if (recomputed !== data.checksum) { triggerCorruption(text); return; }
+    }
+    localStorage.setItem(saveKey(), text);
+    location.reload();
+  } catch (_) {
+    if (driveAnim) driveAnim.style.display = 'none';
+    triggerCorruption('');
+  }
 });
 document.getElementById('settingsClose').addEventListener('click', () => closeModal(settingsModal));
 document.getElementById('statsClose').addEventListener('click', () => closeModal(statsModal));
@@ -2141,7 +2294,7 @@ const achievements = [
   { id: 'radiant', name: 'Glory', desc: 'roll a Radiant cube', check: () => (inventory['Radiant'] || 0) > 0, reward: { luck: 25 } },
   { id: 'ethereal', name: 'Ghost', desc: 'roll an Ethereal cube', check: () => (inventory['Ethereal'] || 0) > 0, reward: { luck: 40 } },
   { id: 'transcendent', name: 'Beyond', desc: 'roll a Transcendent cube', check: () => (inventory['Transcendent'] || 0) > 0, reward: { luck: 60 } },
-  { id: 'quantum', name: 'SchrÃ¶dinger', desc: 'roll a Quantum cube', check: () => (inventory['Quantum'] || 0) > 0, reward: { luck: 80 } },
+  { id: 'quantum', name: 'Schrödinger', desc: 'roll a Quantum cube', check: () => (inventory['Quantum'] || 0) > 0, reward: { luck: 80 } },
   { id: 'abyss', name: 'Deep Dive', desc: 'roll an Abyss cube', check: () => (inventory['Abyss'] || 0) > 0, reward: { luck: 100 } },
   { id: 'eternal', name: 'Timeless', desc: 'roll an Eternal cube', check: () => (inventory['Eternal'] || 0) > 0, reward: { luck: 150 } },
   { id: 'sovereign', name: 'King', desc: 'roll a Sovereign cube', check: () => (inventory['Sovereign'] || 0) > 0, reward: { luck: 200 } },
@@ -2294,7 +2447,7 @@ const rarities = [
   { name: 'RNG',         odds: 3.33e26,   cap: 4.7e26,    color: 'prism',    glow: '#ffffff', luck: 1e27,     particles: 5000, shake: 500,  flash: 1.00, chroma: 1.00, craftOnly: true },
 ];
 
-// past rarities (amber/brown theme) â€” scaled to match present rarity odds (rarest = 1 in 150 quadrillion)
+// past rarities (amber/brown theme) — scaled to match present rarity odds (rarest = 1 in 150 quadrillion)
 let pastRarities = [
   { name: 'Pebble',      odds: 1.5,        cap: 2,          color: '#a08060', glow: '#c0a080', luck: 0.05,    particles: 10,  shake: 1,    flash: 0.01, chroma: 0 },
   { name: 'Fossil',      odds: 8,          cap: 16,         color: '#8a7050', glow: '#aa9070', luck: 0.15,    particles: 14,  shake: 2,    flash: 0.02, chroma: 0 },
@@ -2348,7 +2501,7 @@ let pastRarities = [
   { name: 'Origin',      odds: 1e100,       cap: 4.7e100,    color: '#000000', glow: '#040200', luck: 1.72e19,  particles: 920, shake: 182,  flash: 1.00, chroma: 0 },
 ];
 
-// future rarities (purple/neon theme) â€” scaled to match present rarity odds (rarest = 1 in 1 billion)
+// future rarities (purple/neon theme) — scaled to match present rarity odds (rarest = 1 in 1 billion)
 let futureRarities = [
   { name: 'Neon',        odds: 1.5,        cap: 2,          color: '#ff00ff', glow: '#ff80ff', luck: 0.05,    particles: 10,  shake: 1,    flash: 0.01, chroma: 0.1 },
   { name: 'Cyber',       odds: 8,          cap: 16,         color: '#00ffff', glow: '#80ffff', luck: 0.15,    particles: 14,  shake: 2,    flash: 0.02, chroma: 0.15 },
@@ -2690,7 +2843,7 @@ let fishBoatLevel = 0;
 let fishTotalCaught = 0;
 
 
-// â”€â”€ achievement luck economy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── achievement luck economy ──────────────────────────────────────────────
 // rarity achievements now pay 5% of that rarity's own luck value, so the
 // reward always feels proportional to the thing you actually rolled.
 const rarityAchievementTargets = {
@@ -3958,7 +4111,7 @@ function drawDesertScene(ctx, w, h) {
     if (c.dug && c.hasRelic) {
       ctx.fillStyle = '#fff';
       ctx.font = '14px serif';
-      ctx.fillText(c.rare ? 'ðŸ’Ž' : 'ðŸº', cx + 6, cy + 20);
+      ctx.fillText(c.rare ? '💎' : '🏺', cx + 6, cy + 20);
     }
   }
   // progress
@@ -4555,7 +4708,7 @@ function renderControls() {
   });
 }
 
-/* â”€â”€ shopkeeper dialogue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── shopkeeper dialogue ─────────────────────────────────────────────── */
 let shopkeeperTimer = null;
 let shopkeeperMet = false;
 
@@ -4755,7 +4908,7 @@ function getPrestigeGain() {
 
 function prestige() {
   const gain = getPrestigeGain();
-  if (gain <= 0) { showToast('not ready to rebirth yet â€” earn more credits'); return; }
+  if (gain <= 0) { showToast('not ready to rebirth yet — earn more credits'); return; }
   if (!confirm('rebirth? you will lose credits, rolls, inventory, and shop upgrades, but gain ' + gain + ' prestige points')) return;
   prestigePoints += gain;
   prestigeCount++;
@@ -4868,7 +5021,7 @@ function transcend() {
   updateUI();
   updatePrestigeUI();
   playTranscendSound();
-  showToast('transcendence #' + transcendenceCount + ' â€” +50% luck forever');
+  showToast('transcendence #' + transcendenceCount + ' — +50% luck forever');
 }
 
 function updatePrestigeUI() {
@@ -6777,7 +6930,7 @@ if (lastLoginDate !== today) {
   }
   credits += reward;
   baseLuck += Math.min(5, loginStreak * 0.5);
-  showToast('daily login: day ' + loginStreak + ' â€” +' + reward + ' credits, +' + Math.min(5, loginStreak * 0.5) + ' luck');
+  showToast('daily login: day ' + loginStreak + ' — +' + reward + ' credits, +' + Math.min(5, loginStreak * 0.5) + ' luck');
   updateUI();
   saveGame();
 }
