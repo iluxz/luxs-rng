@@ -2174,11 +2174,19 @@ window.luxDebugDump = luxDebugDump;
 (function installLuxStorageTrap(){
   if (window.__luxStorageTrapInstalled) return;
   window.__luxStorageTrapInstalled = true;
+  window.__luxSetItemTraces = window.__luxSetItemTraces || [];
   const proto = Object.getPrototypeOf(window.localStorage);
   const origSet = proto.setItem, origRemove = proto.removeItem, origClear = proto.clear;
   function isWatched(key){ const k=String(key||'').toLowerCase(); return !key || k.includes('lux') || k.includes('rng') || k.includes('save'); }
   proto.setItem = function(key, value){
-    try { if (isWatched(key)) console.warn('[lux-rng debug] setItem', { key:String(key), valueHead:String(value).slice(0,250), valueLength:String(value).length, stack:(new Error()).stack }); } catch(_) {}
+    try {
+      if (isWatched(key)) {
+        const entry = { t:new Date().toISOString(), key:String(key), valueHead:String(value).slice(0,250), valueLength:String(value).length, stack:(new Error()).stack };
+        window.__luxSetItemTraces.push(entry);
+        if (window.__luxSetItemTraces.length > 100) window.__luxSetItemTraces.shift();
+        console.warn('[lux-rng debug] setItem', entry);
+      }
+    } catch(_) {}
     return origSet.apply(this, arguments);
   };
   proto.removeItem = function(key){
@@ -2204,15 +2212,28 @@ document.getElementById('settingsExportBtn').addEventListener('click', async () 
     await showDriveAnim('CLONING DRIVE...', '💾', 1200);
     const key = saveKey();
     const data = localStorage.getItem(key);
+    const legacy = localStorage.getItem('luxRngSave');
+    const legacySlot1 = localStorage.getItem('luxRngSave_1');
+    const slotKey = localStorage.getItem('luxRngSlot');
     if (driveAnim) driveAnim.style.display = 'none';
-    const dump = luxDebugDump('export-click', { key, dataPresent: !!data });
+    const extra = {
+      key, dataPresent: !!data, slotKey,
+      legacyLuxRngSavePresent: !!legacy, legacyLuxRngSaveLength: legacy ? legacy.length : 0, legacyLuxRngSaveHead: legacy ? legacy.slice(0,200) : null,
+      slot1Present: !!legacySlot1, slot1Length: legacySlot1 ? legacySlot1.length : 0, slot1Head: legacySlot1 ? legacySlot1.slice(0,200) : null,
+      sameAsSlot1: data === legacySlot1,
+      allLocalStorage: (()=>{ const o={}; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); const v=k?localStorage.getItem(k):null; o[k]=v==null?v:(v.length>500?v.slice(0,500)+'...[truncated len='+v.length+']':v); } return o; })(),
+      recentSetItemTraces: window.__luxSetItemTraces || []
+    };
+    const dump = luxDebugDump('export-click', extra);
+    console.log('[lux-rng debug] EXPORT CLICK FULL', { key, data, legacy, dump, extra });
+    try { showToast('debug: exported key=' + key + ' len=' + (data?data.length:0) + ' (console has full dump)'); } catch(_) {}
     if (!data) { showToast('no save to export (check console [lux-rng debug])'); return; }
     let parsed = null;
     try { parsed = JSON.parse(data); } catch (e) { console.warn('[lux-rng debug] export parse err', e); }
     if (!parsed || typeof parsed !== 'object' || typeof parsed.saveVersion === 'undefined') {
       showToast('export blocked: invalid save payload (check console)');
-      console.warn('[lux-rng] export blocked, unexpected save payload', { key, data, dump });
-      try { await navigator.clipboard.writeText(String(data)); showToast('copied raw invalid payload for debug'); } catch (_) {}
+      console.warn('[lux-rng] export blocked, unexpected save payload', { key, data, legacy, dump });
+      try { await navigator.clipboard.writeText(JSON.stringify({ debug:'invalid-export-payload', key, data, legacyHead: legacy?legacy.slice(0,200):null, dump }, null, 2)); showToast('copied debug report to clipboard'); } catch (_) {}
       return;
     }
     try {
@@ -2226,7 +2247,7 @@ document.getElementById('settingsExportBtn').addEventListener('click', async () 
   } catch (e) {
     if (driveAnim) driveAnim.style.display = 'none';
     console.error('[lux-rng debug] export failed', e);
-    luxDebugDump('export-exception', { error: String(e && e.message || e) });
+    luxDebugDump('export-exception', { error: String(e && e.message || e), stack: String(e && e.stack || e) });
     showToast('export failed (check console)');
   }
 });
